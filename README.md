@@ -63,5 +63,9 @@ oc login …
 
 Four GitOps layers: platform infra → app infra → application → RAG population (`RAG/` seed corpus).
 
+## Mock UI (browser preview)
+
+Open **`mock-ui/index.html`** in your browser — no build or cluster needed. See [mock-ui/README.md](mock-ui/README.md).
+
 ## Reference (patterns only)
 (https://github.com/ypreiger/ragu-builder) repo uses **Open WebUI → openai-gateway → MaaS → LLMInferenceService**. This product reuses the **gateway abstraction** idea but owns its own namespace, models, and compliance workflow.
