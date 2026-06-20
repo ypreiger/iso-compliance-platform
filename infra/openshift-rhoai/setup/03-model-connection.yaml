@@ -30,7 +30,7 @@ metadata:
     openshift.io/display-name: "Anthropic Claude Credentials"
 type: Opaque
 stringData:
-  VERTEX_AI_PROJECT_ID: "iso-compliance-platform"
+  VERTEX_AI_PROJECT_ID: "itpc-gcp-global-revenue-claude"
   VERTEX_AI_REGION: "us-east5"
   VERTEX_AI_ENDPOINT: "us-east5-aiplatform.googleapis.com"
   MODEL_NAME: "claude-3-5-sonnet@20240620"
@@ -39,7 +39,7 @@ stringData:
   GCP_CREDENTIALS: |
     {
       "type": "service_account",
-      "project_id": "iso-compliance-platform",
+      "project_id": "itpc-gcp-global-revenue-claude",
       "private_key_id": "REPLACE_WITH_KEY_ID",
       "private_key": "-----BEGIN PRIVATE KEY-----\nREPLACE_WITH_PRIVATE_KEY\n-----END PRIVATE KEY-----\n",
       "client_email": "REPLACE_WITH_SA@PROJECT.iam.gserviceaccount.com",
