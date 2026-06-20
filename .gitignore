@@ -1,0 +1,32 @@
+# Local / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+.next/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Generated exports (samples)
+*.docx
+*.xlsx
+!docs/samples/**
+
+# Kubernetes secrets (never commit real values)
+**/secrets/*.yaml
+!**/secrets/*.example.yaml
