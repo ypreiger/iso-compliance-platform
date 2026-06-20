@@ -1,0 +1,37 @@
+# Initial RAG corpus for ISO compliance platform.
+# Large PDFs tracked with Git LFS (see .gitattributes).
+
+version: "1"
+description: >
+  Seed corpus for layer 04 (rag-population). Standards drive clause mapping;
+  samples teach Hebrew finding phrasing; templates are report shells (added later).
+
+collections:
+  - id: iso-standards
+    path: RAG-Standards
+    kind: standards
+    languages: [en, he]
+    standards: [ISO9001, ISO14001, ISO45001, ISO13485]
+    ingest:
+      chunk_size: 1200
+      chunk_overlap: 200
+      embed_model: iso-embed
+
+  - id: iso-samples
+    path: RAG-Samples
+    kind: samples
+    languages: [he]
+    ingest:
+      chunk_size: 800
+      chunk_overlap: 150
+      embed_model: iso-embed
+
+  - id: iso-templates
+    path: RAG-Templates
+    kind: templates
+    languages: [he]
+    optional: true
+    ingest:
+      chunk_size: 500
+      chunk_overlap: 100
+      embed_model: iso-embed

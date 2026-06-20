@@ -1,0 +1,3 @@
+# Placeholder for Hebrew report templates (DOCX).
+# Add template files here; layer 04 will ingest when present.
+# See ../manifest.yaml collection iso-templates (optional: true).

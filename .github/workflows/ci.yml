@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test deps
+        run: |
+          pip install pytest pyyaml fastapi httpx psycopg[binary] uvicorn pydantic-settings
+          pip install -r apps/iso-api/requirements.txt
+          pip install -r services/rag-iso/requirements.txt
+
+      - name: RAG local verify
+        run: ./scripts/verify-rag-local.sh
+
+      - name: Pytest
+        run: |
+          PYTHONPATH=apps/iso-api:services/rag-iso pytest -q apps/iso-api/tests services/rag-iso/tests
+
+      - name: Shellcheck scripts
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck scripts/*.sh
+
+      - name: Kustomize build (dry)
+        run: |
+          for d in gitops/layers/*/; do
+            kubectl kustomize "$d" > /dev/null
+          done
+          kubectl kustomize gitops/root > /dev/null

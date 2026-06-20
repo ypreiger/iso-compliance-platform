@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: iso-03-application
+  namespace: openshift-gitops
+  annotations:
+    argoproj.io/sync-wave: "3"
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ypreiger/iso-compliance-platform.git
+    targetRevision: main
+    path: gitops/layers/03-application
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: iso-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iso-web
+  labels:
+    app.kubernetes.io/name: iso-web
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: iso-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: iso-web
+    spec:
+      containers:
+        - name: iso-web
+          image: iso-web:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: ISO_API_URL
+              value: "http://iso-api:8080"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iso-web
+  labels:
+    app.kubernetes.io/name: iso-web
+spec:
+  selector:
+    app.kubernetes.io/name: iso-web
+  ports:
+    - port: 8080
+      targetPort: http
+      name: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: iso-web
+  labels:
+    app.kubernetes.io/name: iso-web
+spec:
+  to:
+    kind: Service
+    name: iso-web
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

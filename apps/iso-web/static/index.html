@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ISO Compliance Platform</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; }
+    code { background: #f4f4f4; padding: 0.1rem 0.3rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>ISO Compliance Platform</h1>
+  <p>Web shell (Phase 1). API health: <code id="api">checking…</code></p>
+  <script>
+    fetch('/api/health').then(r => r.json()).then(d => {
+      document.getElementById('api').textContent = d.status || 'unknown';
+    }).catch(() => { document.getElementById('api').textContent = 'unreachable'; });
+  </script>
+</body>
+</html>

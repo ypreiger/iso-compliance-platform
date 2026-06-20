@@ -1,0 +1,16 @@
+# Documents RHOAI/MaaS endpoints for the application (no operator install — cluster admin prerequisite).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iso-rhoai-endpoints
+  labels:
+    app.kubernetes.io/component: platform-config
+data:
+  README: |
+    Cluster must have OpenShift AI with MaaS OpenAI-compatible gateway.
+    Set LLM_GATEWAY_URL in iso-app-config after install (layer 02).
+  MAAS_ORIGIN_PLACEHOLDER: "https://maas.apps.REPLACE_CLUSTER_DOMAIN"
+  LLM_MODEL_MAPPING: "iso-mapper"
+  LLM_MODEL_REPORT: "iso-report"
+  LLM_MODEL_EMBED: "iso-embed"
+  RHOAI_DOCS: "https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/govern_llm_access_with_models-as-a-service/index"

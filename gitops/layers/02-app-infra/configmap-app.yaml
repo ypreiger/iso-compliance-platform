@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iso-app-config
+  labels:
+    app.kubernetes.io/component: app-infra
+data:
+  DATABASE_HOST: "iso-postgres"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "iso"
+  DATABASE_USER: "iso"
+  REDIS_URL: "redis://iso-redis:6379/0"
+  LLM_GATEWAY_URL: "https://REPLACE-maas-or-gateway/v1"
+  LLM_MODEL_MAPPING: "iso-mapper"
+  LLM_MODEL_REPORT: "iso-report"
+  LLM_MODEL_EMBED: "iso-embed"
+  RAG_MANIFEST_PATH: "/seed/RAG/manifest.yaml"
+  GIT_REPO_URL: "https://github.com/ypreiger/iso-compliance-platform.git"
+  GIT_REPO_REVISION: "main"

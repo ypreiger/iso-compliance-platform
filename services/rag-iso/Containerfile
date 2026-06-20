@@ -1,0 +1,9 @@
+FROM registry.access.redhat.com/ubi9/python-311:latest
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY rag_iso ./rag_iso
+
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "-m", "rag_iso.ingest"]

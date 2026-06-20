@@ -21,11 +21,13 @@ dist/
 
 # OS
 .DS_Store
+**/.DS_Store
 
 # Generated exports (samples)
 *.docx
 *.xlsx
 !docs/samples/**
+!RAG/**/*.docx
 
 # Kubernetes secrets (never commit real values)
 **/secrets/*.yaml

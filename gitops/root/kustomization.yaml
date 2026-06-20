@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - application.yaml
+  - applications/iso-01-platform-infra.yaml
+  - applications/iso-02-app-infra.yaml
+  - applications/iso-03-application.yaml
+  - applications/iso-04-rag-population.yaml

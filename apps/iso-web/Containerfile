@@ -1,0 +1,9 @@
+FROM registry.access.redhat.com/ubi9/python-311:latest
+
+WORKDIR /app
+COPY static ./static
+COPY server.py .
+
+ENV PYTHONUNBUFFERED=1
+EXPOSE 8080
+CMD ["python", "server.py"]

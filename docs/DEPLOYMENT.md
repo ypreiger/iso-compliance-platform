@@ -44,6 +44,20 @@ curl -sk "$LLM_GATEWAY_URL/models" -H "Authorization: Bearer $LLM_API_KEY"
 # chat/completions smoke test with model alias iso-mapper
 ```
 
+### GitOps one-click (recommended)
+
+See **[GITOPS.md](GITOPS.md)** — four layers under `gitops/layers/`:
+
+1. Platform infra (namespace, RBAC, RHOAI endpoint docs)
+2. App infra (Postgres, Redis, PVCs, secrets example)
+3. Application (`iso-api`, `iso-web`)
+4. RAG population (Job ingests `RAG/` per `RAG/manifest.yaml`)
+
+```bash
+./scripts/deploy-all.sh
+./scripts/verify-all.sh
+```
+
 ## k8s-litellm (maintained parity)
 
 ### Prerequisites

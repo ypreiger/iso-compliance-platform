@@ -39,7 +39,19 @@ iso-compliance-platform/
 - [Architecture](docs/ARCHITECTURE.md)
 - [User interface plan](docs/UI.md)
 - [Deployment flavors](docs/DEPLOYMENT.md)
+- [GitOps one-click deploy](docs/GITOPS.md)
+
+## One-click deploy (OpenShift)
+
+Assumes only a cluster with **OpenShift GitOps** is preinstalled:
+
+```bash
+oc login …
+./scripts/deploy-all.sh
+./scripts/verify-all.sh
+```
+
+Four GitOps layers: platform infra → app infra → application → RAG population (`RAG/` seed corpus).
 
 ## Reference (patterns only)
-
-The [ragu-builder](https://github.com/ypreiger/ragu-builder) repo uses **Open WebUI → openai-gateway → MaaS → LLMInferenceService**. This product reuses the **gateway abstraction** idea but owns its own namespace, models, and compliance workflow.
+(https://github.com/ypreiger/ragu-builder) repo uses **Open WebUI → openai-gateway → MaaS → LLMInferenceService**. This product reuses the **gateway abstraction** idea but owns its own namespace, models, and compliance workflow.
