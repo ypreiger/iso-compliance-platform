@@ -1,0 +1,18 @@
+.layout { display: flex; min-height: 100vh; font-family: system-ui, sans-serif; }
+.sidebar { width: 220px; background: #1a1a2e; color: #eee; padding: 1rem; }
+.sidebar a { color: #eee; display: block; padding: 0.4rem 0; text-decoration: none; }
+.sidebar a:hover { text-decoration: underline; }
+.main { flex: 1; padding: 1.5rem; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #ddd; padding-bottom: 0.5rem; }
+.btn { padding: 0.4rem 0.8rem; cursor: pointer; margin-right: 0.5rem; }
+.card { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+.grid3 { display: grid; grid-template-columns: 1fr 2fr 2fr; gap: 1rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: start; }
+[dir="rtl"] th, [dir="rtl"] td { text-align: end; }
+.iso-rtl { direction: rtl; text-align: right; }
+.iso-ltr { direction: ltr; text-align: left; }
+.bilingual { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+input, textarea, select { width: 100%; padding: 0.4rem; margin-bottom: 0.5rem; }
+.alert { padding: 0.75rem; background: #fee; border: 1px solid #fcc; margin-bottom: 1rem; }
+.alert-warn { background: #ffc; border-color: #dd0; }

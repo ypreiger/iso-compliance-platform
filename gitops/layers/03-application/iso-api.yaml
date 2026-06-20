@@ -37,6 +37,42 @@ spec:
                 secretKeyRef:
                   name: iso-secrets
                   key: LLM_API_KEY
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: iso-secrets
+                  key: GOOGLE_CLIENT_SECRET
+                  optional: true
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: iso-secrets
+                  key: JWT_SECRET
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: GOOGLE_CLIENT_ID
+            - name: AUTH_DEV_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: AUTH_DEV_MODE
+            - name: ADMIN_EMAILS
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: ADMIN_EMAILS
+            - name: ISO_WEB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: ISO_WEB_URL
+            - name: DOCGEN_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: DOCGEN_URL
           readinessProbe:
             httpGet:
               path: /health

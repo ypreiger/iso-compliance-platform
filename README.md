@@ -24,8 +24,16 @@ iso-compliance-platform/
 ├── infra/
 │   ├── openshift-rhoai/       # GitOps, RHOAI MaaS, routes, secrets patterns
 │   └── k8s-litellm/         # K8s manifests, LiteLLM, ingress
-├── apps/                      # iso-web, iso-api, workers (Phase 1)
-└── services/                  # (Phase 1) RAG ISO, document generation
+├── apps/
+│   ├── iso-api/               # BFF: auth, projects, mapping, ISO text, admin
+│   └── iso-web/               # React SPA (EN/HE UI, RTL/LTR, all screens)
+├── services/
+│   ├── rag-iso/               # RAG ingest Job
+│   └── docgen/                # Excel/DOCX export service
+├── gitops/                    # 4-layer one-click deploy
+├── RAG/                       # Seed corpus (Standards, Samples, Templates)
+├── scripts/                   # deploy-all, verify-*, dry-run-local.sh
+└── docker-compose.yml         # Local dry-run stack
 ```
 
 ## Languages
@@ -40,15 +48,17 @@ iso-compliance-platform/
 - [User interface plan](docs/UI.md)
 - [Deployment flavors](docs/DEPLOYMENT.md)
 - [GitOps one-click deploy](docs/GITOPS.md)
+- [Microservices map](docs/MICROSERVICES.md)
+- [Authentication (Google + admins)](docs/AUTH.md)
 
 ## One-click deploy (OpenShift)
 
 Assumes only a cluster with **OpenShift GitOps** is preinstalled:
 
 ```bash
+./scripts/dry-run-local.sh   # pytest + API smoke + web build (no OpenShift)
 oc login …
 ./scripts/deploy-all.sh
-./scripts/verify-all.sh
 ```
 
 Four GitOps layers: platform infra → app infra → application → RAG population (`RAG/` seed corpus).

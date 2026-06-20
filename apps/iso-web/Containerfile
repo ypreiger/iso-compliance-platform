@@ -1,9 +1,13 @@
-FROM registry.access.redhat.com/ubi9/python-311:latest
-
+FROM registry.access.redhat.com/ubi9/nodejs-20:latest AS build
 WORKDIR /app
-COPY static ./static
-COPY server.py .
+COPY package.json package-lock.json* ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-ENV PYTHONUNBUFFERED=1
+FROM registry.access.redhat.com/ubi9/nginx-126:latest
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 8080
-CMD ["python", "server.py"]
+USER 1001
+CMD ["nginx", "-g", "daemon off;"]

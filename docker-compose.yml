@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: iso
+      POSTGRES_PASSWORD: iso
+      POSTGRES_DB: iso
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iso"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  iso-api:
+    build:
+      context: ./apps/iso-api
+      dockerfile: Containerfile
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USER: iso
+      DATABASE_PASSWORD: iso
+      DATABASE_NAME: iso
+      AUTH_DEV_MODE: "1"
+      JWT_SECRET: dry-run-jwt-secret
+      DOCGEN_URL: http://iso-docgen:8080
+      ADMIN_EMAILS: yaakovpreiger@gmail.com,valeria.preiger@gmail.com
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  iso-docgen:
+    build:
+      context: ./services/docgen
+      dockerfile: Containerfile
+    ports:
+      - "8081:8080"

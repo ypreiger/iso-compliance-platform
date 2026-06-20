@@ -1,0 +1,85 @@
+{
+  "app": {
+    "title": "פלטפורמת תאימות ISO",
+    "login": "התחברות",
+    "logout": "יציאה",
+    "projects": "פרויקטים",
+    "isoViewer": "תקני ISO",
+    "knowledge": "ידע",
+    "instructions": "הנחיות",
+    "users": "משתמשים",
+    "settings": "הגדרות",
+    "language": "שפה",
+    "save": "שמירה",
+    "cancel": "ביטול",
+    "add": "הוספה",
+    "approve": "אישור",
+    "export": "ייצוא",
+    "loading": "טוען…"
+  },
+  "login": {
+    "title": "התחברות לפלטפורמת ISO",
+    "google": "התחברות עם Google",
+    "dev": "התחברות dev",
+    "email": "דוא\"ל"
+  },
+  "projects": {
+    "title": "פרויקטים",
+    "new": "פרויקט חדש",
+    "name": "שם פרויקט",
+    "standards": "תקנים",
+    "status": "סטטוס"
+  },
+  "context": {
+    "title": "שאלון הקשר",
+    "industry": "תעשייה",
+    "sites": "מספר אתרים",
+    "processes": "תהליכים עיקריים"
+  },
+  "findings": {
+    "title": "ממצאים",
+    "add": "הוספת ממצא",
+    "paste": "הדבקת ממצאים (שורה לכל ממצא)",
+    "upload": "העלאה"
+  },
+  "mapping": {
+    "title": "סקירת מיפוי",
+    "findings": "ממצאים",
+    "clausePreview": "תצוגת סעיף ISO",
+    "runAuto": "מיפוי אוטומטי",
+    "approveAll": "אישור מיפוי",
+    "addPair": "הוספת זוג סעיף",
+    "relevance": "רלוונטיות",
+    "severity": "חומרה"
+  },
+  "coverage": {
+    "title": "כיסוי סעיפים",
+    "notChecked": "לא נבדק",
+    "na": "לא רלוונטי",
+    "compliant": "עומד",
+    "nc": "אי-התאמה"
+  },
+  "exports": {
+    "title": "ייצוא",
+    "excel": "Excel מיפוי",
+    "docx": "דוח DOCX בעברית",
+    "requiresApproval": "יש לאשר מיפוי לפני ייצוא"
+  },
+  "iso": {
+    "title": "צפייה בטקסט ISO",
+    "standard": "תקן",
+    "search": "חיפוש סעיף או מילת מפתח",
+    "english": "אנגלית",
+    "hebrew": "עברית",
+    "bilingual": "זו לצד זו"
+  },
+  "admin": {
+    "isoCorpus": "מאגר תקני ISO",
+    "samples": "דוחות לדוגמה",
+    "templates": "תבניות",
+    "inviteUser": "הזמנת משתמש",
+    "roles": "תפקידים",
+    "email": "דוא\"ל",
+    "name": "שם"
+  }
+}

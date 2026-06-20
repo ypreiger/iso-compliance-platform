@@ -4,6 +4,7 @@ namespace: iso-platform
 resources:
   - iso-api.yaml
   - iso-web.yaml
+  - iso-docgen.yaml
 
 images:
   - name: iso-api

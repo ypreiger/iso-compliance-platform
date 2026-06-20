@@ -1,0 +1,85 @@
+{
+  "app": {
+    "title": "ISO Compliance Platform",
+    "login": "Sign in",
+    "logout": "Sign out",
+    "projects": "Projects",
+    "isoViewer": "ISO Standards",
+    "knowledge": "Knowledge",
+    "instructions": "Instructions",
+    "users": "Users",
+    "settings": "Settings",
+    "language": "Language",
+    "save": "Save",
+    "cancel": "Cancel",
+    "add": "Add",
+    "approve": "Approve",
+    "export": "Export",
+    "loading": "Loading…"
+  },
+  "login": {
+    "title": "Sign in to ISO Compliance Platform",
+    "google": "Sign in with Google",
+    "dev": "Dev login (dry-run)",
+    "email": "Email"
+  },
+  "projects": {
+    "title": "Projects",
+    "new": "New project",
+    "name": "Project name",
+    "standards": "Standards",
+    "status": "Status"
+  },
+  "context": {
+    "title": "Context questionnaire",
+    "industry": "Industry",
+    "sites": "Number of sites",
+    "processes": "Main processes"
+  },
+  "findings": {
+    "title": "Findings",
+    "add": "Add finding",
+    "paste": "Paste findings (one per line)",
+    "upload": "Upload placeholder"
+  },
+  "mapping": {
+    "title": "Mapping review",
+    "findings": "Findings",
+    "clausePreview": "ISO clause preview",
+    "runAuto": "Run auto-mapping",
+    "approveAll": "Approve mapping",
+    "addPair": "Add clause pair",
+    "relevance": "Relevance",
+    "severity": "Severity"
+  },
+  "coverage": {
+    "title": "Clause coverage",
+    "notChecked": "Not checked",
+    "na": "N/A",
+    "compliant": "Compliant",
+    "nc": "Non-conformity"
+  },
+  "exports": {
+    "title": "Exports",
+    "excel": "Excel mapping",
+    "docx": "Hebrew DOCX report",
+    "requiresApproval": "Mapping must be approved first"
+  },
+  "iso": {
+    "title": "ISO text viewer",
+    "standard": "Standard",
+    "search": "Search clause or keyword",
+    "english": "English",
+    "hebrew": "Hebrew",
+    "bilingual": "Side by side"
+  },
+  "admin": {
+    "isoCorpus": "ISO standards corpus",
+    "samples": "Sample reports",
+    "templates": "Templates",
+    "inviteUser": "Invite user",
+    "roles": "Roles",
+    "email": "Email",
+    "name": "Name"
+  }
+}

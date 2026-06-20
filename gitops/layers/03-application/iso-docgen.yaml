@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iso-docgen
+  labels:
+    app.kubernetes.io/name: iso-docgen
+    app.kubernetes.io/component: docgen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: iso-docgen
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: iso-docgen
+    spec:
+      containers:
+        - name: iso-docgen
+          image: image-registry.openshift-image-registry.svc:5000/iso-platform/docgen:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iso-docgen
+spec:
+  selector:
+    app.kubernetes.io/name: iso-docgen
+  ports:
+    - port: 8080
+      targetPort: http

@@ -29,7 +29,17 @@ jobs:
 
       - name: Pytest
         run: |
+          export USE_SQLITE=1
+          export SQLITE_PATH=/tmp/iso-ci.db
+          export AUTH_DEV_MODE=1
+          export ADMIN_EMAILS=yaakovpreiger@gmail.com,valeria.preiger@gmail.com
+          pip install -r apps/iso-api/requirements.txt pytest pyyaml
+          pip install -r services/rag-iso/requirements.txt
           PYTHONPATH=apps/iso-api:services/rag-iso pytest -q apps/iso-api/tests services/rag-iso/tests
+
+      - name: iso-web build
+        run: |
+          cd apps/iso-web && npm ci && npm run build
 
       - name: Shellcheck scripts
         run: |
