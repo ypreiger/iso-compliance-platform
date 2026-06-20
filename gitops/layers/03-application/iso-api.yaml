@@ -37,6 +37,12 @@ spec:
                 secretKeyRef:
                   name: iso-secrets
                   key: LLM_API_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-api-key
+                  key: OPENAI_API_KEY
+                  optional: true
             - name: GOOGLE_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:

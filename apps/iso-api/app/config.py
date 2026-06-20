@@ -35,7 +35,7 @@ class Settings:
             if e.strip()
         )
         self.llm_gateway_url = os.getenv("LLM_GATEWAY_URL", "")
-        self.llm_api_key = os.getenv("LLM_API_KEY", "")
+        self.llm_api_key = os.getenv("LLM_API_KEY", "") or os.getenv("OPENAI_API_KEY", "")
 
     @property
     def dsn(self) -> str:

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: iso-docgen
-          image: image-registry.openshift-image-registry.svc:5000/iso-platform/docgen:latest
+          image: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-docgen:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

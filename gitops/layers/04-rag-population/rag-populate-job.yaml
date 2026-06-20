@@ -18,40 +18,6 @@ spec:
     spec:
       serviceAccountName: iso-platform
       restartPolicy: OnFailure
-      initContainers:
-        - name: git-clone
-          image: registry.redhat.io/ubi9/ubi-minimal:latest
-          command:
-            - /bin/sh
-            - -ec
-            - |
-              microdnf install -y git git-lfs && git lfs install
-              REPO="${GIT_REPO_URL}"
-              if [ -n "${GIT_USERNAME:-}" ] && [ -n "${GIT_PASSWORD:-}" ]; then
-                REPO="https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_REPO_URL#https://}"
-              fi
-              git clone --depth 1 --branch "${GIT_REPO_REVISION}" "${REPO}" /seed
-              cd /seed && git lfs pull
-              test -f /seed/RAG/manifest.yaml
-          envFrom:
-            - configMapRef:
-                name: iso-app-config
-          env:
-            - name: GIT_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: iso-secrets
-                  key: GIT_USERNAME
-                  optional: true
-            - name: GIT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: iso-secrets
-                  key: GIT_PASSWORD
-                  optional: true
-          volumeMounts:
-            - name: rag-data
-              mountPath: /seed
       containers:
         - name: rag-ingest
           image: image-registry.openshift-image-registry.svc:5000/iso-platform/rag-iso:latest
@@ -66,16 +32,11 @@ spec:
                   name: iso-secrets
                   key: DATABASE_PASSWORD
             - name: RAG_ROOT
-              value: /seed/RAG
+              value: /opt/rag
           volumeMounts:
-            - name: rag-data
-              mountPath: /seed
-              readOnly: true
             - name: rag-store
               mountPath: /data/rag
       volumes:
-        - name: rag-data
-          emptyDir: {}
         - name: rag-store
           persistentVolumeClaim:
             claimName: iso-rag-data

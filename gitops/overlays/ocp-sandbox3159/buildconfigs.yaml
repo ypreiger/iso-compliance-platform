@@ -1,0 +1,96 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: iso-api
+  labels:
+    app.kubernetes.io/name: iso-api
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/ypreiger/iso-compliance-platform.git
+      ref: main
+    contextDir: apps/iso-api
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: iso-api:latest
+  triggers:
+    - type: ConfigChange
+    - type: ImageChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: iso-web
+  labels:
+    app.kubernetes.io/name: iso-web
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/ypreiger/iso-compliance-platform.git
+      ref: main
+    contextDir: apps/iso-web
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: iso-web:latest
+  triggers:
+    - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: iso-docgen
+  labels:
+    app.kubernetes.io/name: iso-docgen
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/ypreiger/iso-compliance-platform.git
+      ref: main
+    contextDir: services/docgen
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: iso-docgen:latest
+  triggers:
+    - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: rag-iso
+  labels:
+    app.kubernetes.io/name: rag-iso
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/ypreiger/iso-compliance-platform.git
+      ref: main
+    contextDir: .
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: services/rag-iso/Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: rag-iso:latest
+  triggers:
+    - type: ConfigChange

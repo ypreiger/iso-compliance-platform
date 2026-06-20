@@ -50,6 +50,8 @@ oc apply -f gitops/layers/02-app-infra/secrets/iso-secrets.yaml -n iso-platform
 
 Root Application `iso-compliance-platform` in `openshift-gitops` points at `gitops/root/` and syncs all layer Applications with sync waves.
 
+**Sandbox cluster overlay** (catalog PostgreSQL + OpenAI/MaaS): use a single Application at `gitops/overlays/ocp-sandbox3159/` — see [CLUSTER_DEPLOY.md](./CLUSTER_DEPLOY.md).
+
 ## Private GitHub + RAG LFS
 
 Large PDFs under `RAG/` use **Git LFS**. Before clone/populate Job:

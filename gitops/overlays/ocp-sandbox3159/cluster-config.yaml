@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iso-app-config
+  labels:
+    app.kubernetes.io/component: app-infra
+data:
+  DATABASE_HOST: "postgresql"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "iso"
+  DATABASE_USER: "iso"
+  REDIS_URL: "redis://iso-redis:6379/0"
+  LLM_GATEWAY_URL: "https://api.openai.com/v1"
+  LLM_MODEL_MAPPING: "gpt-4-turbo"
+  LLM_MODEL_REPORT: "gpt-4"
+  LLM_MODEL_EMBED: "text-embedding-3-small"
+  MAAS_BASE_URL: "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com"
+  MAAS_MODEL_LOCAL: "qwen3-4b-instruct"
+  RAG_MANIFEST_PATH: "/seed/RAG/manifest.yaml"
+  AUTH_DEV_MODE: "1"
+  ADMIN_EMAILS: "yaakovpreiger@gmail.com,valeria.preiger@gmail.com"
+  ISO_WEB_URL: "https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com"
+  DOCGEN_URL: "http://iso-docgen:8080"
+  GIT_REPO_URL: "https://github.com/ypreiger/iso-compliance-platform.git"
+  GIT_REPO_REVISION: "main"
+  GOOGLE_CLIENT_ID: ""

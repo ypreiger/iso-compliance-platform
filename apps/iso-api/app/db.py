@@ -341,11 +341,12 @@ def _seed_prompts(conn: Any) -> None:
         ("ofi_instruction_draft", "Draft OFI instruction for minor finding {{finding}}"),
         ("report_narrative", "Generate regulatory narrative in {{locale}}"),
     ]
+    pub = "1" if USE_SQLITE else "TRUE"
     for stage, body in stages:
         exists = conn.execute("SELECT 1 FROM prompt_templates WHERE stage = %s LIMIT 1", (stage,)).fetchone()
         if not exists:
             conn.execute(
-                "INSERT INTO prompt_templates (id, stage, locale, version, body, is_published) VALUES (%s, %s, 'en', 1, %s, 1)",
+                f"INSERT INTO prompt_templates (id, stage, locale, version, body, is_published) VALUES (%s, %s, 'en', 1, %s, {pub})",
                 (str(uuid4()), stage, body),
             )
 

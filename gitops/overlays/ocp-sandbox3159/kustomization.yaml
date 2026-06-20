@@ -1,10 +1,15 @@
+# Cluster overlay — catalog PostgreSQL, MaaS + OpenAI (playground-compatible).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: iso-platform
 resources:
-  - iso-api.yaml
-  - iso-web.yaml
-  - iso-docgen.yaml
+  - ../../layers/01-platform-infra
+  - ../../layers/02-app-infra-catalog
+  - ../../layers/03-application
+  - ../../layers/04-rag-population
+  - buildconfigs.yaml
+  - imagestreams.yaml
+  - cluster-config.yaml
 
 images:
   - name: iso-api
@@ -12,7 +17,4 @@ images:
     newTag: latest
   - name: iso-web
     newName: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-web
-    newTag: latest
-  - name: iso-docgen
-    newName: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-docgen
     newTag: latest
