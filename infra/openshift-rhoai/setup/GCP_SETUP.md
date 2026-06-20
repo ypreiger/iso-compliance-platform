@@ -1,87 +1,83 @@
-# GCP Setup Required for Anthropic Claude via Vertex AI
+# GCP Setup - Final Step
 
-## Current Status
+## ✅ Current Status
 
-✅ Playground deployed and running
-✅ Project configured: itpc-gcp-global-revenue-claude
-❌ Service account needs permissions
+- ✅ Playground deployed and running
+- ✅ Project: itpc-gcp-global-revenue-claude
+- ✅ Service account: yaakov@itpc-gcp-global-revenue-claude.iam.gserviceaccount.com
+- ✅ Credentials updated
+- ⏳ Needs: Vertex AI User role
 
-## Required GCP Configuration
+## Required: Grant Vertex AI User Role
 
-### 1. Enable Vertex AI API
+The service account needs the **Vertex AI User** role to access Claude models.
 
-Visit:
-```
-https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=itpc-gcp-global-revenue-claude
-```
+### Steps:
 
-Click **"Enable"** and wait 2-3 minutes.
-
-### 2. Grant Service Account Permissions
-
-The service account `REPLACE_WITH_SA@PROJECT.iam.gserviceaccount.com` needs the **Vertex AI User** role.
-
-**Steps:**
-
-1. Go to IAM page:
+1. **Go to IAM page**:
    ```
    https://console.cloud.google.com/iam-admin/iam?project=itpc-gcp-global-revenue-claude
    ```
 
-2. Find the service account:
-   - Email: `REPLACE_WITH_SA@PROJECT.iam.gserviceaccount.com`
+2. **Find the service account**:
+   - Email: `yaakov@itpc-gcp-global-revenue-claude.iam.gserviceaccount.com`
 
-3. Click **"Edit"** (pencil icon)
+3. **Grant permission**:
+   - Click **"Grant Access"** or find existing account and click **"Edit"**
+   - Add role: **"Vertex AI User"** (`roles/aiplatform.user`)
+   - Click **"Save"**
 
-4. Click **"Add Another Role"**
+4. **Wait 2-3 minutes** for permissions to propagate
 
-5. Select: **Vertex AI User** (roles/aiplatform.user)
+### Alternative: Use IAM Troubleshooter
 
-6. Click **"Save"**
-
-### 3. Enable Anthropic Models
-
-Visit Vertex AI Model Garden:
+Visit the auto-generated troubleshooter link from the error:
 ```
-https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-5-sonnet?project=itpc-gcp-global-revenue-claude
+https://console.cloud.google.com/iam-admin/troubleshooter
 ```
 
-Ensure Anthropic Claude models are enabled for your project.
+This will guide you through granting the exact permission needed.
 
 ## Verification
 
-After completing the above steps, test the playground:
+After granting the role, test the playground:
 
 ```bash
 curl -X POST https://claude-playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "What is Red Hat OpenShift AI?"}'
+  -d '{"message": "What is Red Hat OpenShift AI and how does it help with ISO 27001 compliance?"}'
 ```
 
-**Expected:** JSON response with information about Red Hat OpenShift AI
+**Expected**: Detailed response from Claude about RHOAI and ISO 27001
 
-**If you see 403 error:** Wait 2-3 minutes for permissions to propagate, then retry.
+## Guardrails Verification
 
-## Current Error
+Test that guardrails are blocking non-allowed topics:
 
+```bash
+curl -X POST https://claude-playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is the weather?"}'
 ```
-Permission 'aiplatform.endpoints.predict' denied
+
+**Expected**: `{"blocked":true,"response":"I can only answer questions about Red Hat technologies and ISO standards..."}`
+
+## Web UI
+
+Open in browser:
+```
+https://claude-playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com
 ```
 
-This confirms the service account exists but lacks the Vertex AI User role.
-
-## Troubleshooter URL
-
-If issues persist, use the GCP IAM Troubleshooter:
-```
-https://console.cloud.google.com/iam-admin/troubleshooter;errorId=CiQwMTllZTYyNy00NjFlLTcyYWQtYmE0YS01NDVmYWYyMzc5NmY
-```
+Try asking:
+- ✅ "What is Red Hat OpenShift?" → Should work
+- ✅ "Explain ISO 27001" → Should work
+- 🚫 "What's the weather?" → Should be blocked
 
 ## Summary
 
-✅ Playground: Running
-✅ Guardrails: Working  
-✅ Project: Configured correctly (itpc-gcp-global-revenue-claude)
-⏳ Waiting for: Vertex AI User role on service account
-
-Once permissions are granted, the playground will be fully functional.
+Once the Vertex AI User role is granted, the playground will be fully functional with:
+- ✅ Claude 3.5 Sonnet responses
+- ✅ Guardrails (Red Hat & ISO topics only)
+- ✅ TrustyAI monitoring
+- ✅ Web UI and API access
