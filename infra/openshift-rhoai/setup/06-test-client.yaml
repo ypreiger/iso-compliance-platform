@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: claude-test-client
+  namespace: iso-platform
+  labels:
+    app: claude-test-client
+spec:
+  serviceAccountName: model-server
+  containers:
+  - name: test-client
+    image: python:3.11-slim
+    command: ["/bin/bash", "-c"]
+    args:
+      - |
+        pip install --quiet google-cloud-aiplatform anthropic requests
+        
+        cat > /tmp/test_vertex.py << 'PYTHON_EOF'
+        import os
+        import json
+        from anthropic import AnthropicVertex
+        
+        # Initialize Vertex AI client
+        project_id = os.environ.get("VERTEX_AI_PROJECT_ID", "iso-compliance-platform")
+        region = os.environ.get("VERTEX_AI_REGION", "us-east5")
+        
+        print(f"Connecting to Vertex AI...")
+        print(f"Project: {project_id}")
+        print(f"Region: {region}")
+        
+        client = AnthropicVertex(project_id=project_id, region=region)
+        
+        # Test message
+        message = client.messages.create(
+            model="claude-3-5-sonnet@20240620",
+            max_tokens=1024,
+            messages=[
+                {"role": "user", "content": "Hello! Can you tell me what you are and confirm you're working correctly?"}
+            ]
+        )
+        
+        print("\n=== Response ===")
+        print(message.content[0].text)
+        print("\n=== Success! ===")
+        PYTHON_EOF
+        
+        # Keep pod running for interactive testing
+        echo "Test script created at /tmp/test_vertex.py"
+        echo "To run test: python /tmp/test_vertex.py"
+        echo "Pod will stay running for 1 hour for testing..."
+        sleep 3600
+    env:
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      value: /var/secrets/google/key.json
+    - name: VERTEX_AI_PROJECT_ID
+      valueFrom:
+        secretKeyRef:
+          name: anthropic-vertex-credentials
+          key: VERTEX_AI_PROJECT_ID
+    - name: VERTEX_AI_REGION
+      valueFrom:
+        secretKeyRef:
+          name: anthropic-vertex-credentials
+          key: VERTEX_AI_REGION
+    volumeMounts:
+    - name: gcp-credentials
+      mountPath: /var/secrets/google
+      readOnly: true
+  volumes:
+  - name: gcp-credentials
+    secret:
+      secretName: anthropic-vertex-credentials
+      items:
+      - key: GCP_CREDENTIALS
+        path: key.json
+  restartPolicy: Never

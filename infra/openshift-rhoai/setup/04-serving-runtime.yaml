@@ -1,0 +1,80 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: anthropic-vertex-runtime
+  namespace: iso-platform
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    openshift.io/display-name: "Anthropic Claude via Vertex AI Runtime"
+spec:
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8080"
+  supportedModelFormats:
+    - name: anthropic-vertex
+      version: "1"
+      autoSelect: true
+  multiModel: false
+  grpcDataEndpoint: "port:8085"
+  grpcEndpoint: "port:8085"
+  containers:
+    - name: kserve-container
+      image: quay.io/opendatahub/text-generation-inference:fast
+      command: ["/bin/sh"]
+      args:
+        - -c
+        - |
+          # Vertex AI Anthropic proxy server
+          echo "Starting Anthropic Vertex AI proxy..."
+          exec python3 -m http.server 8080
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        - name: VERTEX_AI_PROJECT_ID
+          valueFrom:
+            secretKeyRef:
+              name: anthropic-vertex-credentials
+              key: VERTEX_AI_PROJECT_ID
+        - name: VERTEX_AI_REGION
+          valueFrom:
+            secretKeyRef:
+              name: anthropic-vertex-credentials
+              key: VERTEX_AI_REGION
+        - name: VERTEX_AI_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: anthropic-vertex-credentials
+              key: VERTEX_AI_ENDPOINT
+        - name: MODEL_NAME
+          valueFrom:
+            secretKeyRef:
+              name: anthropic-vertex-credentials
+              key: MODEL_NAME
+      volumeMounts:
+        - name: gcp-credentials
+          mountPath: /var/secrets/google
+          readOnly: true
+      ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 30
+        periodSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 5
+  volumes:
+    - name: gcp-credentials
+      secret:
+        secretName: anthropic-vertex-credentials
+        items:
+          - key: GCP_CREDENTIALS
+            path: key.json

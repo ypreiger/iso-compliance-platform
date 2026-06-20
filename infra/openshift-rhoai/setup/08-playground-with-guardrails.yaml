@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: claude-playground
+  namespace: iso-platform
+  labels:
+    app: claude-playground
+    component: maas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: claude-playground
+  template:
+    metadata:
+      labels:
+        app: claude-playground
+        component: maas
+    spec:
+      serviceAccountName: model-server
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: api
+        image: registry.access.redhat.com/ubi9/python-311:latest
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        workingDir: /opt/app-root/src
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            pip install --no-cache-dir anthropic google-cloud-aiplatform flask gunicorn
+            cp /config/app.py /opt/app-root/src/app.py
+            exec gunicorn -w 2 -b 0.0.0.0:8080 --timeout 120 app:app
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        - name: VERTEX_AI_PROJECT_ID
+          valueFrom:
+            secretKeyRef:
+              name: anthropic-vertex-credentials
+              key: VERTEX_AI_PROJECT_ID
+        - name: VERTEX_AI_REGION
+          valueFrom:
+            secretKeyRef:
+              name: anthropic-vertex-credentials
+              key: VERTEX_AI_REGION
+        - name: MODEL_NAME
+          valueFrom:
+            secretKeyRef:
+              name: anthropic-vertex-credentials
+              key: MODEL_NAME
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: gcp-credentials
+          mountPath: /var/secrets/google
+          readOnly: true
+        - name: app-code
+          mountPath: /config
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: gcp-credentials
+        secret:
+          secretName: anthropic-vertex-credentials
+          items:
+          - key: GCP_CREDENTIALS
+            path: key.json
+      - name: app-code
+        configMap:
+          name: claude-api-app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: claude-playground
+  namespace: iso-platform
+  labels:
+    app: claude-playground
+spec:
+  selector:
+    app: claude-playground
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: claude-playground
+  namespace: iso-platform
+  labels:
+    app: claude-playground
+spec:
+  to:
+    kind: Service
+    name: claude-playground
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

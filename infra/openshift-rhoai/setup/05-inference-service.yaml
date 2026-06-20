@@ -1,0 +1,20 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: claude-sonnet
+  namespace: iso-platform
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    openshift.io/display-name: "Claude 3.5 Sonnet"
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: anthropic-vertex
+        version: "1"
+      runtime: anthropic-vertex-runtime
+    serviceAccountName: model-server
+    minReplicas: 1
+    maxReplicas: 1
