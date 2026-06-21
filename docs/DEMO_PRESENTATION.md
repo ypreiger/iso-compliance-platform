@@ -1,14 +1,4 @@
-# Customer Demo Presentation — ISO Compliance AI Platform
-
-## Audience
-CISOs, compliance officers, IT directors, Red Hat partners.
-
-## Duration
-30–45 minutes (full demo) · 15 minutes (executive briefing)
-
----
-
-## Demo Flow
+# Demo Flow
 
 ### Act 1 — Platform Overview (5 min)
 
