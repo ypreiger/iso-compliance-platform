@@ -68,10 +68,10 @@ oc create secret generic iso-secrets -n "${NS}" \
   --from-literal=GIT_PASSWORD="" \
   --dry-run=client -o yaml | oc apply -f -
 
-log "Restarting iso-api and iso-web"
+log "Restarting iso-api-orchestrator and iso-web"
 oc apply -f "${REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/gitops/layers/03-application/iso-api.yaml" -n "${NS}" >/dev/null 2>&1 || true
-oc rollout restart deploy/iso-api deploy/iso-web -n "${NS}"
-oc rollout status deploy/iso-api -n "${NS}" --timeout=300s
+oc rollout restart deploy/iso-api-orchestrator deploy/iso-web -n "${NS}"
+oc rollout status deploy/iso-api-orchestrator -n "${NS}" --timeout=300s
 
 log "SAML ACS URL (register in Google Admin): ${SAML_SP_ACS_URL}"
 log "SAML Entity ID: ${SAML_SP_ENTITY_ID}"

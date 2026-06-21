@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: iso-api
+  name: iso-api-orchestrator
   labels:
-    app.kubernetes.io/name: iso-api
+    app.kubernetes.io/name: iso-api-orchestrator
     app.kubernetes.io/component: api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: iso-api
+      app.kubernetes.io/name: iso-api-orchestrator
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: iso-api
+        app.kubernetes.io/name: iso-api-orchestrator
     spec:
       serviceAccountName: iso-platform
       containers:
-        - name: iso-api
-          image: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api:latest
+        - name: iso-api-orchestrator
+          image: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api-orchestrator:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -32,17 +32,8 @@ spec:
                 secretKeyRef:
                   name: iso-secrets
                   key: DATABASE_PASSWORD
-            - name: LLM_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: iso-secrets
-                  key: LLM_API_KEY
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: openai-api-key
-                  key: OPENAI_API_KEY
-                  optional: true
+            - name: MAAS_BEARER_TOKEN_FILE
+              value: /var/run/secrets/maas/token
             - name: GOOGLE_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
@@ -110,6 +101,10 @@ spec:
                 configMapKeyRef:
                   name: iso-app-config
                   key: DOCGEN_URL
+          volumeMounts:
+            - name: maas-token
+              mountPath: /var/run/secrets/maas
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /health
@@ -129,16 +124,24 @@ spec:
             limits:
               cpu: "1"
               memory: 512Mi
+      volumes:
+        - name: maas-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: maas-default-gateway-sa
+                  expirationSeconds: 3600
+                  path: token
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: iso-api
+  name: iso-api-orchestrator
   labels:
-    app.kubernetes.io/name: iso-api
+    app.kubernetes.io/name: iso-api-orchestrator
 spec:
   selector:
-    app.kubernetes.io/name: iso-api
+    app.kubernetes.io/name: iso-api-orchestrator
   ports:
     - port: 8080
       targetPort: http
@@ -147,16 +150,16 @@ spec:
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: iso-api
+  name: iso-api-orchestrator
   labels:
-    app.kubernetes.io/name: iso-api
+    app.kubernetes.io/name: iso-api-orchestrator
   annotations:
     haproxy.router.openshift.io/timeout: 300s
     haproxy.router.openshift.io/max-body-size: 100m
 spec:
   to:
     kind: Service
-    name: iso-api
+    name: iso-api-orchestrator
   port:
     targetPort: http
   tls:

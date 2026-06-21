@@ -34,49 +34,45 @@ data:
       },
       {
         "id": "gpt-4o",
-        "label": "GPT-4o — OpenAI",
-        "url": "https://api.openai.com/v1",
-        "provider": "openai",
-        "auth": "openai_key",
-        "note": "Latest GPT-4o · 128k context · multimodal"
+        "label": "GPT-4o — OpenAI (via MaaS)",
+        "url": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/gpt-4o/v1",
+        "provider": "rhoai",
+        "auth": "maas_token",
+        "note": "OpenAI model proxied through MaaS gateway and policy stack"
       },
       {
         "id": "gpt-4o-mini",
-        "label": "GPT-4o Mini — OpenAI",
-        "url": "https://api.openai.com/v1",
-        "provider": "openai",
-        "auth": "openai_key",
-        "note": "Fast & economical · 128k context"
+        "label": "GPT-4o Mini — OpenAI (via MaaS)",
+        "url": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/gpt-4o-mini/v1",
+        "provider": "rhoai",
+        "auth": "maas_token",
+        "note": "OpenAI model proxied through MaaS gateway and policy stack"
       },
       {
         "id": "gpt-3.5-turbo",
-        "label": "GPT-3.5 Turbo — OpenAI",
-        "url": "https://api.openai.com/v1",
-        "provider": "openai",
-        "auth": "openai_key",
-        "note": "Classic turbo · 16k context"
+        "label": "GPT-3.5 Turbo — OpenAI (via MaaS)",
+        "url": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/gpt-3.5-turbo/v1",
+        "provider": "rhoai",
+        "auth": "maas_token",
+        "note": "OpenAI model proxied through MaaS gateway and policy stack"
       }
     ]
 
   # ── Guardrails / topic policy ─────────────────────────────────────────────
-  ALLOWED_TOPICS: |
-    red hat,rhel,openshift,ansible,rhoai,openshift ai,fedora,
-    iso 27001,iso 9001,iso 20000,iso 14001,iso 45001,iso 13485,iso,
-    compliance,certification,security,audit,standards,qwen,llm,ai,
-    model,inference,vllm,trustyai,guardrails,kubernetes,container
+  # Guardrails topic policy mode:
+  #   allow_all -> do not block by topic keyword filter
+  #   enforce   -> apply ALLOWED_TOPICS keyword filter
+  TOPIC_FILTER_MODE: "allow_all"
+  ALLOWED_TOPICS: ""
+
+  # Default selected model in the playground UI.
+  DEFAULT_MODEL_ID: "qwen3-4b-instruct"
 
   SYSTEM_PROMPT: |
     You are an AI assistant specialized in Red Hat technologies and ISO standards.
 
-    STRICT RULES:
-    1. ONLY answer questions about:
-       - Red Hat products (RHEL, OpenShift, Ansible, RHOAI, etc.)
-       - ISO standards (ISO 27001, ISO 9001, ISO 20000, etc.)
-       - AI/ML, LLM, and model serving topics related to Red Hat RHOAI
-       - Compliance and certification topics
-    2. For ANY other topic, respond:
-       "I can only answer questions about Red Hat technologies, AI/ML, and ISO standards."
-    3. Do not engage with general knowledge, other vendors, or unrelated topics.
+    Be concise, accurate, and practical.
+    Prefer implementation-ready guidance and include caveats when uncertain.
 
   # ── RHOAI & TrustyAI integration ─────────────────────────────────────────
   RHOAI_DASHBOARD_URL: "https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com"

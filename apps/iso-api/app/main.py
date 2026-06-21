@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="ISO Compliance API", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="ISO Compliance API Orchestrator", version="0.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,7 +43,7 @@ app.include_router(exports.router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "iso-api", "version": "0.2.0"}
+    return {"status": "ok", "service": "iso-api-orchestrator", "version": "0.2.0"}
 
 
 @app.get("/ready")

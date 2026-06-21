@@ -21,7 +21,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migrate
-          image: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api:latest
+          image: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api-orchestrator:latest
           imagePullPolicy: Always
           command:
             - python3

@@ -1,9 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Target namespace: llm (overrides default iso-platform)
-namespace: llm
 resources:
   - namespace-labels.yaml
   - trustyai-service.yaml
   - guardrails-orchestrator.yaml
   - rbac.yaml
+  - model-aliases.yaml

@@ -21,6 +21,17 @@ from functools import lru_cache
 _OPENAI_DEFAULT = "https://api.openai.com/v1"
 
 
+def _read_token_file() -> str:
+    path = os.getenv("MAAS_BEARER_TOKEN_FILE", "").strip()
+    if not path:
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
 def _url(task: str) -> str:
     return (
         os.getenv(f"{task}_MODEL_URL")
@@ -35,6 +46,7 @@ def _key(task: str) -> str:
         os.getenv(f"{task}_MODEL_KEY")
         or os.getenv("LLM_API_KEY")
         or os.getenv("OPENAI_API_KEY")
+        or _read_token_file()
         or ""
     )
 

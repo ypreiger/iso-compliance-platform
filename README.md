@@ -26,8 +26,9 @@ AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 
 ```
 iso-web      → React SPA (nginx)
-iso-api      → FastAPI orchestrator
-iso-docgen   → Document parsing + generation agent (PDF/DOC/DOCX/Excel)
+iso-api-orchestrator → FastAPI orchestrator
+iso-doc-parse-rag    → Document parsing + RAG extraction agent (PDF/DOC/DOCX/Excel)
+iso-doc-gen          → Document generation/export agent
 playground   → Unified AI chat (Qwen3 + GPT-4o + GPT-4o-mini + GPT-3.5-turbo)
 ```
 
@@ -42,7 +43,7 @@ playground   → Unified AI chat (Qwen3 + GPT-4o + GPT-4o-mini + GPT-3.5-turbo)
 
 ## Two Deployment Flavors
 
-- **`deploy/openshift/`** — Red Hat OpenShift (Routes, BuildConfig, RHOAI, Kuadrant)
+- **`deploy/openshift/`** — Red Hat OpenShift (Routes, RHOAI, Kuadrant, ArgoCD-managed manifests)
 - **`deploy/kubernetes/`** — Pure Kubernetes (Ingress, Ollama, standard k8s)
 
 ## Database Migrations

@@ -1,12 +1,12 @@
 ---
 # OpenShift flavor — Doc-Agent (document parsing + generation microservice)
-# Builds from local source via binary strategy; uses OpenShift Routes for ingress.
+# Uses prebuilt container images; deploy is GitOps-managed.
 #
 # Model endpoints are configured via ConfigMap (model-config.yaml).
 # Swap model URLs to point at OpenShift AI InferenceService for on-prem models.
 #
 # Apply: oc apply -f deploy/openshift/base/
-# Build: oc start-build iso-docgen --from-dir=services/docgen --wait --follow
+# Build outside cluster (CI), then update image tag in GitOps.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

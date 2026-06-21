@@ -24,7 +24,7 @@ spec:
               name: http
           env:
             - name: ISO_API_URL
-              value: "http://iso-api:8080"
+              value: "http://iso-api-orchestrator:8080"
           readinessProbe:
             httpGet:
               path: /

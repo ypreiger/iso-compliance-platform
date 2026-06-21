@@ -5,3 +5,4 @@ metadata:
   labels:
     app.kubernetes.io/part-of: iso-compliance-platform
     pod-security.kubernetes.io/enforce: baseline
+    openshift.io/cluster-monitoring: "true"

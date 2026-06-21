@@ -25,20 +25,52 @@ def _normalize(text: str) -> str:
 # ── PDF ────────────────────────────────────────────────────────────────────
 
 def extract_pdf(data: bytes) -> str:
-    """Extract text from PDF in reading order using PyMuPDF (fitz)."""
+    """Extract text from PDF in reading order using PyMuPDF (fitz).
+
+    For Hebrew PDFs, uses word-based extraction for better quality.
+    """
     try:
         import fitz  # PyMuPDF
         doc = fitz.open(stream=data, filetype="pdf")
+
+        # Check if Hebrew content (sample first 2 pages)
+        is_hebrew = False
+        for page_num in range(min(2, len(doc))):
+            sample = doc[page_num].get_text("text")[:400]
+            if sum(1 for c in sample if '֐' <= c <= '׿') > 15:
+                is_hebrew = True
+                break
+
         pages: list[str] = []
-        for page in doc:
-            text = page.get_text("text", sort=True)
-            if text.strip():
-                pages.append(text)
-                continue
-            blocks = page.get_text("blocks", sort=True)
-            for b in blocks:
-                if b[6] == 0:  # text block
-                    pages.append(b[4])
+
+        if is_hebrew:
+            # Use words mode for better Hebrew extraction
+            for page in doc:
+                words_list = page.get_text("words", sort=True)
+                if not words_list:
+                    continue
+                # Group by line (y-coordinate)
+                lines_dict: dict[int, list[str]] = {}
+                for word_tuple in words_list:
+                    word = word_tuple[4]
+                    y = int(word_tuple[1])
+                    line_key = (y // 5) * 5
+                    lines_dict.setdefault(line_key, []).append(word)
+                # Reconstruct lines
+                line_texts = [' '.join(lines_dict[y]) for y in sorted(lines_dict.keys())]
+                pages.append('\n'.join(line_texts))
+        else:
+            # Standard text extraction
+            for page in doc:
+                text = page.get_text("text", sort=True)
+                if text.strip():
+                    pages.append(text)
+                    continue
+                blocks = page.get_text("blocks", sort=True)
+                for b in blocks:
+                    if b[6] == 0:
+                        pages.append(b[4])
+
         doc.close()
         text = "\n".join(pages)
     except ImportError:

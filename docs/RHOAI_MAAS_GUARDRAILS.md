@@ -165,7 +165,7 @@ curl -sk https://playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com/
 
 ## Switching Models
 
-To change which model a task uses (doc-agent, playground, etc.):
+To change which model a task uses (doc agents, playground, etc.):
 ```bash
 # Example: switch playground to use guardrails endpoint
 oc patch configmap iso-app-config -n iso-platform --type=merge -p '{
@@ -175,14 +175,14 @@ oc patch configmap iso-app-config -n iso-platform --type=merge -p '{
 }'
 oc rollout restart deployment/playground -n iso-platform
 
-# Example: switch doc-agent EXTRACT to Qwen3 (saves OpenAI cost)
-oc patch configmap doc-agent-model-config -n iso-platform --type=merge -p '{
+# Example: switch EXTRACT to Qwen3 (saves OpenAI cost)
+oc patch configmap iso-app-config -n iso-platform --type=merge -p '{
   "data": {
     "EXTRACT_MODEL_URL": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1",
     "EXTRACT_MODEL_NAME": "qwen3-4b-instruct"
   }
 }'
-oc rollout restart deployment/iso-docgen -n iso-platform
+oc rollout restart deployment/iso-doc-parse-rag -n iso-platform
 ```
 
 ---

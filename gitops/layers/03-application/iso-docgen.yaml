@@ -127,17 +127,3 @@ spec:
   ports:
     - port: 8080
       targetPort: http
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: iso-docgen
-  labels:
-    app.kubernetes.io/name: iso-doc-parse-rag
-    app.kubernetes.io/component: compatibility
-spec:
-  selector:
-    app.kubernetes.io/name: iso-doc-parse-rag
-  ports:
-    - port: 8080
-      targetPort: http

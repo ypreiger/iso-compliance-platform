@@ -24,6 +24,7 @@ data:
     """
     from __future__ import annotations
     import os, json, time
+    from collections import defaultdict
     from pathlib import Path
     from flask import Flask, request, jsonify, render_template_string
     import openai, httpx
@@ -38,8 +39,11 @@ data:
     TITLE           = os.getenv("PLAYGROUND_TITLE", "AI Playground")
     SUBTITLE        = os.getenv("PLAYGROUND_SUBTITLE", "Red Hat OpenShift AI")
 
-    ALLOWED_TOPICS  = [t.strip() for t in os.getenv("ALLOWED_TOPICS", "red hat,iso").split(",") if t.strip()]
+    ALLOWED_TOPICS  = [t.strip() for t in os.getenv("ALLOWED_TOPICS", "").split(",") if t.strip()]
+    TOPIC_FILTER_MODE = os.getenv("TOPIC_FILTER_MODE", "allow_all").strip().lower()
+    DEFAULT_MODEL_ID = os.getenv("DEFAULT_MODEL_ID", "").strip()
     SYSTEM_PROMPT   = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
+    USAGE = defaultdict(lambda: {"requests": 0, "blocked": 0, "errors": 0, "tokens": 0})
 
     def _load_models() -> list[dict]:
         raw = os.getenv("MODELS_CONFIG", "[]")
@@ -95,8 +99,9 @@ data:
         The orchestrator provides additional HAP (hate/abuse/profanity) detection.
         """
         url = os.getenv("GUARDRAILS_ORCHESTRATOR_URL", "")
-        # App-level guardrails are always active regardless of orchestrator health
-        base = {"app_guardrails": True, "topic_filter": True}
+        topic_filter_enabled = TOPIC_FILTER_MODE in ("on", "enforce", "strict", "true", "1")
+        # App-level guardrails remain active (guardrails orchestration can be unavailable).
+        base = {"app_guardrails": True, "topic_filter": topic_filter_enabled}
         if not url:
             return {**base, "available": False, "note": "Orchestrator URL not configured"}
         try:
@@ -112,6 +117,8 @@ data:
 
     # ── topic guardrails ───────────────────────────────────────────────────
     def _allowed(msg: str) -> bool:
+        if TOPIC_FILTER_MODE in ("off", "allow_all", "disabled", "false", "0"):
+            return True
         low = msg.lower()
         return any(kw in low for kw in ALLOWED_TOPICS)
 
@@ -213,8 +220,8 @@ data:
       <div class="body">
         <div class="guard-banner">
           <span class="icon">🛡️</span>
-          <span><strong>Guardrails active</strong> — topic filter enforced (Red Hat, ISO, AI only).
-          TrustyAI service logging all inferences for drift &amp; fairness monitoring.
+          <span><strong>Guardrails active</strong> — request flow enforced by MaaS auth + optional topic policy.
+          TrustyAI/monitoring endpoints provide per-model observability.
           <a href="{{ rhoai_url }}/projects/llm" target="_blank" style="color:#0c5460;font-weight:600">View in RHOAI →</a></span>
         </div>
         <div class="model-row">
@@ -229,7 +236,7 @@ data:
           <span id="providerBadge" class="badge badge-rhoai"></span>
         </div>
         <div class="model-note" id="modelNote"></div>
-        <textarea id="prompt" placeholder="Ask about Red Hat products, ISO standards, or AI/ML topics… (Ctrl+Enter to send)">What is Red Hat OpenShift AI and how does it support ISO 27001 compliance?</textarea>
+        <textarea id="prompt" placeholder="Enter a prompt… (Ctrl+Enter to send)">What is Red Hat OpenShift AI and how does it support ISO 27001 compliance?</textarea>
         <div class="btn-row">
           <button class="btn-send" id="sendBtn" onclick="send()">Send</button>
           <button class="btn-clear" onclick="clearChat()">Clear</button>
@@ -285,6 +292,10 @@ data:
     </div>
     <script>
     const MODELS = {{ models_json | safe }};
+    const DEFAULT_MODEL_ID = {{ default_model_id | tojson }};
+    if (DEFAULT_MODEL_ID && MODELS.some(m => m.id === DEFAULT_MODEL_ID && !m._disabled)) {
+      document.getElementById('modelSel').value = DEFAULT_MODEL_ID;
+    }
     function onModel(){
       const sel = document.getElementById('modelSel');
       const opt = sel.options[sel.selectedIndex];
@@ -365,22 +376,25 @@ data:
             rhoai_url=RHOAI_URL,
             models=models_for_template,
             models_json=models_json,
+            default_model_id=DEFAULT_MODEL_ID,
         )
 
     @app.route('/chat', methods=['POST'])
     def chat():
         data = request.json or {}
         msg   = data.get('message', '').strip()
-        mid   = data.get('model', MODELS[0]['id'] if MODELS else 'unknown')
+        mid   = data.get('model') or DEFAULT_MODEL_ID or (MODELS[0]['id'] if MODELS else 'unknown')
         model = next((m for m in MODELS if m['id'] == mid), None)
         if model is None:
             return jsonify({'error': f'Unknown model: {mid}'}), 400
         if model.get('_disabled'):
             return jsonify({'error': model.get('_disabled_reason', 'Model unavailable')}), 503
         if not _allowed(msg):
+            USAGE[mid]["blocked"] += 1
             return jsonify({'blocked': True, 'response': 'I can only answer questions about Red Hat technologies, AI/ML, and ISO standards.'})
         token = _get_token(model.get('auth', 'none'))
         if not token and model.get('auth') != 'none':
+            USAGE[mid]["errors"] += 1
             return jsonify({'error': f'No credentials for model {mid}'}), 503
         try:
             client = openai.OpenAI(base_url=model['url'], api_key=token or 'none')
@@ -392,13 +406,42 @@ data:
             )
             content = resp.choices[0].message.content
             tokens  = resp.usage.total_tokens if resp.usage else None
+            USAGE[mid]["requests"] += 1
+            if tokens:
+                USAGE[mid]["tokens"] += int(tokens)
             return jsonify({'response': content, 'model': mid, 'blocked': False, 'tokens': tokens})
         except Exception as exc:
+            USAGE[mid]["errors"] += 1
             return jsonify({'error': str(exc)[:300]}), 500
 
     @app.route('/status')
     def status():
-        return jsonify({'trustyai': _trustyai_status(), 'guardrails': _guardrails_status(), 'models': len([m for m in MODELS if not m.get('_disabled')])})
+        return jsonify({
+            'trustyai': _trustyai_status(),
+            'guardrails': _guardrails_status(),
+            'models': len([m for m in MODELS if not m.get('_disabled')]),
+            'usage_by_model': dict(USAGE),
+        })
+
+    @app.route('/metrics')
+    def metrics():
+        lines = [
+            "# HELP playground_model_requests_total Successful model responses.",
+            "# TYPE playground_model_requests_total counter",
+            "# HELP playground_model_blocked_total Requests blocked by guardrails.",
+            "# TYPE playground_model_blocked_total counter",
+            "# HELP playground_model_errors_total Model request errors.",
+            "# TYPE playground_model_errors_total counter",
+            "# HELP playground_model_tokens_total Total response tokens by model.",
+            "# TYPE playground_model_tokens_total counter",
+        ]
+        for model_id, vals in USAGE.items():
+            safe = model_id.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'playground_model_requests_total{{model_id="{safe}"}} {vals["requests"]}')
+            lines.append(f'playground_model_blocked_total{{model_id="{safe}"}} {vals["blocked"]}')
+            lines.append(f'playground_model_errors_total{{model_id="{safe}"}} {vals["errors"]}')
+            lines.append(f'playground_model_tokens_total{{model_id="{safe}"}} {vals["tokens"]}')
+        return "\\n".join(lines) + "\\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
 
     @app.route('/health')
     def health():

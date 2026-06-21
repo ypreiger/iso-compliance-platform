@@ -6,10 +6,12 @@ resources:
   - iso-web.yaml
   - iso-docgen.yaml
   - playground.yaml
+  - playground-servicemonitor.yaml
+  - maas-openai-proxy.yaml
 
 images:
-  - name: iso-api
-    newName: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api
+  - name: iso-api-orchestrator
+    newName: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api-orchestrator
     newTag: latest
   - name: iso-web
     newName: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-web

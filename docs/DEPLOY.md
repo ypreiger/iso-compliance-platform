@@ -60,21 +60,20 @@ oc -n openshift-gitops annotate application llm-ai-platform \
 
 ## Building Images
 
-The iso-api, iso-web, and iso-docgen images are built on-cluster via OpenShift BuildConfig.
+Images are built **outside** the cluster (CI pipeline) and pushed to your registry.
+ArgoCD only reconciles manifests; it does not run OpenShift `BuildConfig`.
+
+Recommended flow:
 
 ```bash
-# Build from local source (fast iteration)
-cd apps/iso-api
-oc start-build iso-api --from-dir=. --wait --follow
+# 1) Build and push images in CI (example names)
+image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api-orchestrator:<tag>
+image-registry.openshift-image-registry.svc:5000/iso-platform/iso-web:<tag>
+image-registry.openshift-image-registry.svc:5000/iso-platform/iso-docgen:<tag>
 
-cd apps/iso-web
-oc start-build iso-web --from-dir=. --wait --follow
-
-cd services/docgen
-oc start-build iso-docgen --from-dir=. --wait --follow
-
-# Restart after build
-oc rollout restart deployment/iso-api deployment/iso-web deployment/iso-docgen -n iso-platform
+# 2) Update tag(s) in GitOps manifests/kustomization
+# 3) Commit + push to main
+# 4) ArgoCD auto-syncs and rolls out
 ```
 
 ---
@@ -97,9 +96,10 @@ Key settings in `gitops/overlays/ocp-sandbox3159/cluster-config.yaml`:
 
 `gitops/overlays/ocp-sandbox3159/playground-models-config.yaml` — edit `MODELS_CONFIG` JSON to add/remove models. No code change required.
 
-### Doc-agent model tasks (`doc-agent-model-config`)
+### Model task routing (`iso-app-config`)
 
-`deploy/openshift/base/model-config.yaml` — controls which LLM is used per task (PARSE/EXTRACT/TRANSLATE/GENERATE). Change to Ollama or OpenShift AI vLLM by editing `*_MODEL_URL`.
+`gitops/overlays/ocp-sandbox3159/cluster-config.yaml` controls task-level model routing:
+`PARSE_MODEL_*`, `EXTRACT_MODEL_*`, `TRANSLATE_MODEL_*`, `GENERATE_MODEL_*`.
 
 ---
 
@@ -126,13 +126,13 @@ oc apply -f gitops/overlays/ocp-sandbox3159/llm-ai/ -n llm
 oc apply -f gitops/overlays/ocp-sandbox3159/playground-models-config.yaml -n iso-platform
 
 # Switch to Qwen3 for EXTRACT task (saves OpenAI cost)
-oc patch configmap doc-agent-model-config -n iso-platform --type=merge -p '{
+oc patch configmap iso-app-config -n iso-platform --type=merge -p '{
   "data": {
     "EXTRACT_MODEL_URL": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1",
     "EXTRACT_MODEL_NAME": "qwen3-4b-instruct"
   }
 }'
-oc rollout restart deployment/iso-docgen -n iso-platform
+oc rollout restart deployment/iso-doc-parse-rag -n iso-platform
 ```
 
 ---
@@ -140,12 +140,12 @@ oc rollout restart deployment/iso-docgen -n iso-platform
 ## Kubernetes (open-source) flavor
 
 ```bash
-kubectl apply -f deploy/kubernetes/base/
+kubectl apply -k deploy/kubernetes/base/
 # Optional: Ollama for on-cluster models
-kubectl apply -f deploy/kubernetes/ollama/
+kubectl apply -k deploy/kubernetes/ollama/
 kubectl exec -n iso-platform deploy/ollama -- ollama pull mistral
 # Update model config to use Ollama
-kubectl patch configmap doc-agent-model-config -n iso-platform --type=merge -p '{
+kubectl patch configmap iso-app-config -n iso-platform --type=merge -p '{
   "data": {
     "EXTRACT_MODEL_URL": "http://ollama.iso-platform.svc.cluster.local:11434/v1",
     "EXTRACT_MODEL_NAME": "mistral"

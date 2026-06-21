@@ -10,15 +10,7 @@
 > 3. Connects AI to your **ISO compliance work** — documents, clauses, audit findings"
 
 Show the architecture diagram:
-```
-Browser
-  │
-  ├─ ISO Viewer (clause browsing, EN/HE)
-  ├─ Compliance Platform (projects, findings, mapping)
-  └─ AI Playground ──► RHOAI MaaS ──► Qwen3 4B (on-prem GPU)
-                   │                └─► OpenAI (external)
-                   └─► TrustyAI (guardrails + observability)
-```
+![General architecture overview](./architecture-overview.png)
 
 ---
 
@@ -98,7 +90,7 @@ Ask something off-topic:
    - Upload
 
 2. Watch the upload response:
-   - `parse_method: llm` — GPT-4o extracted clauses
+   - `parse_method: llm` — extracted via `iso-doc-parse-rag` and MaaS-routed model
    - `clauses_imported: XX`
    - `validation: {rag_hit_rate: 0.95, passed: true}`
    - _"The AI read the PDF and structured it into searchable clauses — validated automatically."_
@@ -143,7 +135,7 @@ Back in RHOAI Dashboard → Project llm → Trusty AI:
 Open ArgoCD: `https://openshift-gitops-server-openshift-gitops.apps.ocp.8mkwb.sandbox3159.opentlc.com`
 
 Show:
-- `llm-ai-platform` application: **Synced · Healthy**
+- `iso-compliance-platform` + `llm-ai-platform`: **Synced · Healthy**
 - Source: `gitops/overlays/ocp-sandbox3159/llm-ai/`
 - Resources: TrustyAI, GuardrailsOrchestrator, RBAC, namespace labels
 

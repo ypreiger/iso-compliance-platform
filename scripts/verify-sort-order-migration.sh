@@ -26,9 +26,9 @@ if ! command -v oc &>/dev/null; then
   exit 0
 fi
 
-POD=$(oc get pod -n "$NAMESPACE" -l app.kubernetes.io/name=iso-api --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+POD=$(oc get pod -n "$NAMESPACE" -l app.kubernetes.io/name=iso-api-orchestrator --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 if [ -z "$POD" ]; then
-  echo "⚠ No running iso-api pod found — skipping database check"
+  echo "⚠ No running iso-api-orchestrator pod found — skipping database check"
   exit 0
 fi
 

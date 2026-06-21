@@ -50,9 +50,70 @@ subjects:
   - kind: ServiceAccount
     name: maas-client
     namespace: iso-platform
+  - kind: ServiceAccount
+    name: iso-platform
+    namespace: iso-platform
 roleRef:
   kind: ClusterRole
   name: iso-maas-llm-access
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: iso-platform-llm-access-all
+  labels:
+    app.kubernetes.io/part-of: iso-compliance
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: iso-platform
+  - kind: ServiceAccount
+    name: maas-client
+    namespace: iso-platform
+  - kind: ServiceAccount
+    name: iso-platform
+    namespace: iso-platform
+roleRef:
+  kind: ClusterRole
+  name: iso-maas-llm-access
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRole: allow POST access on all MaaS model routes.
+# MaaS gateway performs SubjectAccessReview with verb=post on llminferenceservices.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: iso-maas-llm-post-all
+  labels:
+    app.kubernetes.io/part-of: iso-compliance
+rules:
+  - apiGroups: ["serving.kserve.io"]
+    resources: ["llminferenceservices"]
+    verbs: ["post"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: iso-platform-llm-post-all
+  labels:
+    app.kubernetes.io/part-of: iso-compliance
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: iso-platform
+  - kind: ServiceAccount
+    name: maas-client
+    namespace: iso-platform
+  - kind: ServiceAccount
+    name: iso-platform
+    namespace: iso-platform
+roleRef:
+  kind: ClusterRole
+  name: iso-maas-llm-post-all
   apiGroup: rbac.authorization.k8s.io
 
 ---

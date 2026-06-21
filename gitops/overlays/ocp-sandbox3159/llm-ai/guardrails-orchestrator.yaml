@@ -46,9 +46,9 @@ data:
 ---
 # Guardrails Orchestrator for Qwen3 4B Instruct
 #
-# Sits in front of vLLM and applies content-safety detectors on inputs and outputs.
+# Sits in front of vLLM and can apply content-safety detectors on inputs/outputs.
 # orchestratorConfig: vLLM endpoint configuration (above ConfigMap)
-# enableBuiltInDetectors: true → HAP (hate/abuse/profanity) built-in detector
+# enableBuiltInDetectors: false → allow-all mode (no detector-based blocking)
 # enableGuardrailsGateway: false → orchestrator runs standalone on port 8033/8034
 #                                 (gateway sidecar disabled: known operator bug
 #                                  in this RHOAI version where volumeMount is added
@@ -70,7 +70,7 @@ metadata:
 spec:
   replicas: 1
   orchestratorConfig: qwen3-orchestrator-config
-  enableBuiltInDetectors: true
+  enableBuiltInDetectors: false
   enableGuardrailsGateway: false
   env:
     - name: GUARDRAILS_LOG_LEVEL

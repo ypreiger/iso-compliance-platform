@@ -1,7 +1,5 @@
 ---
 # ArgoCD Application — ISO Compliance Platform
-# ignoreDifferences: BuildConfigs use binary strategy so spec.source is always different
-# from what's in git → ignore to prevent permanent OutOfSync.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -18,12 +16,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: iso-platform
-  ignoreDifferences:
-    - group: build.openshift.io
-      kind: BuildConfig
-      jsonPointers:
-        - /spec/source
-        - /spec/triggers
   syncPolicy:
     automated:
       prune: true

@@ -1,0 +1,275 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: maas-openai-proxy-app
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: maas-openai-proxy
+    app.kubernetes.io/component: model-proxy
+data:
+  app.py: |
+    from __future__ import annotations
+
+    import os
+    from typing import Any
+
+    import requests
+    from flask import Flask, Response, jsonify, request
+
+    app = Flask(__name__)
+
+    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+    OPENAI_EXPOSED_MODELS = [
+        m.strip() for m in os.getenv("OPENAI_EXPOSED_MODELS", "gpt-4o,gpt-4o-mini,gpt-3.5-turbo").split(",") if m.strip()
+    ]
+    SESSION = requests.Session()
+
+
+    def _auth_headers() -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+        }
+
+
+    def _proxy_post(path: str) -> Response:
+        if not OPENAI_API_KEY:
+            return jsonify({"error": {"message": "OPENAI_API_KEY is not configured"}}), 500
+
+        upstream = f"{OPENAI_BASE_URL}{path}"
+        upstream_resp = SESSION.post(
+            upstream,
+            headers=_auth_headers(),
+            data=request.get_data(),
+            timeout=300,
+        )
+        filtered_headers = [
+            (k, v)
+            for k, v in upstream_resp.headers.items()
+            if k.lower() not in {"content-encoding", "content-length", "transfer-encoding", "connection"}
+        ]
+        return Response(upstream_resp.content, status=upstream_resp.status_code, headers=filtered_headers)
+
+
+    @app.get("/health")
+    def health() -> tuple[dict[str, Any], int]:
+        return {
+            "status": "healthy",
+            "provider": "openai",
+            "base_url": OPENAI_BASE_URL,
+            "models": OPENAI_EXPOSED_MODELS,
+        }, 200
+
+
+    @app.get("/v1/models")
+    def models() -> tuple[dict[str, Any], int]:
+        return {
+            "object": "list",
+            "data": [
+                {"id": model_id, "object": "model", "owned_by": "openai-via-maas"}
+                for model_id in OPENAI_EXPOSED_MODELS
+            ],
+        }, 200
+
+
+    @app.post("/v1/chat/completions")
+    def chat_completions() -> Response:
+        return _proxy_post("/chat/completions")
+
+
+    @app.post("/v1/completions")
+    def completions() -> Response:
+        return _proxy_post("/completions")
+
+
+    @app.post("/v1/responses")
+    def responses() -> Response:
+        return _proxy_post("/responses")
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maas-openai-proxy
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: maas-openai-proxy
+    app.kubernetes.io/component: model-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: maas-openai-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: maas-openai-proxy
+        app.kubernetes.io/component: model-proxy
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: registry.access.redhat.com/ubi9/python-311:latest
+          workingDir: /opt/app-root/src
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              pip install --no-cache-dir flask requests gunicorn
+              cp /config/app.py /opt/app-root/src/app.py
+              exec gunicorn -w 2 -b 0.0.0.0:8080 --timeout 300 app:app
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-api-key
+                  key: OPENAI_API_KEY
+            - name: OPENAI_BASE_URL
+              value: https://api.openai.com/v1
+            - name: OPENAI_EXPOSED_MODELS
+              value: gpt-4o,gpt-4o-mini,gpt-3.5-turbo
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: app-code
+              mountPath: /config
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: app-code
+          configMap:
+            name: maas-openai-proxy-app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maas-openai-proxy
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: maas-openai-proxy
+    app.kubernetes.io/component: model-proxy
+spec:
+  selector:
+    app.kubernetes.io/name: maas-openai-proxy
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: maas-gpt-4o-route
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: maas-openai-proxy
+    app.kubernetes.io/component: model-routing
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: maas-default-gateway
+      namespace: openshift-ingress
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /llm/gpt-4o/v1
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /v1
+      backendRefs:
+        - kind: Service
+          name: maas-openai-proxy
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: maas-gpt-4o-mini-route
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: maas-openai-proxy
+    app.kubernetes.io/component: model-routing
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: maas-default-gateway
+      namespace: openshift-ingress
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /llm/gpt-4o-mini/v1
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /v1
+      backendRefs:
+        - kind: Service
+          name: maas-openai-proxy
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: maas-gpt-35-turbo-route
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: maas-openai-proxy
+    app.kubernetes.io/component: model-routing
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: maas-default-gateway
+      namespace: openshift-ingress
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /llm/gpt-3.5-turbo/v1
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /v1
+      backendRefs:
+        - kind: Service
+          name: maas-openai-proxy
+          port: 8080

@@ -43,8 +43,8 @@ if [[ -n "${GOOGLE_CLIENT_SECRET}" ]]; then
     --dry-run=client -o yaml | oc apply -f -
 fi
 
-oc rollout restart deploy/iso-api deploy/iso-web -n "${NS}"
-oc rollout status deploy/iso-api -n "${NS}" --timeout=300s
+oc rollout restart deploy/iso-api-orchestrator deploy/iso-web -n "${NS}"
+oc rollout status deploy/iso-api-orchestrator -n "${NS}" --timeout=300s
 
 log "Register this Authorized JavaScript origin in GCP Console (APIs & Services → Credentials → OAuth client):"
 log "  ${JS_ORIGIN}"

@@ -2,53 +2,34 @@
 
 ## System Overview
 
-```
-Browser
-  ├── ISO Compliance App (iso-web → iso-api)
-  │     ├── Projects, Findings, Clause Mapping
-  │     ├── ISO Standards Viewer (EN/HE bilingual)
-  │     └── Admin: Upload → doc-agent → parse → RAG index
-  │
-  └── AI Playground
-        ├── Qwen3 4B Instruct — RHOAI MaaS (on-prem GPU)
-        ├── GPT-4o / GPT-4o-mini / GPT-3.5-turbo (OpenAI)
-        └── TrustyAI observability sidebar
-```
+![General architecture overview](./architecture-overview.png)
+
+The platform uses `iso-api-orchestrator` as the single workflow coordinator:
+- `iso-web` calls orchestrator APIs for projects, corpus, mapping, and retrieval.
+- `iso-doc-parse-rag` handles upload parsing (`/parse`) for PDF/DOC/DOCX ingestion.
+- `iso-doc-gen` handles export generation (`/generate`) independently.
+- MaaS routes all model traffic and integrates with TrustyAI/guardrails.
+- ArgoCD reconciles manifests; images are built in CI and pushed to registry.
 
 ## Services
 
 | Service | Path | Role |
 |---------|------|------|
-| `iso-api` | `apps/iso-api/` | FastAPI orchestrator — projects, findings, corpus, RAG |
+| `iso-api-orchestrator` | `apps/iso-api/` | FastAPI orchestrator — projects, findings, corpus, RAG |
 | `iso-web` | `apps/iso-web/` | React SPA — viewer, admin, compliance UI |
-| `iso-docgen` | `services/docgen/` | **Doc-agent**: parse PDF/DOC/DOCX/Excel + generate reports |
+| `iso-doc-parse-rag` | `services/docgen/` | Parse + clause extraction agent (`/parse`) |
+| `iso-doc-gen` | `services/docgen/` | Generation/export agent (`/generate`) |
 | `playground` | `gitops/layers/03-application/playground.yaml` | Unified AI chat, all models |
 
 ## Agent Architecture
 
-```
-Upload PDF/DOC/DOCX
-      │
-      ▼ POST /parse
-┌─────────────────┐        ┌──────────────────────────────────┐
-│   iso-docgen    │───────▶│  Model as a Service               │
-│   (doc-agent)   │        │  PARSE_MODEL   gpt-4o             │
-│                 │        │  EXTRACT_MODEL gpt-4o             │
-│  /parse         │        │  TRANSLATE_MODEL gpt-4o           │
-│  /generate/xlsx │        │  GENERATE_MODEL gpt-4o-mini       │
-│  /generate/docx │        └──────────────────────────────────┘
-│  /generate/pdf  │
-│  /models        │
-└─────────────────┘
-      │ structured clauses
-      ▼
-iso-api pipeline:
-  1. Store original file → corpus_files (BYTEA)
-  2. Extract text — PyMuPDF / antiword / python-docx
-  3. LLM clause extraction → [{clause_id, title, body}]
-  4. Index → iso_clause_text + rag_documents
-  5. Validate → RAG hit rate + phrase match score
-```
+`iso-api-orchestrator` pipeline:
+1. Store original upload in `corpus_files` (BYTEA).
+2. Call `iso-doc-parse-rag /parse` for structured clause extraction.
+3. Persist normalized clauses to `iso_clause_text`.
+4. Build retrieval chunks in `rag_documents`.
+5. Run validation (`rag_hit_rate`, phrase checks) and attach report metadata.
+6. Route export requests to `iso-doc-gen /generate`.
 
 ## Model as a Service (MaaS) — Per-Task Configuration
 
@@ -56,12 +37,12 @@ Each task uses an independently configurable model:
 
 | Task | Env var prefix | Default | Purpose |
 |------|---------------|---------|---------|
-| Document parsing | `PARSE_MODEL_*` | gpt-4o | PDF/DOC → clauses |
-| ISO extraction | `EXTRACT_MODEL_*` | gpt-4o | Structure raw text |
-| Translation | `TRANSLATE_MODEL_*` | gpt-4o | EN↔HE |
-| Report generation | `GENERATE_MODEL_*` | gpt-4o-mini | Narrative text |
+| Document parsing | `PARSE_MODEL_*` | qwen3-4b-instruct | PDF/DOC → clauses |
+| ISO extraction | `EXTRACT_MODEL_*` | qwen3-4b-instruct | Structure raw text |
+| Translation | `TRANSLATE_MODEL_*` | qwen3-4b-instruct | EN↔HE |
+| Report generation | `GENERATE_MODEL_*` | qwen3-4b-instruct | Narrative text |
 
-Configure in `deploy/openshift/base/model-config.yaml` (OpenShift) or `deploy/kubernetes/base/model-config.yaml` (plain K8s).
+Configure in `gitops/overlays/ocp-sandbox3159/cluster-config.yaml` (`iso-app-config`).
 
 ## Two Deployment Flavors
 
@@ -70,7 +51,7 @@ Configure in `deploy/openshift/base/model-config.yaml` (OpenShift) or `deploy/ku
 | Component | Technology |
 |-----------|------------|
 | Orchestration | OpenShift 4.x |
-| Image builds | `BuildConfig` (binary + Git) |
+| Image builds | External CI build + registry push |
 | Ingress | OpenShift `Route` (TLS edge) |
 | LLM inference | RHOAI `LLMInferenceService` (vLLM) |
 | LLM access control | Kuadrant + Authorino (MaaS tiers) |
@@ -90,7 +71,7 @@ Configure in `deploy/openshift/base/model-config.yaml` (OpenShift) or `deploy/ku
 | GitOps | ArgoCD community edition |
 | Manifests | `deploy/kubernetes/` |
 
-Switch between flavors: edit `deploy/*/base/model-config.yaml` — same app code, different endpoints.
+Switch between flavors by adjusting model endpoints and routing manifests for each environment.
 
 ## Database
 
@@ -137,13 +118,13 @@ gitops/
   layers/
     01-platform-infra/    namespace, RHOAI config, RBAC
     02-app-infra-catalog/ PostgreSQL, Redis, PVC
-    03-application/       iso-api, iso-web, iso-docgen, playground
+    03-application/       iso-api-orchestrator, iso-web, doc agents, playground
     04-rag-population/    seed data job
   overlays/
     ocp-sandbox3159/      cluster-specific: images, ConfigMaps, ArgoCD apps
       llm-ai/             TrustyAI + GuardrailsOrchestrator + RBAC → llm namespace
       apps/               ArgoCD Application CRs
 deploy/
-  openshift/              OpenShift-specific YAML (Routes, BuildConfigs, AI serving)
+  openshift/              OpenShift-specific YAML (Routes, AI serving)
   kubernetes/             Pure K8s YAML (Ingress, Ollama)
 ```

@@ -31,38 +31,26 @@ oc create secret generic iso-secrets -n "${NS}" \
   --from-literal=GIT_PASSWORD="" \
   --dry-run=client -o yaml | oc apply -f -
 
-log "Applying GitOps overlay (catalog DB, redis, apps, builds)"
+log "Applying GitOps overlay (catalog DB, redis, apps)"
 oc apply -k "${REPO_ROOT}/gitops/overlays/ocp-sandbox3159"
 
 log "Registering Argo CD Application"
 oc apply -f "${REPO_ROOT}/gitops/overlays/ocp-sandbox3159/application.yaml"
 
-build_local() {
-  local bc="$1" dir="$2"
-  log "Build ${bc} from ${dir} (binary)"
-  oc patch "bc/${bc}" -n "${NS}" --type=merge \
-    -p='{"spec":{"source":{"type":"Binary","git":null,"contextDir":null}}}' 2>/dev/null || true
-  oc start-build "bc/${bc}" --from-dir="${REPO_ROOT}/${dir}" --wait -n "${NS}" || fail "build ${bc} failed"
-}
-
-build_local iso-api apps/iso-api
-build_local iso-web apps/iso-web
-build_local iso-docgen services/docgen
-log "Build rag-iso from repo root (bundled RAG corpus)"
-oc patch bc/rag-iso -n "${NS}" --type=merge \
-  -p='{"spec":{"source":{"type":"Binary","git":null,"contextDir":null},"strategy":{"dockerStrategy":{"dockerfilePath":"services/rag-iso/Containerfile"}}}}' 2>/dev/null || true
-oc start-build bc/rag-iso --from-dir="${REPO_ROOT}" --wait -n "${NS}" || fail "build rag-iso failed"
+log "Skipping in-cluster image builds (BuildConfig removed)."
+log "Ensure images are prebuilt and pushed before Argo sync."
 
 log "Waiting for rollouts"
-oc rollout status deploy/iso-api -n "${NS}" --timeout=300s || true
+oc rollout status deploy/iso-api-orchestrator -n "${NS}" --timeout=300s || true
 oc rollout status deploy/iso-web -n "${NS}" --timeout=300s || true
-oc rollout status deploy/iso-docgen -n "${NS}" --timeout=300s || true
+oc rollout status deploy/iso-doc-parse-rag -n "${NS}" --timeout=300s || true
+oc rollout status deploy/iso-doc-gen -n "${NS}" --timeout=300s || true
 
 log "Verify playground still up"
 curl -sf "https://claude-playground-${NS}.apps.${CLUSTER_DOMAIN}/health" | grep -q healthy || log "WARN: playground health check"
 
-log "Verify iso-api"
-curl -sf "https://iso-api-${NS}.apps.${CLUSTER_DOMAIN}/health" | grep -q ok || log "WARN: iso-api not ready yet"
+log "Verify iso-api-orchestrator"
+curl -sf "https://iso-api-orchestrator-${NS}.apps.${CLUSTER_DOMAIN}/health" | grep -q ok || log "WARN: iso-api-orchestrator not ready yet"
 
 log "Run verification scripts"
 bash "${SCRIPT_DIR}/verify-layer-01.sh" || true
@@ -72,5 +60,5 @@ bash "${SCRIPT_DIR}/verify-layer-03.sh" || true
 log "Bootstrap complete"
 log "  Playground: https://claude-playground-${NS}.apps.${CLUSTER_DOMAIN}"
 log "  ISO Web:    https://iso-web-${NS}.apps.${CLUSTER_DOMAIN}"
-log "  ISO API:    https://iso-api-${NS}.apps.${CLUSTER_DOMAIN}"
+log "  ISO API:    https://iso-api-orchestrator-${NS}.apps.${CLUSTER_DOMAIN}"
 log "  MaaS:       https://maas.apps.${CLUSTER_DOMAIN}/maas-api/v1/models"

@@ -32,9 +32,9 @@ oc create secret generic iso-secrets -n "${NS}" \
   --from-literal=GIT_PASSWORD="" \
   --dry-run=client -o yaml | oc apply -f -
 
-oc rollout restart deploy/iso-api -n "${NS}"
-oc rollout status deploy/iso-api -n "${NS}" --timeout=120s
+oc rollout restart deploy/iso-api-orchestrator -n "${NS}"
+oc rollout status deploy/iso-api-orchestrator -n "${NS}" --timeout=120s
 
 log "Redirect URI (must match GCP OAuth client): ${REDIRECT_URI}"
-curl -sf "https://iso-api-${NS}.apps.${ISO_CLUSTER_DOMAIN:-ocp.8mkwb.sandbox3159.opentlc.com}/auth/config" | grep -q '"google_enabled":true'
+curl -sf "https://iso-api-orchestrator-${NS}.apps.${ISO_CLUSTER_DOMAIN:-ocp.8mkwb.sandbox3159.opentlc.com}/auth/config" | grep -q '"google_enabled":true'
 log "google_enabled=true"

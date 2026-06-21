@@ -7,15 +7,13 @@ resources:
   - ../../layers/02-app-infra-catalog
   - ../../layers/03-application
   - ../../layers/04-rag-population
-  - buildconfigs.yaml
-  - imagestreams.yaml
   - cluster-config.yaml
   - playground-models-config.yaml
   - secrets.yaml
 
 images:
-  - name: iso-api
-    newName: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api
+  - name: iso-api-orchestrator
+    newName: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api-orchestrator
     newTag: latest
   - name: iso-web
     newName: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-web
