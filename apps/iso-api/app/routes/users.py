@@ -92,7 +92,10 @@ def update_user(
             """,
             (name, roles, is_active, user_id),
         )
-        audit(conn, admin.id, "user.updated", "user", user_id, before=dict(row), after=body.model_dump())
+        # Convert row to dict and ensure UUIDs are strings for JSON serialization
+        before_dict = dict(row)
+        before_dict["id"] = str(before_dict["id"]) if before_dict.get("id") else None
+        audit(conn, admin.id, "user.updated", "user", user_id, before=before_dict, after=body.model_dump())
         conn.commit()
         updated = conn.execute(
             "SELECT id, email, name, roles, is_active FROM users WHERE id = %s", (user_id,)
