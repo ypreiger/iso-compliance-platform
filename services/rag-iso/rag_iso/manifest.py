@@ -15,6 +15,8 @@ class Collection:
     kind: str
     optional: bool
     ingest: dict[str, Any]
+    languages: list[str]
+    standards: list[str]
 
 
 def load_manifest(rag_root: Path) -> list[Collection]:
@@ -30,6 +32,8 @@ def load_manifest(rag_root: Path) -> list[Collection]:
                 kind=item.get("kind", "unknown"),
                 optional=bool(item.get("optional", False)),
                 ingest=item.get("ingest", {}),
+                languages=list(item.get("languages", ["en"])),
+                standards=list(item.get("standards", [])),
             )
         )
     return out

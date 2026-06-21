@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.auth.deps import CurrentUser, get_current_user
+from app.auth.deps import CurrentUser, require_project_access
 from app.db import get_conn, rows_to_list
 
 router = APIRouter(prefix="/v1/projects/{project_id}/coverage", tags=["coverage"])
@@ -21,7 +21,7 @@ class CoverageSet(BaseModel):
 
 
 @router.get("")
-def get_coverage(project_id: str, user: Annotated[CurrentUser, Depends(get_current_user)]):
+def get_coverage(project_id: str, user: Annotated[CurrentUser, Depends(require_project_access)]):
     with get_conn() as conn:
         rows = conn.execute(
             "SELECT * FROM clause_coverage WHERE project_id = %s ORDER BY standard, clause_id",
@@ -34,7 +34,7 @@ def get_coverage(project_id: str, user: Annotated[CurrentUser, Depends(get_curre
 def set_coverage(
     project_id: str,
     body: CoverageSet,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
+    user: Annotated[CurrentUser, Depends(require_project_access)],
 ):
     user.require_role("supervisor", "admin")
     cid = str(uuid4())

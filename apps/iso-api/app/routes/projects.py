@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.auth.deps import CurrentUser, get_current_user
+from app.auth.deps import CurrentUser, require_project_access
 from app.db import audit, get_conn, rows_to_list
 
 router = APIRouter(prefix="/v1/projects", tags=["projects"])
@@ -24,7 +24,7 @@ class ContextUpdate(BaseModel):
 
 
 @router.get("")
-def list_projects(user: Annotated[CurrentUser, Depends(get_current_user)]):
+def list_projects(user: Annotated[CurrentUser, Depends(require_project_access)]):
     with get_conn() as conn:
         rows = conn.execute(
             """
@@ -36,7 +36,7 @@ def list_projects(user: Annotated[CurrentUser, Depends(get_current_user)]):
 
 
 @router.post("")
-def create_project(body: ProjectCreate, user: Annotated[CurrentUser, Depends(get_current_user)]):
+def create_project(body: ProjectCreate, user: Annotated[CurrentUser, Depends(require_project_access)]):
     pid = str(uuid4())
     with get_conn() as conn:
         conn.execute(
@@ -53,7 +53,7 @@ def create_project(body: ProjectCreate, user: Annotated[CurrentUser, Depends(get
 
 
 @router.get("/{project_id}")
-def get_project(project_id: str, user: Annotated[CurrentUser, Depends(get_current_user)]):
+def get_project(project_id: str, user: Annotated[CurrentUser, Depends(require_project_access)]):
     with get_conn() as conn:
         row = conn.execute("SELECT * FROM projects WHERE id = %s", (project_id,)).fetchone()
     if not row:
@@ -65,7 +65,7 @@ def get_project(project_id: str, user: Annotated[CurrentUser, Depends(get_curren
 def update_context(
     project_id: str,
     body: ContextUpdate,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
+    user: Annotated[CurrentUser, Depends(require_project_access)],
 ):
     with get_conn() as conn:
         row = conn.execute("SELECT context FROM projects WHERE id = %s", (project_id,)).fetchone()

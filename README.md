@@ -1,71 +1,46 @@
-# ISO Compliance Platform
+# ISO Compliance AI Platform
 
-Plan and build an ISO certification assistant for **ISO 9001**, **ISO 14001**, **ISO 45001**, and **ISO 13485**.
+AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 
-## Deployment flavors (same repo)
+## Quick Links
 
-| Flavor | Status | LLM gateway | Target |
-|--------|--------|-------------|--------|
-| **`openshift-rhoai`** | **Primary — implement & test first** | RHOAI **MaaS** (OpenAI-compatible `/v1`) | OpenShift + OpenShift AI |
-| **`k8s-litellm`** | **Maintained in parallel** | **LiteLLM** proxy (OpenAI-compatible) | Generic Kubernetes |
+| | URL |
+|---|---|
+| **AI Playground** | https://playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com |
+| **ISO Compliance App** | https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com |
+| **RHOAI Dashboard** | https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com |
+| **ArgoCD** | https://openshift-gitops-server-openshift-gitops.apps.ocp.8mkwb.sandbox3159.opentlc.com |
+| **MaaS Gateway** | https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com |
 
-Application code is **flavor-agnostic**: it speaks OpenAI-compatible APIs only. Platform manifests live under `infra/`.
+## Documentation
 
-## Repository layout
+| Doc | What it covers |
+|-----|---------------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, agent topology, two deployment flavors |
+| [DEPLOY.md](docs/DEPLOY.md) | Installation, GitOps, cluster bootstrap |
+| [RHOAI_MAAS_GUARDRAILS.md](docs/RHOAI_MAAS_GUARDRAILS.md) | Qwen3 + MaaS + TrustyAI setup |
+| [DEMO_PRESENTATION.md](docs/DEMO_PRESENTATION.md) | **Customer presentation flow** (start here for demos) |
+| [AUTH.md](docs/AUTH.md) | Google OAuth, user roles |
+
+## Services
 
 ```
-iso-compliance-platform/
-├── README.md
-├── docs/
-│   ├── PRD.md                 # Product requirements
-│   ├── ARCHITECTURE.md        # Components, data flow, dual-flavor LLM
-│   ├── UI.md                  # Screens: corpus uploads, instructions, supervisor
-│   └── DEPLOYMENT.md          # OpenShift/RHOAI vs K8s/LiteLLM runbooks
-├── infra/
-│   ├── openshift-rhoai/       # GitOps, RHOAI MaaS, routes, secrets patterns
-│   └── k8s-litellm/         # K8s manifests, LiteLLM, ingress
-├── apps/
-│   ├── iso-api/               # BFF: auth, projects, mapping, ISO text, admin
-│   └── iso-web/               # React SPA (EN/HE UI, RTL/LTR, all screens)
-├── services/
-│   ├── rag-iso/               # RAG ingest Job
-│   └── docgen/                # Excel/DOCX export service
-├── gitops/                    # 4-layer one-click deploy
-├── RAG/                       # Seed corpus (Standards, Samples, Templates)
-├── scripts/                   # deploy-all, verify-*, dry-run-local.sh
-└── docker-compose.yml         # Local dry-run stack
+iso-web      → React SPA (nginx)
+iso-api      → FastAPI orchestrator
+iso-docgen   → Document parsing + generation agent (PDF/DOC/DOCX/Excel)
+playground   → Unified AI chat (Qwen3 + GPT-4o + GPT-4o-mini + GPT-3.5-turbo)
 ```
 
-## Languages
+## Models
 
-- **UI / logic:** English
-- **Samples, templates, customer exports:** Hebrew (RTL DOCX/XLSX)
+| Model | Provider | Tier | Notes |
+|-------|----------|------|-------|
+| Qwen3 4B Instruct 2507 | RHOAI MaaS (on-prem GPU) | Enterprise | 131k context, L40 GPU |
+| GPT-4o | OpenAI | — | External |
+| GPT-4o Mini | OpenAI | — | External |
+| GPT-3.5 Turbo | OpenAI | — | External |
 
-## Quick links
+## Two Deployment Flavors
 
-- [Product requirements](docs/PRD.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [User interface plan](docs/UI.md)
-- [Deployment flavors](docs/DEPLOYMENT.md)
-- [GitOps one-click deploy](docs/GITOPS.md)
-- [Microservices map](docs/MICROSERVICES.md)
-- [Authentication (Google + admins)](docs/AUTH.md)
-
-## One-click deploy (OpenShift)
-
-Assumes only a cluster with **OpenShift GitOps** is preinstalled:
-
-```bash
-./scripts/dry-run-local.sh   # pytest + API smoke + web build (no OpenShift)
-oc login …
-./scripts/deploy-all.sh
-```
-
-Four GitOps layers: platform infra → app infra → application → RAG population (`RAG/` seed corpus).
-
-## Mock UI (browser preview)
-
-Open **`mock-ui/index.html`** in your browser — no build or cluster needed. See [mock-ui/README.md](mock-ui/README.md).
-
-## Reference (patterns only)
-(https://github.com/ypreiger/ragu-builder) repo uses **Open WebUI → openai-gateway → MaaS → LLMInferenceService**. This product reuses the **gateway abstraction** idea but owns its own namespace, models, and compliance workflow.
+- **`deploy/openshift/`** — Red Hat OpenShift (Routes, BuildConfig, RHOAI, Kuadrant)
+- **`deploy/kubernetes/`** — Pure Kubernetes (Ingress, Ollama, standard k8s)

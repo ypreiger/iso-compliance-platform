@@ -1,0 +1,223 @@
+[
+  {
+    "standard": "ISO9001",
+    "clause_id": "4.1",
+    "sort_order": 401,
+    "en": {
+      "title": "Understanding the organization and its context",
+      "body": "The organization shall determine external and internal issues that are relevant to its purpose and its strategic direction and that affect its ability to achieve the intended result(s) of its quality management system.\n\nThe organization shall monitor and review information about these external and internal issues."
+    },
+    "he": {
+      "title": "הבנת הארגון והקשר שלו",
+      "body": "הארגון יקבע נושאים חיצוניים ופנימיים הרלוונטיים למטרתו ולכיוון האסטרטגי שלו ומשפיעים על יכולתו להשיג את התוצאות המיועדות של מערכת ניהול האיכות.\n\nהארגון ינטר ויסקור מידע אודות נושאים חיצוניים ופנימיים אלה."
+    }
+  },
+  {
+    "standard": "ISO9001",
+    "clause_id": "4.2",
+    "sort_order": 402,
+    "en": {
+      "title": "Understanding the needs and expectations of interested parties",
+      "body": "The organization shall determine the interested parties that are relevant to the quality management system and the requirements of these interested parties that are relevant to the quality management system.\n\nThe organization shall monitor and review information about these interested parties and their relevant requirements."
+    },
+    "he": {
+      "title": "הבנת צרכים וציפיות של בעלי עניין",
+      "body": "הארגון יקבע את בעלי העניין הרלוונטיים למערכת ניהול האיכות ואת דרישות בעלי העניין הרלוונטיות למערכת ניהול האיכות.\n\nהארגון ינטר ויסקור מידע אודות בעלי עניין אלה ודרישותיהם הרלוונטיות."
+    }
+  },
+  {
+    "standard": "ISO9001",
+    "clause_id": "5.1",
+    "sort_order": 501,
+    "en": {
+      "title": "Leadership and commitment",
+      "body": "Top management shall demonstrate leadership and commitment with respect to the quality management system by taking accountability for the effectiveness of the quality management system; ensuring that the quality policy and quality objectives are established and are compatible with the context and strategic direction of the organization; ensuring the integration of the quality management system requirements into the organization's business processes."
+    },
+    "he": {
+      "title": "מנהיגות ומחויבות",
+      "body": "ההנהלה הבכירה תפגין מנהיגות ומחויבות לגבי מערכת ניהול האיכות על ידי נטילת אחריות ליעילות מערכת ניהול האיכות; הבטחת קביעת מדיניות האיכות ויעדי האיכות והתאמתם להקשר ולכיוון האסטרטגי של הארגון; הבטחת שילוב דרישות מערכת ניהול האיכות בתהליכי העסק של הארגון."
+    }
+  },
+  {
+    "standard": "ISO9001",
+    "clause_id": "6.1",
+    "sort_order": 601,
+    "en": {
+      "title": "Actions to address risks and opportunities",
+      "body": "When planning for the quality management system, the organization shall consider the issues referred to in 4.1 and the requirements referred to in 4.2, and determine the risks and opportunities that need to be addressed to give assurance that the quality management system can achieve its intended result(s)."
+    },
+    "he": {
+      "title": "פעולות לטיפול בסיכונים והזדמנויות",
+      "body": "בעת תכנון מערכת ניהול האיכות, הארגון ישקול את הנושאים המוזכרים ב-4.1 ואת הדרישות המוזכרות ב-4.2, ויקבע את הסיכונים וההזדמנויות שיש לטפל בהם כדי להבטיח שמערכת ניהול האיכות תשיג את התוצאות המיועדות."
+    }
+  },
+  {
+    "standard": "ISO9001",
+    "clause_id": "7.5",
+    "sort_order": 705,
+    "en": {
+      "title": "Documented information",
+      "body": "The organization's quality management system shall include documented information required by this International Standard and documented information determined by the organization as being necessary for the effectiveness of the quality management system.\n\nThe organization shall control documented information required by the quality management system and by this International Standard."
+    },
+    "he": {
+      "title": "מידע מתועד",
+      "body": "מערכת ניהול האיכות של הארגון תכלול מידע מתועד הנדרש על ידי תקן זה ומידע מתועד שהארגון קבע כנחוץ ליעילות מערכת ניהול האיכות.\n\nהארגון יבקר מידע מתועד הנדרש על ידי מערכת ניהול האיכות ועל ידי תקן זה."
+    }
+  },
+  {
+    "standard": "ISO9001",
+    "clause_id": "8.1",
+    "sort_order": 801,
+    "en": {
+      "title": "Operational planning and control",
+      "body": "The organization shall plan, implement and control the processes needed to meet requirements for the provision of products and services, and to implement the actions determined in Clause 6, by determining the requirements for the products and services; establishing criteria for the processes and for the acceptance of products and services."
+    },
+    "he": {
+      "title": "תכנון תפעולי ובקרה",
+      "body": "הארגון יתכנן, ייישם ויבקר את התהליכים הנדרשים לעמידה בדרישות לאספקת מוצרים ושירותים, וליישום הפעולות שנקבעו בסעיף 6, על ידי קביעת הדרישות למוצרים ולשירותים; קביעת קריטריונים לתהליכים ולקבלת מוצרים ושירותים."
+    }
+  },
+  {
+    "standard": "ISO9001",
+    "clause_id": "9.1",
+    "sort_order": 901,
+    "en": {
+      "title": "Monitoring, measurement, analysis and evaluation",
+      "body": "The organization shall determine what needs to be monitored and measured; the methods for monitoring, measurement, analysis and evaluation needed to ensure valid results; when the monitoring and measuring shall be performed; when the results from monitoring and measurement shall be analyzed and evaluated."
+    },
+    "he": {
+      "title": "ניטור, מדידה, ניתוח והערכה",
+      "body": "הארגון יקבע מה יש לנטר ולמדוד; את השיטות לניטור, מדידה, ניתוח והערכה הנדרשות להבטחת תוצאות תקפות; מתי יבוצעו הניטור והמדידה; מתי ינותחו ויוערכו תוצאות הניטור והמדידה."
+    }
+  },
+  {
+    "standard": "ISO9001",
+    "clause_id": "10.1",
+    "sort_order": 1001,
+    "en": {
+      "title": "Improvement — General",
+      "body": "The organization shall determine and select opportunities for improvement and implement any necessary actions to meet customer requirements and enhance customer satisfaction."
+    },
+    "he": {
+      "title": "שיפור — כללי",
+      "body": "הארגון יקבע ויבחר הזדמנויות לשיפור וייישם כל פעולה נחוצה לעמידה בדרישות הלקוח ולשיפור שביעות רצון הלקוח."
+    }
+  },
+  {
+    "standard": "ISO14001",
+    "clause_id": "4.1",
+    "sort_order": 401,
+    "en": {
+      "title": "Understanding the organization and its context",
+      "body": "The organization shall determine external and internal issues that are relevant to its purpose and that affect its ability to achieve the intended outcomes of its environmental management system."
+    },
+    "he": {
+      "title": "הבנת הארגון והקשר שלו",
+      "body": "הארגון יקבע נושאים חיצוניים ופנימיים הרלוונטיים למטרתו ומשפיעים על יכולתו להשיג את התוצאות המיועדות של מערכת ניהול הסביבה."
+    }
+  },
+  {
+    "standard": "ISO14001",
+    "clause_id": "6.1",
+    "sort_order": 601,
+    "en": {
+      "title": "Actions to address risks and opportunities",
+      "body": "The organization shall determine risks and opportunities related to its environmental aspects, compliance obligations and other issues and requirements identified in 4.1 and 4.2, that need to be addressed to give assurance that the environmental management system can achieve its intended outcomes."
+    },
+    "he": {
+      "title": "פעולות לטיפול בסיכונים והזדמנויות",
+      "body": "הארגון יקבע סיכונים והזדמנויות הקשורים להיבטים הסביבתיים שלו, התחייבויות ציות ונושאים ודרישות אחרים שזוהו ב-4.1 ו-4.2, שיש לטפל בהם כדי להבטיח שמערכת ניהול הסביבה תשיג את התוצאות המיועדות."
+    }
+  },
+  {
+    "standard": "ISO14001",
+    "clause_id": "8.1",
+    "sort_order": 801,
+    "en": {
+      "title": "Operational planning and control",
+      "body": "The organization shall establish, implement, control and maintain the processes needed to meet environmental management system requirements, and to implement the actions identified in 6.1 and 6.2, by establishing operating criteria for the processes."
+    },
+    "he": {
+      "title": "תכנון תפעולי ובקרה",
+      "body": "הארגון יקים, ייישם, יבקר ויתחזק את התהליכים הנדרשים לעמידה בדרישות מערכת ניהול הסביבה, וליישום הפעולות שזוהו ב-6.1 ו-6.2, על ידי קביעת קריטריונים תפעוליים לתהליכים."
+    }
+  },
+  {
+    "standard": "ISO45001",
+    "clause_id": "4.1",
+    "sort_order": 401,
+    "en": {
+      "title": "Understanding the organization and its context",
+      "body": "The organization shall determine external and internal issues that are relevant to its purpose and that affect its ability to achieve the intended outcome(s) of its OH&S management system."
+    },
+    "he": {
+      "title": "הבנת הארגון והקשר שלו",
+      "body": "הארגון יקבע נושאים חיצוניים ופנימיים הרלוונטיים למטרתו ומשפיעים על יכולתו להשיג את התוצאות המיועדות של מערכת ניהול בטיחות ובריאות תעסוקתית."
+    }
+  },
+  {
+    "standard": "ISO45001",
+    "clause_id": "6.1",
+    "sort_order": 601,
+    "en": {
+      "title": "Actions to address risks and opportunities",
+      "body": "When planning for the OH&S management system, the organization shall consider the issues referred to in 4.1 and 4.2 and determine the risks and opportunities that need to be addressed to give assurance that the OH&S management system can achieve its intended outcome(s)."
+    },
+    "he": {
+      "title": "פעולות לטיפול בסיכונים והזדמנויות",
+      "body": "בעת תכנון מערכת ניהול בטיחות ובריאות תעסוקתית, הארגון ישקול את הנושאים המוזכרים ב-4.1 ו-4.2 ויקבע את הסיכונים וההזדמנויות שיש לטפל בהם כדי להבטיח שהמערכת תשיג את התוצאות המיועדות."
+    }
+  },
+  {
+    "standard": "ISO45001",
+    "clause_id": "8.1",
+    "sort_order": 801,
+    "en": {
+      "title": "Operational planning and control",
+      "body": "The organization shall plan, implement and control the processes needed to meet OH&S management system requirements, and to implement the actions determined in 6.1 and 6.2, by establishing criteria for the processes."
+    },
+    "he": {
+      "title": "תכנון תפעולי ובקרה",
+      "body": "הארגון יתכנן, ייישם ויבקר את התהליכים הנדרשים לעמידה בדרישות מערכת ניהול בטיחות ובריאות תעסוקתית, וליישום הפעולות שנקבעו ב-6.1 ו-6.2, על ידי קביעת קריטריונים לתהליכים."
+    }
+  },
+  {
+    "standard": "ISO13485",
+    "clause_id": "4.1",
+    "sort_order": 401,
+    "en": {
+      "title": "General requirements",
+      "body": "The organization shall document a quality management system and maintain its effectiveness in accordance with the requirements of this International Standard."
+    },
+    "he": {
+      "title": "דרישות כלליות",
+      "body": "הארגון יתעד מערכת ניהול איכות וישמור על יעילותה בהתאם לדרישות תקן זה."
+    }
+  },
+  {
+    "standard": "ISO13485",
+    "clause_id": "7.3",
+    "sort_order": 703,
+    "en": {
+      "title": "Design and development",
+      "body": "The organization shall document procedures to control design and development. The organization shall plan and control the design and development of product."
+    },
+    "he": {
+      "title": "תכן ופיתוח",
+      "body": "הארגון יתעד נהלים לבקרת תכן ופיתוח. הארגון יתכנן ויבקר את תכן ופיתוח המוצר."
+    }
+  },
+  {
+    "standard": "ISO13485",
+    "clause_id": "7.5",
+    "sort_order": 705,
+    "en": {
+      "title": "Control of production and service provision",
+      "body": "The organization shall plan and carry out production and service provision under controlled conditions. Controlled conditions shall include, as applicable, the availability of documented information that defines the characteristics of the products to be produced."
+    },
+    "he": {
+      "title": "בקרת ייצור ואספקת שירות",
+      "body": "הארגון יתכנן ויבצע ייצור ואספקת שירות בתנאים מבוקרים. תנאים מבוקרים יכללו, לפי הרלוונטיות, זמינות מידע מתועד המגדיר את מאפייני המוצרים שייוצרו."
+    }
+  }
+]

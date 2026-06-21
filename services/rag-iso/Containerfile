@@ -3,10 +3,12 @@ FROM registry.access.redhat.com/ubi9/python-311:latest
 USER 0
 WORKDIR /opt/app-root/src
 COPY services/rag-iso/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt pypdf python-docx
 COPY services/rag-iso/rag_iso ./rag_iso
+COPY apps/iso-api/app ./app
 COPY RAG /opt/rag
 
 ENV PYTHONUNBUFFERED=1
 ENV RAG_ROOT=/opt/rag
+ENV PYTHONPATH=/opt/app-root/src
 CMD ["python", "-m", "rag_iso.ingest"]

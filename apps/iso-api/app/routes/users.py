@@ -25,7 +25,7 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
 
 
-VALID_ROLES = {"admin", "consultant", "supervisor"}
+VALID_ROLES = {"admin", "consultant", "supervisor", "viewer"}
 
 
 @router.get("")

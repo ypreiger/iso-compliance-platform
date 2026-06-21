@@ -18,7 +18,7 @@ spec:
       serviceAccountName: iso-platform
       containers:
         - name: iso-api
-          image: iso-api:latest
+          image: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -59,6 +59,37 @@ spec:
                 configMapKeyRef:
                   name: iso-app-config
                   key: GOOGLE_CLIENT_ID
+                  optional: true
+            - name: SAML_IDP_ENTITY_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: SAML_IDP_ENTITY_ID
+                  optional: true
+            - name: SAML_IDP_SSO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: SAML_IDP_SSO_URL
+                  optional: true
+            - name: SAML_SP_ENTITY_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: SAML_SP_ENTITY_ID
+                  optional: true
+            - name: SAML_SP_ACS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: iso-app-config
+                  key: SAML_SP_ACS_URL
+                  optional: true
+            - name: SAML_IDP_X509_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: iso-secrets
+                  key: SAML_IDP_X509_CERT
+                  optional: true
             - name: AUTH_DEV_MODE
               valueFrom:
                 configMapKeyRef:
@@ -119,6 +150,9 @@ metadata:
   name: iso-api
   labels:
     app.kubernetes.io/name: iso-api
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+    haproxy.router.openshift.io/max-body-size: 100m
 spec:
   to:
     kind: Service

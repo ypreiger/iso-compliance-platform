@@ -65,6 +65,9 @@ metadata:
   name: iso-web
   labels:
     app.kubernetes.io/name: iso-web
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s
+    haproxy.router.openshift.io/max-body-size: 100m
 spec:
   to:
     kind: Service

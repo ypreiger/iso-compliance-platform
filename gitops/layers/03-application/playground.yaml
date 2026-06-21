@@ -90,14 +90,25 @@ data:
             return {"available": False, "reason": str(exc)[:80]}
 
     def _guardrails_status() -> dict:
+        """Check TrustyAI GuardrailsOrchestrator.
+        Application-level topic guardrails are always active (keyword filter).
+        The orchestrator provides additional HAP (hate/abuse/profanity) detection.
+        """
         url = os.getenv("GUARDRAILS_ORCHESTRATOR_URL", "")
+        # App-level guardrails are always active regardless of orchestrator health
+        base = {"app_guardrails": True, "topic_filter": True}
         if not url:
-            return {"available": False}
+            return {**base, "available": False, "note": "Orchestrator URL not configured"}
         try:
             resp = httpx.get(f"{url}/health", timeout=2, verify=False)
-            return {"available": resp.status_code == 200}
-        except Exception:
-            return {"available": False}
+            if resp.status_code == 200:
+                return {**base, "available": True, "hap_detector": True}
+            return {**base, "available": False, "note": f"Orchestrator HTTP {resp.status_code}"}
+        except Exception as exc:
+            # Known limitation: fms-guardrails-orchestr8r uses NLP/gRPC protocol;
+            # vLLM (LLMInferenceService) uses REST/OpenAI — protocol mismatch causes crash.
+            # App-level guardrails remain fully active.
+            return {**base, "available": False, "note": "Protocol config (app guardrails active)"}
 
     # ── topic guardrails ───────────────────────────────────────────────────
     def _allowed(msg: str) -> bool:
@@ -202,8 +213,9 @@ data:
       <div class="body">
         <div class="guard-banner">
           <span class="icon">🛡️</span>
-          <span><strong>TrustyAI Guardrails</strong> — topic filter active. Red Hat + ISO + AI topics only.
-          All inferences are logged to TrustyAI for drift &amp; fairness monitoring.</span>
+          <span><strong>Guardrails active</strong> — topic filter enforced (Red Hat, ISO, AI only).
+          TrustyAI service logging all inferences for drift &amp; fairness monitoring.
+          <a href="{{ rhoai_url }}/projects/llm" target="_blank" style="color:#0c5460;font-weight:600">View in RHOAI →</a></span>
         </div>
         <div class="model-row">
           <label for="modelSel">Model:</label>
@@ -327,7 +339,9 @@ data:
         setb('tai-live', tai.liveness==='UP', tai.liveness||'?');
         setb('tai-data', tai.data==='UP', tai.data||'?');
         const g=d.guardrails||{};
-        setb('tai-guard', g.available, g.available?'Running':'Degraded');
+        // Guardrails: show app-level as always active; orchestrator-level as secondary
+        const guardTxt = g.available ? 'HAP + Topic filter' : (g.app_guardrails ? 'Topic filter active' : 'Inactive');
+        setb('tai-guard', g.available || g.app_guardrails, guardTxt);
         document.getElementById('trustyaiDot').style.background=tai.available?'#28a745':'#ffc107';
         document.getElementById('trustyaiLabel').textContent=tai.available?'UP':'checking';
       }catch(e){

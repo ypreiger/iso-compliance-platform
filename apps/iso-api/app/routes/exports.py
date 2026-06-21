@@ -7,7 +7,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.auth.deps import CurrentUser, get_current_user
+from app.auth.deps import CurrentUser, require_project_access
 from app.db import get_conn
 
 router = APIRouter(prefix="/v1/projects/{project_id}/exports", tags=["exports"])
@@ -25,7 +25,7 @@ class ExportRequest(BaseModel):
 async def create_export(
     project_id: str,
     body: ExportRequest,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
+    user: Annotated[CurrentUser, Depends(require_project_access)],
 ):
     with get_conn() as conn:
         project = conn.execute(
@@ -58,7 +58,7 @@ async def create_export(
 
 
 @router.get("/latest")
-def latest_export(project_id: str, user: Annotated[CurrentUser, Depends(get_current_user)]):
+def latest_export(project_id: str, user: Annotated[CurrentUser, Depends(require_project_access)]):
     return {
         "project_id": project_id,
         "artifact": None,

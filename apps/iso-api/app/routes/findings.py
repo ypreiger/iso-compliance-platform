@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.auth.deps import CurrentUser, get_current_user
+from app.auth.deps import CurrentUser, require_project_access
 from app.db import audit, get_conn, rows_to_list
 
 router = APIRouter(prefix="/v1/projects/{project_id}/findings", tags=["findings"])
@@ -23,7 +23,7 @@ class FindingsBulk(BaseModel):
 
 
 @router.get("")
-def list_findings(project_id: str, user: Annotated[CurrentUser, Depends(get_current_user)]):
+def list_findings(project_id: str, user: Annotated[CurrentUser, Depends(require_project_access)]):
     with get_conn() as conn:
         rows = conn.execute(
             """
@@ -39,7 +39,7 @@ def list_findings(project_id: str, user: Annotated[CurrentUser, Depends(get_curr
 def add_finding(
     project_id: str,
     body: FindingCreate,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
+    user: Annotated[CurrentUser, Depends(require_project_access)],
 ):
     fid = str(uuid4())
     with get_conn() as conn:
@@ -65,7 +65,7 @@ def add_finding(
 def bulk_findings(
     project_id: str,
     body: FindingsBulk,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
+    user: Annotated[CurrentUser, Depends(require_project_access)],
 ):
     created = []
     with get_conn() as conn:

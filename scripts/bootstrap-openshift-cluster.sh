@@ -19,13 +19,14 @@ oc get ns "${NS}" &>/dev/null || oc create ns "${NS}"
 log "Syncing iso-secrets (DB + OpenAI same as playground)"
 PG_PASS="$(oc get secret postgresql -n "${NS}" -o jsonpath='{.data.database-password}' 2>/dev/null | base64 -d || echo iso-secure-password)"
 OPENAI_KEY="$(oc get secret openai-api-key -n "${NS}" -o jsonpath='{.data.OPENAI_API_KEY}' 2>/dev/null | base64 -d || true)"
-JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 32)}"
+JWT_SECRET="${JWT_SECRET:-$(oc get secret iso-secrets -n "${NS}" -o jsonpath='{.data.JWT_SECRET}' 2>/dev/null | base64 -d || openssl rand -hex 32)}"
+GOOGLE_SECRET="${GOOGLE_CLIENT_SECRET:-$(oc get secret iso-secrets -n "${NS}" -o jsonpath='{.data.GOOGLE_CLIENT_SECRET}' 2>/dev/null | base64 -d || true)}"
 
 oc create secret generic iso-secrets -n "${NS}" \
   --from-literal=DATABASE_PASSWORD="${PG_PASS}" \
   --from-literal=LLM_API_KEY="${OPENAI_KEY:-REPLACE_ME}" \
   --from-literal=JWT_SECRET="${JWT_SECRET}" \
-  --from-literal=GOOGLE_CLIENT_SECRET="" \
+  --from-literal=GOOGLE_CLIENT_SECRET="${GOOGLE_SECRET:-REPLACE_ME}" \
   --from-literal=GIT_USERNAME="" \
   --from-literal=GIT_PASSWORD="" \
   --dry-run=client -o yaml | oc apply -f -
