@@ -81,7 +81,7 @@ data:
   # ── RHOAI & TrustyAI integration ─────────────────────────────────────────
   RHOAI_DASHBOARD_URL: "https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com"
   MAAS_BASE_URL: "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com"
-  TRUSTYAI_URL: "https://trustyai-tls.llm.svc.cluster.local"
+  TRUSTYAI_URL: "http://trustyai.llm.svc.cluster.local"
   TRUSTYAI_EXTERNAL_URL: "https://trustyai-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com"
   GUARDRAILS_ORCHESTRATOR_URL: "http://qwen3-guardrails-service.llm.svc.cluster.local:8034"
 
