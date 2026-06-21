@@ -11,6 +11,7 @@ resources:
   - imagestreams.yaml
   - cluster-config.yaml
   - playground-models-config.yaml
+  - secrets.yaml
 
 images:
   - name: iso-api
