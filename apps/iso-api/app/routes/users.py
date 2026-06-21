@@ -1,8 +1,9 @@
 """Admin user management."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
@@ -26,6 +27,17 @@ class UserUpdate(BaseModel):
 
 
 VALID_ROLES = {"admin", "consultant", "supervisor", "viewer"}
+
+
+def serialize_row(row: dict) -> dict:
+    """Convert database row to JSON-serializable dict."""
+    result = dict(row)
+    for key, value in result.items():
+        if isinstance(value, UUID):
+            result[key] = str(value)
+        elif isinstance(value, datetime):
+            result[key] = value.isoformat()
+    return result
 
 
 @router.get("")
@@ -92,9 +104,8 @@ def update_user(
             """,
             (name, roles, is_active, user_id),
         )
-        # Convert row to dict and ensure UUIDs are strings for JSON serialization
-        before_dict = dict(row)
-        before_dict["id"] = str(before_dict["id"]) if before_dict.get("id") else None
+        # Convert row to JSON-serializable dict (handles UUID and datetime)
+        before_dict = serialize_row(row)
         audit(conn, admin.id, "user.updated", "user", user_id, before=before_dict, after=body.model_dump())
         conn.commit()
         updated = conn.execute(
