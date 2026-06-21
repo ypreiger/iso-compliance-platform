@@ -272,7 +272,7 @@ data:
     </div>
     </div>
     <script>
-    const MODELS = {{ models_json }};
+    const MODELS = {{ models_json | safe }};
     function onModel(){
       const sel = document.getElementById('modelSel');
       const opt = sel.options[sel.selectedIndex];
