@@ -1,0 +1,33 @@
+---
+# ArgoCD Application — ISO Compliance Platform
+# ignoreDifferences: BuildConfigs use binary strategy so spec.source is always different
+# from what's in git → ignore to prevent permanent OutOfSync.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: iso-compliance-platform
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ypreiger/iso-compliance-platform.git
+    targetRevision: main
+    path: gitops/overlays/ocp-sandbox3159
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: iso-platform
+  ignoreDifferences:
+    - group: build.openshift.io
+      kind: BuildConfig
+      jsonPointers:
+        - /spec/source
+        - /spec/triggers
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
