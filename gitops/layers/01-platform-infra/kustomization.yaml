@@ -3,5 +3,4 @@ kind: Kustomization
 namespace: iso-platform
 resources:
   - namespace.yaml
-  - rhoai-config.yaml
   - rbac.yaml
