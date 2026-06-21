@@ -3,6 +3,27 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth';
 import { api, type UploadResult } from '../../api';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+function downloadFile(token: string, fileId: string, filename: string) {
+  fetch(`${API_BASE}/admin/corpus/files/${fileId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error(res.statusText);
+      return res.blob();
+    })
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    })
+    .catch(console.error);
+}
+
 const STANDARDS = ['ISO9001', 'ISO14001', 'ISO45001', 'ISO13485'];
 
 function ValidationSummary({ v }: { v?: UploadResult['validation'] }) {
@@ -210,20 +231,57 @@ function CorpusPage({ type, titleKey }: { type: string; titleKey: string }) {
       </table>
 
       <h2>{t('admin.uploadHistory')}</h2>
-      <p>RAG chunks: {chunks}</p>
+      <p style={{ fontSize: 13, color: '#6c757d', marginBottom: '0.75rem' }}>
+        RAG chunks indexed: <strong>{chunks}</strong> · Original files stored and downloadable below
+      </p>
       <table>
         <thead>
-          <tr><th>Name</th><th>Lang</th><th>Edition</th><th>Status</th></tr>
+          <tr>
+            <th>File</th>
+            <th>Standard</th>
+            <th>Lang</th>
+            <th>Edition</th>
+            <th>Status</th>
+            <th>Download</th>
+          </tr>
         </thead>
         <tbody>
-          {docs.map((d) => (
-            <tr key={String(d.id)}>
-              <td>{String(d.name)}</td>
-              <td>{String(d.language)}</td>
-              <td>{String(d.edition)}</td>
-              <td>{String(d.status)}</td>
-            </tr>
-          ))}
+          {docs.map((d) => {
+            const meta = (d.metadata as Record<string, unknown>) || {};
+            const fileId = meta.file_id as string | undefined;
+            const filename = String(d.name);
+            return (
+              <tr key={String(d.id)}>
+                <td>{filename}</td>
+                <td>{(d.standards as string[] | undefined)?.join(', ') || '—'}</td>
+                <td>{String(d.language)}</td>
+                <td>{String(d.edition)}</td>
+                <td>
+                  <span style={{
+                    padding: '2px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                    background: d.status === 'ready' ? '#d4edda' : d.status === 'failed' ? '#f8d7da' : '#fff3cd',
+                    color: d.status === 'ready' ? '#155724' : d.status === 'failed' ? '#721c24' : '#856404',
+                  }}>
+                    {String(d.status)}
+                  </span>
+                </td>
+                <td>
+                  {fileId && token ? (
+                    <button
+                      type="button"
+                      className="link-btn"
+                      style={{ fontSize: 13 }}
+                      onClick={() => downloadFile(token, fileId, filename)}
+                    >
+                      ⬇ {filename.split('.').pop()?.toUpperCase()}
+                    </button>
+                  ) : (
+                    <span style={{ color: '#aaa', fontSize: 12 }}>—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </section>

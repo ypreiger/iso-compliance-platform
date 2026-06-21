@@ -108,6 +108,16 @@ export const api = {
     list: (t: string) => req<{ users: UserRow[] }>('/admin/users', t),
     create: (t: string, body: object) =>
       req('/admin/users', t, { method: 'POST', body: JSON.stringify(body) }),
+    updateRole: (t: string, userId: string, roles: string[]) =>
+      req<UserRow>(`/admin/users/${userId}`, t, {
+        method: 'PATCH',
+        body: JSON.stringify({ roles }),
+      }),
+    deactivate: (t: string, userId: string) =>
+      req(`/admin/users/${userId}`, t, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: false }),
+      }),
   },
   corpus: {
     list: (t: string, type: string) => req(`/admin/corpus/${type}`, t),
