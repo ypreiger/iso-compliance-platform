@@ -9,11 +9,18 @@ Architecture:
 """
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.parse import router as parse_router
 from app.routes.generate import router as generate_router
+
+
+_AGENT_MODE = os.getenv("DOC_AGENT_MODE", "all").strip().lower()
+if _AGENT_MODE not in {"all", "parse-rag", "generate"}:
+    _AGENT_MODE = "all"
 
 app = FastAPI(
     title="ISO Doc-Agent",
@@ -33,13 +40,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(parse_router)
-app.include_router(generate_router)
+if _AGENT_MODE in {"all", "parse-rag"}:
+    app.include_router(parse_router)
+if _AGENT_MODE in {"all", "generate"}:
+    app.include_router(generate_router)
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "doc-agent", "version": "1.0.0"}
+    return {
+        "status": "ok",
+        "service": "doc-agent",
+        "version": "1.0.0",
+        "mode": _AGENT_MODE,
+    }
 
 
 @app.get("/ready")

@@ -12,7 +12,11 @@ from app.db import get_conn
 
 router = APIRouter(prefix="/v1/projects/{project_id}/exports", tags=["exports"])
 
-DOCGEN_URL = __import__("os").getenv("DOCGEN_URL", "http://iso-docgen:8080")
+_os = __import__("os")
+DOCGEN_URL = (
+    _os.getenv("DOC_GEN_AGENT_URL")
+    or "http://iso-doc-gen:8080"
+)
 
 
 class ExportRequest(BaseModel):

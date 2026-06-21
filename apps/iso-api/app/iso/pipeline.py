@@ -9,8 +9,8 @@ Orchestrates the full flow for one uploaded file:
   4. validate()        — sample-check RAG retrieval quality
   5. return report     — stored in corpus_documents.metadata
 
-Doc-agent endpoint is configured via DOC_AGENT_URL env var
-(default: http://iso-docgen:8080 — the in-cluster service name on OpenShift).
+Doc parse-agent endpoint is configured via DOC_PARSE_AGENT_URL env var
+(fallback: DOC_AGENT_URL, default: http://iso-doc-parse-rag:8080).
 """
 from __future__ import annotations
 
@@ -30,7 +30,11 @@ from app.iso.validate import validate_import
 
 log = logging.getLogger(__name__)
 
-_DOC_AGENT_URL = os.getenv("DOC_AGENT_URL", "http://iso-docgen:8080")
+_DOC_PARSE_AGENT_URL = (
+    os.getenv("DOC_PARSE_AGENT_URL")
+    or os.getenv("DOC_AGENT_URL")
+    or "http://iso-doc-parse-rag:8080"
+)
 
 
 # ── step 1: file storage ───────────────────────────────────────────────────
@@ -66,7 +70,7 @@ def _call_doc_agent(
     timeout: float = 300.0,
 ) -> dict:
     """POST to doc-agent /parse; return parsed response dict."""
-    url = f"{_DOC_AGENT_URL.rstrip('/')}/parse"
+    url = f"{_DOC_PARSE_AGENT_URL.rstrip('/')}/parse"
     payload = {
         "filename": filename,
         "content_b64": base64.b64encode(content).decode(),
