@@ -10,6 +10,7 @@ resources:
   - buildconfigs.yaml
   - imagestreams.yaml
   - cluster-config.yaml
+  - playground-models-config.yaml
 
 images:
   - name: iso-api

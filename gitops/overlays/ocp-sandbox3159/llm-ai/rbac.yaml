@@ -54,3 +54,16 @@ roleRef:
   kind: ClusterRole
   name: iso-maas-llm-access
   apiGroup: rbac.authorization.k8s.io
+
+---
+# OpenShift Group: iso-platform service accounts get enterprise MaaS tier
+# Enterprise tier = 50 requests per 2 minutes (vs 5 for free tier)
+# This ensures the playground is never rate-limited during demos.
+# The admin-group is referenced in tier-to-group-mapping as enterprise tier.
+apiVersion: user.openshift.io/v1
+kind: Group
+metadata:
+  name: admin-group
+  labels:
+    app.kubernetes.io/part-of: iso-compliance
+users: []

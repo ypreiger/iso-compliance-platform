@@ -6,6 +6,7 @@ resources:
   - iso-web.yaml
   - iso-docgen.yaml
   - playground.yaml
+  - playground-redirect.yaml
 
 images:
   - name: iso-api

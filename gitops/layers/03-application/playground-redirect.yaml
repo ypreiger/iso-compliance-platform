@@ -1,0 +1,70 @@
+---
+# Redirect old claude-playground route to the unified playground
+# The original deployment is kept running to avoid downtime but its route
+# is replaced with a 301 redirect to playground-iso-platform.
+# Once all bookmarks are updated this ConfigMap + nginx can be removed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: playground-redirect-nginx
+  labels:
+    app.kubernetes.io/name: playground-redirect
+data:
+  nginx.conf: |
+    events {}
+    http {
+      server {
+        listen 8080;
+        location / {
+          return 301 https://playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com$request_uri;
+        }
+        location /health {
+          return 200 "ok\n";
+          add_header Content-Type text/plain;
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: claude-playground
+  labels:
+    app.kubernetes.io/name: claude-playground
+    app.kubernetes.io/component: redirect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: claude-playground
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: claude-playground
+    spec:
+      containers:
+        - name: redirect
+          image: registry.access.redhat.com/ubi9/nginx-124:latest
+          command: ["nginx", "-c", "/etc/redirect/nginx.conf", "-g", "daemon off;"]
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: cfg
+              mountPath: /etc/redirect
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "10m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: cfg
+          configMap:
+            name: playground-redirect-nginx

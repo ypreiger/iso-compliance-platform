@@ -1,0 +1,90 @@
+---
+# Playground model configuration — all parameters external to the app
+# The playground reads MODELS_CONFIG (JSON), SYSTEM_PROMPT, and individual
+# TRUSTYAI_* / RHOAI_* env vars so the app.py contains zero hardcoded endpoints.
+#
+# To add a model: add an entry to MODELS_CONFIG and redeploy the playground.
+# To change a model endpoint: edit this ConfigMap — no code change needed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: playground-models-config
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: playground
+    app.kubernetes.io/component: playground-config
+data:
+  # ── Model list (read at startup) ─────────────────────────────────────────
+  # Fields:
+  #   id       : model identifier sent to the inference API
+  #   label    : human-readable name shown in the dropdown
+  #   url      : OpenAI-compatible base URL (must end without /chat/completions)
+  #   provider : "rhoai" | "openai" | "custom" (affects badge color)
+  #   auth     : "maas_token" | "openai_key" | "none"
+  #   note     : optional one-line description shown in the model info bar
+  MODELS_CONFIG: |
+    [
+      {
+        "id": "qwen3-4b-instruct",
+        "label": "Qwen3 4B Instruct 2507 — RHOAI MaaS (on-prem GPU)",
+        "url": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1",
+        "provider": "rhoai",
+        "auth": "maas_token",
+        "note": "4B params · 131k context · L40 GPU · Red Hat vLLM serving"
+      },
+      {
+        "id": "gpt-4o",
+        "label": "GPT-4o — OpenAI",
+        "url": "https://api.openai.com/v1",
+        "provider": "openai",
+        "auth": "openai_key",
+        "note": "Latest GPT-4o · 128k context · multimodal"
+      },
+      {
+        "id": "gpt-4o-mini",
+        "label": "GPT-4o Mini — OpenAI",
+        "url": "https://api.openai.com/v1",
+        "provider": "openai",
+        "auth": "openai_key",
+        "note": "Fast & economical · 128k context"
+      },
+      {
+        "id": "gpt-3.5-turbo",
+        "label": "GPT-3.5 Turbo — OpenAI",
+        "url": "https://api.openai.com/v1",
+        "provider": "openai",
+        "auth": "openai_key",
+        "note": "Classic turbo · 16k context"
+      }
+    ]
+
+  # ── Guardrails / topic policy ─────────────────────────────────────────────
+  ALLOWED_TOPICS: |
+    red hat,rhel,openshift,ansible,rhoai,openshift ai,fedora,
+    iso 27001,iso 9001,iso 20000,iso 14001,iso 45001,iso 13485,iso,
+    compliance,certification,security,audit,standards,qwen,llm,ai,
+    model,inference,vllm,trustyai,guardrails,kubernetes,container
+
+  SYSTEM_PROMPT: |
+    You are an AI assistant specialized in Red Hat technologies and ISO standards.
+
+    STRICT RULES:
+    1. ONLY answer questions about:
+       - Red Hat products (RHEL, OpenShift, Ansible, RHOAI, etc.)
+       - ISO standards (ISO 27001, ISO 9001, ISO 20000, etc.)
+       - AI/ML, LLM, and model serving topics related to Red Hat RHOAI
+       - Compliance and certification topics
+    2. For ANY other topic, respond:
+       "I can only answer questions about Red Hat technologies, AI/ML, and ISO standards."
+    3. Do not engage with general knowledge, other vendors, or unrelated topics.
+
+  # ── RHOAI & TrustyAI integration ─────────────────────────────────────────
+  RHOAI_DASHBOARD_URL: "https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com"
+  MAAS_BASE_URL: "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com"
+  TRUSTYAI_URL: "https://trustyai-tls.llm.svc.cluster.local"
+  TRUSTYAI_EXTERNAL_URL: "https://trustyai-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com"
+  GUARDRAILS_ORCHESTRATOR_URL: "http://qwen3-guardrails-service.llm.svc.cluster.local:8034"
+
+  # ── Branding ─────────────────────────────────────────────────────────────
+  PLAYGROUND_TITLE: "ISO Compliance AI Playground"
+  PLAYGROUND_SUBTITLE: "Red Hat OpenShift AI · Model as a Service · TrustyAI"
