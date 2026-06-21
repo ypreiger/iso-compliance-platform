@@ -1,0 +1,90 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iso-migrate-sort-order
+  labels:
+    app.kubernetes.io/name: iso-migrate-sort-order
+    app.kubernetes.io/component: migration
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: iso-migrate-sort-order
+    spec:
+      serviceAccountName: iso-platform
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: image-registry.openshift-image-registry.svc:5000/iso-platform/iso-api:latest
+          imagePullPolicy: Always
+          command:
+            - python3
+            - -c
+            - |
+              import psycopg2
+              import os
+              import sys
+
+              # Read DB credentials from env
+              dsn = f"host={os.getenv('DATABASE_HOST')} port={os.getenv('DATABASE_PORT')} " \
+                    f"dbname={os.getenv('DATABASE_NAME')} user={os.getenv('DATABASE_USER')} " \
+                    f"password={os.getenv('DATABASE_PASSWORD')}"
+
+              def _sort_key(clause_id: str) -> int:
+                  """Match app.iso.parser._sort_key exactly."""
+                  parts = [int(p) for p in clause_id.split(".") if p.isdigit()]
+                  if not parts:
+                      return 0
+                  depth = 5
+                  padded = [min(p, 99) for p in parts[:depth]] + [0] * max(0, depth - len(parts))
+                  key = 0
+                  for p in padded:
+                      key = key * 100 + p
+                  return key
+
+              try:
+                  conn = psycopg2.connect(dsn)
+                  cur = conn.cursor()
+
+                  # Fetch all rows with old-scale sort_order (< 1 million)
+                  cur.execute("""
+                      SELECT id, clause_id, sort_order
+                      FROM iso_clause_text
+                      WHERE sort_order < 1000000
+                  """)
+                  rows = cur.fetchall()
+
+                  print(f"Found {len(rows)} clauses with old-scale sort_order")
+
+                  updated = 0
+                  for row_id, clause_id, old_sort in rows:
+                      new_sort = _sort_key(clause_id)
+                      if new_sort != old_sort:
+                          cur.execute(
+                              "UPDATE iso_clause_text SET sort_order = %s WHERE id = %s",
+                              (new_sort, row_id)
+                          )
+                          updated += 1
+
+                  conn.commit()
+                  print(f"Migration complete: {updated} rows updated")
+                  sys.exit(0)
+
+              except Exception as e:
+                  print(f"Migration failed: {e}")
+                  sys.exit(1)
+          envFrom:
+            - configMapRef:
+                name: iso-app-config
+          env:
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: iso-secrets
+                  key: DATABASE_PASSWORD

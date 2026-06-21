@@ -4,3 +4,4 @@ namespace: iso-platform
 resources:
   - pvc-rag.yaml
   - redis.yaml
+  - migrate-sort-order-job.yaml
