@@ -27,7 +27,7 @@ spec:
             - python3
             - -c
             - |
-              import psycopg2
+              import psycopg
               import os
               import sys
 
@@ -49,7 +49,7 @@ spec:
                   return key
 
               try:
-                  conn = psycopg2.connect(dsn)
+                  conn = psycopg.connect(dsn)
                   cur = conn.cursor()
 
                   # Fetch all rows with old-scale sort_order (< 1 million)
