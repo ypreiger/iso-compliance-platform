@@ -1,0 +1,57 @@
+---
+# OpenShift AI — vLLM ServingRuntime
+# Requires: Red Hat OpenShift AI operator installed
+# Serves any HuggingFace model compatible with vLLM via OpenAI-compatible API.
+#
+# After applying:
+#   1. Update model-config.yaml EXTRACT_MODEL_URL to the predictor service URL
+#   2. Set EXTRACT_MODEL_NAME to the HF model ID (e.g. mistralai/Mistral-7B-Instruct-v0.3)
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: vllm-runtime
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/component: model-serving
+spec:
+  annotations:
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+  multiModel: false
+  supportedModelFormats:
+    - name: vLLM
+      version: "1"
+      autoSelect: true
+  containers:
+    - name: kserve-container
+      image: quay.io/modh/vllm:rhoai-2.16-cuda
+      command: ["python", "-m", "vllm.entrypoints.openai.api_server"]
+      args:
+        - "--model=/mnt/models"
+        - "--port=8080"
+        - "--served-model-name=$(MODEL_NAME)"
+        - "--max-model-len=8192"
+      env:
+        - name: MODEL_NAME
+          value: "mistral-7b-instruct"
+        - name: HF_HUB_OFFLINE
+          value: "1"
+      ports:
+        - containerPort: 8080
+          protocol: TCP
+      resources:
+        requests:
+          cpu: "2"
+          memory: "8Gi"
+          nvidia.com/gpu: "1"
+        limits:
+          cpu: "4"
+          memory: "16Gi"
+          nvidia.com/gpu: "1"
+      volumeMounts:
+        - mountPath: /mnt/models
+          name: model-volume
+  volumes:
+    - name: model-volume
+      persistentVolumeClaim:
+        claimName: model-pvc

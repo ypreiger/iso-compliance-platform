@@ -107,6 +107,27 @@ CREATE TABLE IF NOT EXISTS rag_documents (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (collection_id, source_path, chunk_index)
 );
+CREATE TABLE IF NOT EXISTS iso_clause_text (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    standard TEXT NOT NULL,
+    clause_id TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    language TEXT NOT NULL,
+    body TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    edition TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'seed',
+    UNIQUE (standard, clause_id, language)
+);
+CREATE TABLE IF NOT EXISTS corpus_files (
+    id TEXT PRIMARY KEY,
+    corpus_id TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    content_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    file_data BLOB NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 SCHEMA_PG = """
@@ -203,7 +224,29 @@ CREATE TABLE IF NOT EXISTS rag_documents (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (collection_id, source_path, chunk_index)
 );
+CREATE TABLE IF NOT EXISTS iso_clause_text (
+    id SERIAL PRIMARY KEY,
+    standard TEXT NOT NULL,
+    clause_id TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    language TEXT NOT NULL,
+    body TEXT NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    edition TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'seed',
+    UNIQUE (standard, clause_id, language)
+);
 CREATE INDEX IF NOT EXISTS idx_findings_project ON findings(project_id);
+CREATE TABLE IF NOT EXISTS corpus_files (
+    id UUID PRIMARY KEY,
+    corpus_id UUID NOT NULL REFERENCES corpus_documents(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    content_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+    size_bytes INT NOT NULL DEFAULT 0,
+    file_data BYTEA NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_corpus_files_corpus ON corpus_files(corpus_id);
 """
 
 
@@ -218,14 +261,19 @@ class SqliteConn:
         pg_sql = sql
         pg_sql = pg_sql.replace("%s", "?").replace("::jsonb", "").replace("::json", "")
         pg_sql = pg_sql.replace("NOW()", "CURRENT_TIMESTAMP")
+        pg_sql = pg_sql.replace(" ILIKE ", " LIKE ")
         pg_sql = pg_sql.replace(" excluded.", " excluded.")  # keep
         pg_sql = re.sub(r"metadata->>'(\w+)'", r"json_extract(metadata, '$.\1')", pg_sql)
         pg_sql = pg_sql.replace("ON CONFLICT DO NOTHING", "ON CONFLICT DO NOTHING")
         pg_sql = pg_sql.replace("TRUE", "1").replace("FALSE", "0")
+        # SQLite doesn't support jsonb merge operator; replace with simple assignment
+        pg_sql = re.sub(r"metadata\s*\|\|\s*\?", "?", pg_sql)
         new_params = []
         for p in params:
             if isinstance(p, (list, dict)):
                 new_params.append(json.dumps(p))
+            elif isinstance(p, (bytes, bytearray, memoryview)):
+                new_params.append(bytes(p))  # SQLite stores as BLOB
             else:
                 new_params.append(p)
         cur = self._conn.execute(pg_sql, tuple(new_params))
@@ -293,6 +341,7 @@ def ensure_schema() -> None:
         path = os.getenv("SQLITE_PATH", "/tmp/iso-platform.db")
         conn = sqlite3.connect(path)
         conn.executescript(SCHEMA_SQLITE)
+        _migrate_iso_clause_columns(SqliteConn(conn))
         conn.commit()
         _seed_all(SqliteConn(conn))
         conn.close()
@@ -300,7 +349,23 @@ def ensure_schema() -> None:
     import psycopg
     with psycopg.connect(settings.dsn, autocommit=True) as conn:
         conn.execute(SCHEMA_PG)
+        _migrate_iso_clause_columns_pg(conn)
         _seed_postgres(conn)
+
+
+def _migrate_iso_clause_columns(conn: Any) -> None:
+    for col, typedef in (("edition", "TEXT NOT NULL DEFAULT ''"), ("source", "TEXT NOT NULL DEFAULT 'seed'")):
+        try:
+            conn.execute(f"ALTER TABLE iso_clause_text ADD COLUMN {col} {typedef}")
+            if hasattr(conn, "commit"):
+                conn.commit()
+        except Exception:
+            pass
+
+
+def _migrate_iso_clause_columns_pg(conn: Any) -> None:
+    conn.execute("ALTER TABLE iso_clause_text ADD COLUMN IF NOT EXISTS edition TEXT NOT NULL DEFAULT ''")
+    conn.execute("ALTER TABLE iso_clause_text ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'seed'")
 
 
 def _seed_all(conn: Any) -> None:
@@ -352,39 +417,28 @@ def _seed_prompts(conn: Any) -> None:
 
 
 def _seed_iso_clauses(conn: Any) -> None:
-    samples = [
-        ("ISO9001", "4.1", "Understanding the organization and its context", "en",
-         "The organization shall determine external and internal issues relevant to its purpose."),
-        ("ISO9001", "4.1", "הבנת הארגון והקשר שלו", "he",
-         "הארגון יקבע נושאים חיצוניים ופנימיים הרלוונטיים למטרתו."),
-        ("ISO9001", "5.1", "Leadership and commitment", "en",
-         "Top management shall demonstrate leadership and commitment with respect to the QMS."),
-        ("ISO9001", "5.1", "מנהיגות ומחויבות", "he",
-         "ההנהלה הבכירה תפגין מנהיגות ומחויבות לגבי מערכת ניהול האיכות."),
-        ("ISO14001", "6.1", "Actions to address risks and opportunities", "en",
-         "The organization shall determine risks and opportunities related to environmental aspects."),
-        ("ISO14001", "6.1", "פעולות לטיפול בסיכונים והזדמנויות", "he",
-         "הארגון יקבע סיכונים והזדמנויות הקשורים להיבטים סביבתיים."),
-        ("ISO45001", "8.1", "Operational planning and control", "en",
-         "The organization shall plan, implement and control processes needed to meet OH&S requirements."),
-        ("ISO45001", "8.1", "תכנון תפעולי ובקרה", "he",
-         "הארגון יתכנן, ייישם ויבקר תהליכים הנדרשים לעמידה בדרישות בטיחות ובריאות."),
-        ("ISO13485", "7.3", "Design and development", "en",
-         "The organization shall document procedures for design and development."),
-        ("ISO13485", "7.3", "תכן ופיתוח", "he",
-         "הארגון יתעד נהלים לתכן ופיתוח."),
-    ]
-    for standard, clause_id, title, lang, body in samples:
-        meta = json.dumps({"standard": standard, "clause_id": clause_id, "title": title, "language": lang})
-        path = f"seed/{standard}/{clause_id}/{lang}.txt"
-        conn.execute(
-            """
-            INSERT INTO rag_documents (collection_id, source_path, chunk_index, content, metadata)
-            VALUES ('iso-clauses', %s, 0, %s, %s)
-            ON CONFLICT (collection_id, source_path, chunk_index) DO UPDATE SET content = excluded.content
-            """,
-            (path, body, meta),
-        )
+    from pathlib import Path
+
+    seed_path = Path(__file__).parent / "data" / "iso_clauses_seed.json"
+    items = json.loads(seed_path.read_text(encoding="utf-8"))
+    for item in items:
+        standard = item["standard"]
+        clause_id = item["clause_id"]
+        sort_order = int(item.get("sort_order", 0))
+        for lang in ("en", "he"):
+            loc = item[lang]
+            conn.execute(
+                """
+                INSERT INTO iso_clause_text (standard, clause_id, title, language, body, sort_order, edition, source)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'seed')
+                ON CONFLICT (standard, clause_id, language) DO UPDATE SET
+                  title = EXCLUDED.title,
+                  body = EXCLUDED.body,
+                  sort_order = EXCLUDED.sort_order,
+                  edition = EXCLUDED.edition
+                """,
+                (standard, clause_id, loc["title"], lang, loc["body"], sort_order, ""),
+            )
 
 
 def get_document_count() -> int:

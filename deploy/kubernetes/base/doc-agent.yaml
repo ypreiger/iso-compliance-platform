@@ -1,0 +1,100 @@
+---
+# Kubernetes flavor — Doc-Agent
+# Pure open-source stack: no OpenShift-specific resources.
+# Uses Nginx Ingress for routing.
+# Model endpoints default to Ollama (see ollama/ directory) or OpenAI.
+#
+# Apply:
+#   kubectl apply -f deploy/kubernetes/base/
+#   kubectl apply -f deploy/kubernetes/ollama/    # if using local models
+#
+# Build image (example with Podman/Docker):
+#   podman build -t doc-agent:latest -f services/docgen/Containerfile .
+#   podman push doc-agent:latest <registry>/doc-agent:latest
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doc-agent
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: doc-agent
+    app.kubernetes.io/component: doc-agent
+    app.kubernetes.io/part-of: iso-compliance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: doc-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: doc-agent
+    spec:
+      containers:
+        - name: doc-agent
+          image: ghcr.io/ypreiger/iso-doc-agent:latest   # update to your registry
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: doc-agent-model-config
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-api-key
+                  key: OPENAI_API_KEY
+                  optional: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: doc-agent
+  namespace: iso-platform
+spec:
+  selector:
+    app.kubernetes.io/name: doc-agent
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: doc-agent
+  namespace: iso-platform
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+spec:
+  rules:
+    - host: doc-agent.iso.example.com   # update to your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: doc-agent
+                port:
+                  number: 8080

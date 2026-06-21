@@ -1,6 +1,11 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-export type User = { id: string; email: string; roles: string[] };
+export type User = {
+  id: string;
+  email: string;
+  roles: string[];
+  can_access_projects?: boolean;
+};
 
 function headers(token?: string): HeadersInit {
   const h: HeadersInit = { 'Content-Type': 'application/json' };
@@ -17,8 +22,15 @@ async function req<T>(path: string, token?: string, init?: RequestInit): Promise
   return res.json();
 }
 
+export type AuthConfig = {
+  saml_enabled: boolean;
+  google_enabled: boolean;
+  google_client_id: string;
+  dev_mode: boolean;
+};
+
 export const api = {
-  authConfig: () => req<{ google_enabled: boolean; dev_mode: boolean }>('/auth/config'),
+  authConfig: () => req<AuthConfig>('/auth/config'),
   devLogin: (email: string) =>
     req<{ access_token: string; user: User }>('/auth/dev-login', undefined, {
       method: 'POST',
@@ -28,6 +40,11 @@ export const api = {
     req<{ access_token: string; user: User }>('/auth/google/callback', token, {
       method: 'POST',
       body: JSON.stringify({ code }),
+    }),
+  googleIdToken: (credential: string) =>
+    req<{ access_token: string; user: User }>('/auth/google/id-token', undefined, {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
     }),
   me: (token: string) => req<User>('/auth/me', token),
   projects: {
@@ -96,6 +113,35 @@ export const api = {
     list: (t: string, type: string) => req(`/admin/corpus/${type}`, t),
     register: (t: string, type: string, body: object) =>
       req(`/admin/corpus/${type}`, t, { method: 'POST', body: JSON.stringify(body) }),
+    uploadIso: (t: string, form: FormData) =>
+      fetch(`${API_BASE}/admin/corpus/iso/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${t}` },
+        body: form,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || res.statusText);
+        }
+        return res.json() as Promise<UploadResult>;
+      }),
+    translateIso: (t: string, body: {
+      standard: string;
+      edition?: string;
+      source_language?: string;
+      target_language?: string;
+    }) =>
+      req<{ translated_clauses: number; source_language: string; target_language: string }>(
+        '/admin/corpus/iso/translate', t, { method: 'POST', body: JSON.stringify(body) }),
+    deleteStandard: (t: string, body: { standard: string; languages?: string[] }) =>
+      req<{ standard: string; clauses_removed: number; languages: string[] }>(
+        '/admin/corpus/iso/delete-standard', t, { method: 'POST', body: JSON.stringify(body) }),
+  },
+  documents: {
+    list: (t: string) => req<{ files: CorpusFile[] }>('/admin/corpus/files', t),
+    downloadUrl: (fileId: string) => `${API_BASE}/admin/corpus/files/${fileId}`,
+    delete: (t: string, fileId: string) =>
+      req('/admin/corpus/files/' + fileId, t, { method: 'DELETE' }),
   },
   instructions: {
     list: (t: string) => req('/admin/instructions', t),
@@ -105,24 +151,59 @@ export const api = {
   },
 };
 
+export type ValidationResult = {
+  standard: string;
+  language: string;
+  total_clauses: number;
+  sampled: number;
+  rag_hit_rate: number;
+  phrase_hit_rate: number;
+  passed: boolean;
+};
+
+export type UploadResult = {
+  clauses_imported: number;
+  rag_chunks: number;
+  parse_method?: string;
+  language?: string;
+  clauses_en?: number;
+  clauses_he?: number;
+  warnings?: string[];
+  validation?: ValidationResult;
+  file_id?: string;
+};
+
+export type CorpusFile = {
+  id: string;
+  corpus_id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+  standards: string[];
+  language: string;
+  edition: string;
+  parse_method: string;
+  clauses_imported?: number;
+  validation?: ValidationResult;
+};
+
 export type Clause = {
   clause_id: string;
   title: string;
   text: string;
   language: string;
   direction: string;
+  fallback?: boolean;
+  edition?: string;
 };
 
 export type UserRow = User & { name: string; is_active: boolean; roles: string[] };
 
-export function googleLoginUrl(clientRedirect: string): string {
-  const params = new URLSearchParams({
-    client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-    redirect_uri: clientRedirect,
-    response_type: 'code',
-    scope: 'openid email profile',
-    access_type: 'online',
-    prompt: 'select_account',
-  });
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+export function samlLoginHref(): string {
+  return `${API_BASE}/auth/saml/login`;
+}
+
+export function googleLoginHref(): string {
+  return `${API_BASE}/auth/google/login`;
 }

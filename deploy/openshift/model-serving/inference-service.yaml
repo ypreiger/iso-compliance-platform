@@ -1,0 +1,46 @@
+---
+# OpenShift AI — InferenceService for Mistral-7B-Instruct
+# This deploys a self-hosted LLM for ISO clause extraction and translation.
+#
+# Model must be pre-loaded into model-pvc (e.g. via a Job that runs
+# `huggingface-cli download mistralai/Mistral-7B-Instruct-v0.3 --local-dir /mnt/models`).
+#
+# Once running, the service is reachable at:
+#   http://mistral-7b-predictor.iso-platform.svc.cluster.local/v1
+# Update deploy/openshift/base/model-config.yaml accordingly.
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: mistral-7b
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/component: model-serving
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: vLLM
+      storageUri: "pvc://model-pvc/mistral-7b-instruct-v0.3"
+      runtime: vllm-runtime
+      resources:
+        requests:
+          cpu: "2"
+          memory: "8Gi"
+          nvidia.com/gpu: "1"
+        limits:
+          cpu: "4"
+          memory: "16Gi"
+          nvidia.com/gpu: "1"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-pvc
+  namespace: iso-platform
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 30Gi

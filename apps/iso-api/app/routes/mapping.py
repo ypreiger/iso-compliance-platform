@@ -7,8 +7,9 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.auth.deps import CurrentUser, get_current_user
+from app.auth.deps import CurrentUser, require_project_access
 from app.db import audit, get_conn, rows_to_list
+from app.iso.rag_search import search_iso_rag
 
 router = APIRouter(prefix="/v1/projects/{project_id}/mapping", tags=["mapping"])
 
@@ -28,7 +29,7 @@ class MappingUpdate(BaseModel):
 
 
 @router.get("")
-def list_mappings(project_id: str, user: Annotated[CurrentUser, Depends(get_current_user)]):
+def list_mappings(project_id: str, user: Annotated[CurrentUser, Depends(require_project_access)]):
     with get_conn() as conn:
         findings = conn.execute(
             "SELECT * FROM findings WHERE project_id = %s ORDER BY sort_order",
@@ -48,7 +49,7 @@ def list_mappings(project_id: str, user: Annotated[CurrentUser, Depends(get_curr
 def add_mapping(
     project_id: str,
     body: MappingCreate,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
+    user: Annotated[CurrentUser, Depends(require_project_access)],
 ):
     user.require_role("supervisor", "admin")
     mid = str(uuid4())
@@ -80,7 +81,7 @@ def add_mapping(
 def delete_mapping(
     project_id: str,
     mapping_id: str,
-    user: Annotated[CurrentUser, Depends(get_current_user)],
+    user: Annotated[CurrentUser, Depends(require_project_access)],
 ):
     user.require_role("supervisor", "admin")
     with get_conn() as conn:
@@ -91,7 +92,7 @@ def delete_mapping(
 
 
 @router.post("/approve")
-def approve_mapping(project_id: str, user: Annotated[CurrentUser, Depends(get_current_user)]):
+def approve_mapping(project_id: str, user: Annotated[CurrentUser, Depends(require_project_access)]):
     user.require_role("supervisor", "admin")
     with get_conn() as conn:
         conn.execute(
@@ -111,7 +112,7 @@ def approve_mapping(project_id: str, user: Annotated[CurrentUser, Depends(get_cu
 
 
 @router.post("/run-auto")
-def run_auto_mapping(project_id: str, user: Annotated[CurrentUser, Depends(get_current_user)]):
+def run_auto_mapping(project_id: str, user: Annotated[CurrentUser, Depends(require_project_access)]):
     """Stub: propose mappings from keyword match (LLM in phase 2)."""
     created = 0
     with get_conn() as conn:
@@ -125,29 +126,31 @@ def run_auto_mapping(project_id: str, user: Annotated[CurrentUser, Depends(get_c
             "SELECT id, finding_text FROM findings WHERE project_id = %s", (project_id,)
         ).fetchall()
         for f in findings:
-            clause = conn.execute(
-                """
-                SELECT metadata FROM rag_documents
-                WHERE metadata->>'standard' = %s AND metadata->>'language' = 'en'
-                ORDER BY id LIMIT 1
-                """,
-                (standard,),
-            ).fetchone()
-            if not clause:
+            hits = search_iso_rag(
+                conn,
+                standard=standard,
+                language="en",
+                query=f["finding_text"],
+                limit=1,
+            )
+            if not hits:
                 continue
-            meta = clause["metadata"]
+            hit = hits[0]
             mid = str(uuid4())
             conn.execute(
                 """
                 INSERT INTO finding_clause_mappings
                 (id, finding_id, standard, clause_id, clause_title, relevance_pct, severity)
-                VALUES (%s, %s, %s, %s, %s, 60, 'minor')
+                VALUES (%s, %s, %s, %s, %s, %s, 'minor')
                 ON CONFLICT DO NOTHING
                 """,
                 (
-                    mid, f["id"], standard,
-                    meta.get("clause_id", "4.1"),
-                    meta.get("title", "Clause"),
+                    mid,
+                    f["id"],
+                    standard,
+                    hit["clause_id"],
+                    hit["title"],
+                    min(95, 50 + hit["score"] * 8),
                 ),
             )
             created += 1

@@ -1,0 +1,88 @@
+---
+# Ollama — on-cluster LLM server (Kubernetes/open-source flavor)
+# Provides OpenAI-compatible /v1/chat/completions endpoint.
+# Requires a node with GPU (or run CPU-only with larger resource limits).
+#
+# Pull models after deploy:
+#   kubectl exec -n iso-platform deploy/ollama -- ollama pull llama3.1
+#   kubectl exec -n iso-platform deploy/ollama -- ollama pull mistral
+#
+# Then update model-config.yaml to use:
+#   EXTRACT_MODEL_URL: http://ollama.iso-platform.svc.cluster.local:11434/v1
+#   EXTRACT_MODEL_NAME: mistral
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: ollama
+    app.kubernetes.io/component: model-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ollama
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0:11434"
+            - name: OLLAMA_KEEP_ALIVE
+              value: "24h"
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              memory: "8Gi"
+              cpu: "2"
+            limits:
+              memory: "16Gi"
+              cpu: "4"
+              # Uncomment for GPU:
+              # nvidia.com/gpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/name: ollama
+spec:
+  selector:
+    app.kubernetes.io/name: ollama
+  ports:
+    - name: api
+      port: 11434
+      targetPort: 11434
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-pvc
+  namespace: iso-platform
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 50Gi

@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 from app.auth.deps import get_current_user
 from app.db import ensure_schema, get_document_count
-from app.routes import auth, corpus, coverage, exports, findings, instructions, iso_text, mapping, projects, users
+from app.routes import auth, corpus, coverage, documents, exports, findings, instructions, iso_text, mapping, projects, users
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.include_router(findings.router)
 app.include_router(mapping.router)
 app.include_router(coverage.router)
 app.include_router(corpus.router)
+app.include_router(documents.router)
 app.include_router(instructions.router)
 app.include_router(iso_text.router)
 app.include_router(exports.router)
@@ -59,7 +60,12 @@ def ready():
 
 @app.get("/auth/me")
 def auth_me(user=Depends(get_current_user)):
-    return {"id": user.id, "email": user.email, "roles": user.roles}
+    return {
+        "id": user.id,
+        "email": user.email,
+        "roles": user.roles,
+        "can_access_projects": user.can_access_projects,
+    }
 
 
 @app.get("/v1/corpus/summary")

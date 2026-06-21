@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.jwt import decode_token
+from app.auth.roles import has_project_access
 from app.db import get_conn
 
 security = HTTPBearer(auto_error=False)
@@ -18,11 +19,22 @@ class CurrentUser:
         self.email = email
         self.roles = roles
 
+    @property
+    def can_access_projects(self) -> bool:
+        return has_project_access(self.roles)
+
     def require_role(self, *roles: str) -> None:
         if "admin" in self.roles:
             return
         if not any(r in self.roles for r in roles):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    def require_project_access(self) -> None:
+        if not self.can_access_projects:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Project access not granted. Contact an administrator.",
+            )
 
 
 def get_current_user(
@@ -46,4 +58,9 @@ def get_current_user(
 
 def require_admin(user: Annotated[CurrentUser, Depends(get_current_user)]) -> CurrentUser:
     user.require_role("admin")
+    return user
+
+
+def require_project_access(user: Annotated[CurrentUser, Depends(get_current_user)]) -> CurrentUser:
+    user.require_project_access()
     return user

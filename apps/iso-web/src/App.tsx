@@ -1,5 +1,5 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { AuthProvider, useAuth } from './auth';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { AuthProvider, hasProjectAccess, useAuth } from './auth';
 import { AppLayout } from './components/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { ProjectsPage } from './pages/ProjectsPage';
@@ -10,6 +10,7 @@ import { ProjectCoveragePage } from './pages/ProjectCoveragePage';
 import { ProjectExportsPage } from './pages/ProjectExportsPage';
 import { IsoViewerPage } from './pages/IsoViewerPage';
 import { KnowledgeIsoPage, KnowledgeSamplesPage, KnowledgeTemplatesPage } from './pages/admin/KnowledgePages';
+import { DocumentsPage } from './pages/admin/DocumentsPage';
 import { InstructionsPage } from './pages/admin/InstructionsPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
@@ -21,6 +22,18 @@ function RequireAuth() {
   return <AppLayout />;
 }
 
+function RequireProjectAccess() {
+  const { user } = useAuth();
+  if (!hasProjectAccess(user)) return <Navigate to="/iso" replace />;
+  return <Outlet />;
+}
+
+function RequireAdmin() {
+  const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/iso" replace />;
+  return <Outlet />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -28,20 +41,25 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<LoginPage />} />
         <Route element={<RequireAuth />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:id/context" element={<ProjectContextPage />} />
-          <Route path="/projects/:id/findings" element={<ProjectFindingsPage />} />
-          <Route path="/projects/:id/mapping" element={<ProjectMappingPage />} />
-          <Route path="/projects/:id/coverage" element={<ProjectCoveragePage />} />
-          <Route path="/projects/:id/exports" element={<ProjectExportsPage />} />
+          <Route path="/" element={<Navigate to="/iso" replace />} />
           <Route path="/iso" element={<IsoViewerPage />} />
-          <Route path="/admin/knowledge/iso" element={<KnowledgeIsoPage />} />
-          <Route path="/admin/knowledge/samples" element={<KnowledgeSamplesPage />} />
-          <Route path="/admin/knowledge/templates" element={<KnowledgeTemplatesPage />} />
-          <Route path="/admin/instructions" element={<InstructionsPage />} />
-          <Route path="/admin/users" element={<UsersPage />} />
-          <Route path="/admin/settings" element={<SettingsPage />} />
+          <Route element={<RequireProjectAccess />}>
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id/context" element={<ProjectContextPage />} />
+            <Route path="/projects/:id/findings" element={<ProjectFindingsPage />} />
+            <Route path="/projects/:id/mapping" element={<ProjectMappingPage />} />
+            <Route path="/projects/:id/coverage" element={<ProjectCoveragePage />} />
+            <Route path="/projects/:id/exports" element={<ProjectExportsPage />} />
+          </Route>
+          <Route element={<RequireAdmin />}>
+            <Route path="/admin/knowledge/iso" element={<KnowledgeIsoPage />} />
+            <Route path="/admin/knowledge/samples" element={<KnowledgeSamplesPage />} />
+            <Route path="/admin/knowledge/templates" element={<KnowledgeTemplatesPage />} />
+            <Route path="/admin/documents" element={<DocumentsPage />} />
+            <Route path="/admin/instructions" element={<InstructionsPage />} />
+            <Route path="/admin/users" element={<UsersPage />} />
+            <Route path="/admin/settings" element={<SettingsPage />} />
+          </Route>
         </Route>
       </Routes>
     </AuthProvider>

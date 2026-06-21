@@ -1,7 +1,22 @@
 FROM registry.access.redhat.com/ubi9/python-311:latest
+
+USER root
+# antiword for legacy .doc files
+RUN dnf install -y gcc make \
+    && dnf clean all
+COPY vendor/antiword-0.37 /tmp/antiword-0.37
+RUN make -C /tmp/antiword-0.37 \
+    && make -C /tmp/antiword-0.37 global_install \
+    && rm -rf /tmp/antiword-0.37 \
+    && dnf remove -y gcc make \
+    && dnf clean all
+
 WORKDIR /opt/app-root/src
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
+
+USER 1001
+ENV PYTHONUNBUFFERED=1
 EXPOSE 8080
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

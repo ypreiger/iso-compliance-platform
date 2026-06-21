@@ -1,0 +1,13 @@
+---
+# Patch the llm namespace so it appears in the RHOAI Dashboard
+# as a DataScienceProject and shows the deployed Qwen3 model.
+# opendatahub.io/dashboard: "true"  → visible in RHOAI Projects UI
+# opendatahub.io/project-type: model-serving → shows under Model Serving tab
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/project-type: model-serving
+    kubernetes.io/metadata.name: llm

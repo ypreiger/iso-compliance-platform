@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { api, googleLoginUrl } from '../api';
+import { api, AuthConfig, samlLoginHref } from '../api';
 import { useAuth } from '../auth';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
@@ -12,41 +13,105 @@ export function LoginPage() {
   const [params] = useSearchParams();
   const [email, setEmail] = useState('yaakovpreiger@gmail.com');
   const [err, setErr] = useState('');
-  const [cfg, setCfg] = useState({ google_enabled: false, dev_mode: true });
+  const [cfg, setCfg] = useState<AuthConfig>({
+    saml_enabled: false,
+    google_enabled: false,
+    google_client_id: '',
+    dev_mode: false,
+  });
 
-  useEffect(() => { if (token) nav('/projects'); }, [token, nav]);
+  useEffect(() => {
+    if (token) nav('/iso', { replace: true });
+  }, [token, nav]);
 
   useEffect(() => {
     api.authConfig().then(setCfg).catch(() => undefined);
-    const code = params.get('code');
-    if (code) {
-      api.googleCallback(code).then((r) => {
-        loginToken(r.access_token, r.user);
-        nav('/projects');
-      }).catch((e: Error) => setErr(e.message));
+  }, []);
+
+  useEffect(() => {
+    const accessToken = params.get('access_token');
+    if (accessToken && !token) {
+      api.me(accessToken)
+        .then((user) => {
+          loginToken(accessToken, user);
+          nav('/iso', { replace: true });
+        })
+        .catch((e: Error) => setErr(e.message));
+      return;
     }
-  }, [params, loginToken, nav]);
+    const code = params.get('code');
+    if (!code || token) return;
+    api.googleCallback(code)
+      .then((r) => {
+        loginToken(r.access_token, r.user);
+        nav('/iso', { replace: true });
+      })
+      .catch((e: Error) => setErr(e.message));
+  }, [params, loginToken, nav, token]);
 
-  const redirectUri = `${window.location.origin}/login`;
+  const googleReady = cfg.google_enabled && cfg.google_client_id;
 
-  return (
-    <div className="main" style={{ maxWidth: 480, margin: '2rem auto' }}>
-      <h1>{t('login.title')}</h1>
+  const loginCard = (
+    <div className="login-card">
       <LanguageSwitcher />
+      <h1>{t('login.title')}</h1>
+      <p className="login-sub">{t('login.subtitle')}</p>
       {err && <div className="alert">{err}</div>}
-      {cfg.google_enabled && (
-        <button type="button" className="btn" onClick={() => { window.location.href = googleLoginUrl(redirectUri); }}>
-          {t('login.google')}
-        </button>
+      {googleReady ? (
+        <div className="google-signin-wrap">
+          <GoogleLogin
+            onSuccess={(res) => {
+              if (!res.credential) {
+                setErr('Google sign-in failed');
+                return;
+              }
+              api.googleIdToken(res.credential)
+                .then((r) => {
+                  loginToken(r.access_token, r.user);
+                  nav('/iso', { replace: true });
+                })
+                .catch((e: Error) => setErr(e.message));
+            }}
+            onError={() => setErr('Google sign-in failed')}
+            useOneTap={false}
+            theme="outline"
+            size="large"
+            text="signin_with"
+            shape="rectangular"
+          />
+        </div>
+      ) : (
+        <div className="alert alert-warn">{t('login.googleUnavailable')}</div>
+      )}
+      {!googleReady && cfg.saml_enabled && (
+        <p className="login-alt">
+          <button type="button" className="link-btn" onClick={() => { window.location.href = samlLoginHref(); }}>
+            {t('login.workspaceSso')}
+          </button>
+        </p>
       )}
       {cfg.dev_mode && (
-        <div style={{ marginTop: 24 }}>
+        <div className="login-dev">
           <label>{t('login.email')}</label>
           <input value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button type="button" className="btn" onClick={() => loginDev(email).then(() => nav('/projects')).catch((e: Error) => setErr(e.message))}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => loginDev(email).then(() => nav('/iso', { replace: true })).catch((e: Error) => setErr(e.message))}
+          >
             {t('login.dev')}
           </button>
         </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="login-page">
+      {googleReady ? (
+        <GoogleOAuthProvider clientId={cfg.google_client_id}>{loginCard}</GoogleOAuthProvider>
+      ) : (
+        loginCard
       )}
     </div>
   );

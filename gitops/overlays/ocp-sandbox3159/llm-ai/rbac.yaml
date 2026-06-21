@@ -1,0 +1,48 @@
+---
+# RBAC: Allow the playground SA in iso-platform to call MaaS models
+# MaaS uses OpenShift token auth (Bearer <SA token>)
+# system:authenticated includes all valid SA tokens → free tier access
+# This ClusterRoleBinding adds the playground SA to tier-free-users group
+# so TrustyAI can also correlate inference requests by user.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: maas-client
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/part-of: iso-compliance
+    app.kubernetes.io/component: playground
+---
+# ClusterRole: allow POSTing to LLMInferenceService endpoints (MaaS tier access check)
+# The MaaS Kuadrant AuthPolicy runs SubjectAccessReview: can <user> "post" llminferenceservices/<name>?
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: iso-maas-model-invoker
+  labels:
+    app.kubernetes.io/part-of: iso-compliance
+rules:
+  - apiGroups: ["serving.kserve.io"]
+    resources: ["llminferenceservices"]
+    verbs: ["get", "list", "post"]
+  - apiGroups: ["serving.kserve.io"]
+    resources: ["inferenceservices"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: iso-platform-maas-model-invoker
+  labels:
+    app.kubernetes.io/part-of: iso-compliance
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: iso-platform
+  - kind: ServiceAccount
+    name: maas-client
+    namespace: iso-platform
+roleRef:
+  kind: ClusterRole
+  name: iso-maas-model-invoker
+  apiGroup: rbac.authorization.k8s.io

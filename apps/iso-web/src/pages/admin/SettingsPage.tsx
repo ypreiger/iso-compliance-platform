@@ -6,9 +6,9 @@ export function SettingsPage() {
     <section>
       <h1>{t('app.settings')}</h1>
       <ul>
-        <li>Admin bootstrap: yaakovpreiger@gmail.com, valeria.preiger@gmail.com</li>
+        <li>Admin bootstrap: yaakov.preiger@think-21.com, yaakovpreiger@gmail.com, valeria.preiger@gmail.com</li>
         <li>LLM aliases: iso-mapper, iso-report, iso-embed</li>
-        <li>Google OAuth: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on iso-api</li>
+        <li>Authentication: Google Workspace SAML (SAML_IDP_* / SAML_SP_* on iso-api)</li>
       </ul>
     </section>
   );

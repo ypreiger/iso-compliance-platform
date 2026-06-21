@@ -8,10 +8,19 @@ type AuthCtx = {
   loginToken: (token: string, user: User) => void;
   logout: () => void;
   isAdmin: boolean;
+  canAccessProjects: boolean;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
 const KEY = 'iso-auth-token';
+
+const PROJECT_ROLES = new Set(['admin', 'consultant', 'supervisor']);
+
+export function hasProjectAccess(user: User | null | undefined): boolean {
+  if (!user) return false;
+  if (typeof user.can_access_projects === 'boolean') return user.can_access_projects;
+  return user.roles.some((r) => PROJECT_ROLES.has(r));
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(KEY));
@@ -46,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       },
       isAdmin: !!user?.roles.includes('admin'),
+      canAccessProjects: hasProjectAccess(user),
     }),
     [token, user],
   );

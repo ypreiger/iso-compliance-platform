@@ -1,0 +1,28 @@
+---
+# TrustyAI Service — model observability for Qwen3 4B Instruct
+# Provides:
+#   - Inference request/response logging
+#   - Fairness metrics (SPD, DIR)
+#   - Data drift detection
+# Visible in RHOAI Dashboard → <project llm> → Trusty AI
+#
+# Storage: PVC (1Gi) for inference logs
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: TrustyAIService
+metadata:
+  name: trustyai
+  namespace: llm
+  labels:
+    app.kubernetes.io/part-of: llm-platform
+    app.kubernetes.io/component: trustyai
+spec:
+  storage:
+    format: "PVC"
+    folder: "/inputs"
+    size: "1Gi"
+  data:
+    filename: "inference-data.csv"
+    format: "CSV"
+  metrics:
+    schedule: "5s"
+  replicas: 1

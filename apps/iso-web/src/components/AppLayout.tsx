@@ -5,18 +5,19 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 
 export function AppLayout() {
   const { t } = useTranslation();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, canAccessProjects } = useAuth();
   const nav = useNavigate();
 
   return (
     <div className="layout">
       <nav className="sidebar">
         <strong>{t('app.title')}</strong>
-        <Link to="/projects">{t('app.projects')}</Link>
         <Link to="/iso">{t('app.isoViewer')}</Link>
+        {canAccessProjects && <Link to="/projects">{t('app.projects')}</Link>}
         {isAdmin && (
           <>
             <Link to="/admin/knowledge/iso">{t('admin.isoCorpus')}</Link>
+            <Link to="/admin/documents">{t('admin.documentsTab')}</Link>
             <Link to="/admin/knowledge/samples">{t('admin.samples')}</Link>
             <Link to="/admin/knowledge/templates">{t('admin.templates')}</Link>
             <Link to="/admin/instructions">{t('app.instructions')}</Link>

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth';
 import { api, UserRow } from '../../api';
 
-const ROLES = ['admin', 'consultant', 'supervisor'];
+const ROLES = ['viewer', 'consultant', 'supervisor', 'admin'];
 
 export function UsersPage() {
   const { t } = useTranslation();

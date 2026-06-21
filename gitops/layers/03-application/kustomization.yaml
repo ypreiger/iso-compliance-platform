@@ -5,6 +5,7 @@ resources:
   - iso-api.yaml
   - iso-web.yaml
   - iso-docgen.yaml
+  - playground.yaml
 
 images:
   - name: iso-api

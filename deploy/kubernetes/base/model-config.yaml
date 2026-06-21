@@ -1,0 +1,40 @@
+---
+# Model-as-a-Service configuration — Kubernetes / open-source flavor
+#
+# Option A: Use Ollama (local, on-cluster)
+#   Set MODEL URLs to: http://ollama.iso-platform.svc.cluster.local:11434/v1
+#   Set MODEL names to: llama3.1, mistral, etc.
+#   No API key required for Ollama.
+#
+# Option B: Use OpenAI / Anthropic (external)
+#   Keep default URLs. Set OPENAI_API_KEY secret.
+#
+# Option C: Use LocalAI or LiteLLM proxy (on-cluster OpenAI-compatible)
+#   Set MODEL URLs to your proxy endpoint.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: doc-agent-model-config
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/component: doc-agent
+data:
+  # ── Option A: Ollama on-cluster ─────────────────────────────────────────
+  # PARSE_MODEL_URL: "http://ollama.iso-platform.svc.cluster.local:11434/v1"
+  # PARSE_MODEL_NAME: "llama3.1"
+  # EXTRACT_MODEL_URL: "http://ollama.iso-platform.svc.cluster.local:11434/v1"
+  # EXTRACT_MODEL_NAME: "mistral"
+  # TRANSLATE_MODEL_URL: "http://ollama.iso-platform.svc.cluster.local:11434/v1"
+  # TRANSLATE_MODEL_NAME: "llama3.1"
+  # GENERATE_MODEL_URL: "http://ollama.iso-platform.svc.cluster.local:11434/v1"
+  # GENERATE_MODEL_NAME: "mistral"
+
+  # ── Option B: OpenAI (default) ──────────────────────────────────────────
+  PARSE_MODEL_URL: "https://api.openai.com/v1"
+  PARSE_MODEL_NAME: "gpt-4o"
+  EXTRACT_MODEL_URL: "https://api.openai.com/v1"
+  EXTRACT_MODEL_NAME: "gpt-4o"
+  TRANSLATE_MODEL_URL: "https://api.openai.com/v1"
+  TRANSLATE_MODEL_NAME: "gpt-4o"
+  GENERATE_MODEL_URL: "https://api.openai.com/v1"
+  GENERATE_MODEL_NAME: "gpt-4o-mini"

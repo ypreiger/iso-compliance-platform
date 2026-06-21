@@ -1,0 +1,36 @@
+---
+# ArgoCD Application — LLM AI Platform (TrustyAI + Guardrails + RHOAI labels)
+# Deploys to: llm namespace
+# Source: iso-compliance-platform repo → gitops/overlays/ocp-sandbox3159/llm-ai
+#
+# Apply bootstrap:
+#   oc apply -f gitops/overlays/ocp-sandbox3159/apps/llm-ai-app.yaml -n openshift-gitops
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llm-ai-platform
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ypreiger/iso-compliance-platform.git
+    targetRevision: main
+    path: gitops/overlays/ocp-sandbox3159/llm-ai
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: llm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    managedNamespaceMetadata:
+      labels:
+        opendatahub.io/dashboard: "true"
+        opendatahub.io/project-type: model-serving

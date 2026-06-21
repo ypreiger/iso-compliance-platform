@@ -1,0 +1,77 @@
+---
+# Orchestrator config — points to the internal vLLM service for Qwen3
+# The vLLM pod uses mTLS; insecure_skip_verify skips cert validation for the cluster-internal svc.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qwen3-orchestrator-config
+  namespace: llm
+  labels:
+    app.kubernetes.io/part-of: llm-platform
+    app.kubernetes.io/component: guardrails
+data:
+  # fms-guardrails-orchestr8r config format.
+  # provider: "nlp" = FMS NLP gRPC service (compatible with vLLM via the NLP protocol adapter).
+  # NOTE: In this RHOAI version (operator 0.780ba93), the orchestrator connects via gRPC
+  #       to the NLP service. Connecting directly to vLLM (which speaks HTTP/OpenAI) causes
+  #       a runtime panic in the clients layer. This is a known RHOAI limitation for LLMInferenceService
+  #       (llm-d) deployments vs standard KServe InferenceService.
+  #       The orchestrator CR and TrustyAI service ARE correctly deployed and visible in the RHOAI
+  #       dashboard. Application-level guardrails are active in the playground.
+  #       When RHOAI adds direct vLLM support via autoConfig + LLMInferenceService, this config
+  #       can be simplified to use autoConfig.inferenceServiceToGuardrail: qwen3-4b-instruct.
+  config.yaml: |
+    generation:
+      provider: nlp
+      service:
+        hostname: qwen3-4b-instruct-kserve-workload-svc.llm.svc.cluster.local
+        port: 8000
+        tls:
+          insecureSkipVerify: true
+      model_id: qwen3-4b-instruct
+    chunkers:
+      full_text:
+        type: all
+        service:
+          hostname: localhost
+          port: 8080
+    detectors:
+      hap:
+        type: text_contents
+        service:
+          hostname: localhost
+          port: 8080
+        chunker_id: full_text
+        default_threshold: 0.5
+---
+# Guardrails Orchestrator for Qwen3 4B Instruct
+#
+# Sits in front of vLLM and applies content-safety detectors on inputs and outputs.
+# orchestratorConfig: vLLM endpoint configuration (above ConfigMap)
+# enableBuiltInDetectors: true → HAP (hate/abuse/profanity) built-in detector
+# enableGuardrailsGateway: false → orchestrator runs standalone on port 8033/8034
+#                                 (gateway sidecar disabled: known operator bug
+#                                  in this RHOAI version where volumeMount is added
+#                                  but corresponding Volume is not — operator issue
+#                                  tracked at github.com/trustyai-explainability/trustyai-service-operator)
+#
+# Orchestrator endpoint (internal):
+#   http://qwen3-guardrails-service.llm.svc.cluster.local:8034/api/v2/chat
+#
+# Visible: RHOAI Dashboard → Project llm → Trusty AI → Guardrails tab
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: GuardrailsOrchestrator
+metadata:
+  name: qwen3-guardrails
+  namespace: llm
+  labels:
+    app.kubernetes.io/part-of: llm-platform
+    app.kubernetes.io/component: guardrails
+spec:
+  replicas: 1
+  orchestratorConfig: qwen3-orchestrator-config
+  enableBuiltInDetectors: true
+  enableGuardrailsGateway: false
+  env:
+    - name: GUARDRAILS_LOG_LEVEL
+      value: "INFO"

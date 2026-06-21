@@ -1,0 +1,43 @@
+---
+# Model-as-a-Service configuration — OpenShift flavor
+#
+# SWAP these URLs to point at your OpenShift AI InferenceService
+# once you have models deployed (see deploy/openshift/model-serving/).
+#
+# Example OpenShift AI endpoint:
+#   http://mistral-7b-predictor.iso-platform.svc.cluster.local/v1
+#
+# Each task (PARSE, EXTRACT, TRANSLATE, GENERATE) can use a different model.
+# Heavier models (gpt-4o) for quality-critical tasks (parse, extract).
+# Lighter models (gpt-4o-mini, mistral-7b) for cheaper tasks (generate).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: doc-agent-model-config
+  namespace: iso-platform
+  labels:
+    app.kubernetes.io/component: doc-agent
+data:
+  # ── Document parsing (PDF/DOC/DOCX → ISO clauses) ──────────────────────
+  # OpenShift AI: change to http://vllm-predictor.iso-platform.svc.cluster.local/v1
+  PARSE_MODEL_URL: "https://api.openai.com/v1"
+  PARSE_MODEL_NAME: "gpt-4o"
+
+  # ── ISO clause extraction (text → [{clause_id, title, body}]) ──────────
+  EXTRACT_MODEL_URL: "https://api.openai.com/v1"
+  EXTRACT_MODEL_NAME: "gpt-4o"
+
+  # ── Translation (EN ↔ HE) ───────────────────────────────────────────────
+  TRANSLATE_MODEL_URL: "https://api.openai.com/v1"
+  TRANSLATE_MODEL_NAME: "gpt-4o"
+
+  # ── Report generation (narrative text in reports) ───────────────────────
+  # Can use a lighter model to reduce cost
+  GENERATE_MODEL_URL: "https://api.openai.com/v1"
+  GENERATE_MODEL_NAME: "gpt-4o-mini"
+---
+# Secret template (do not commit real keys)
+# Create manually:
+#   oc create secret generic doc-agent-model-keys \
+#     --from-literal=OPENAI_API_KEY=sk-...
+#   (or reuse existing openai-api-key secret)
