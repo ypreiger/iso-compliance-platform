@@ -90,7 +90,7 @@ export function IsoViewerPage() {
             <>
               <h2>
                 <span className="iso-clause-id">{selected.clause_id}</span>
-                {selected.title}
+                {" "}{selected.title}
               </h2>
               {selected.fallback && (
                 <p className="iso-fallback-note">{t('iso.fallbackNote')}</p>

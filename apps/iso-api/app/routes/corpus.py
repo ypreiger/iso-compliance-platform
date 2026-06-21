@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from app.auth.deps import CurrentUser, require_admin
 from app.db import get_conn, rows_to_list
 from app.iso.import_service import import_translated_clauses
+from app.iso.parser import _sort_key
 from app.iso.standard_cleanup import delete_iso_standard
 from app.iso.translate import translate_clause_text
 
@@ -286,7 +287,12 @@ async def translate_iso_clauses(
         sql += " ORDER BY sort_order, clause_id"
         rows = conn.execute(sql, params).fetchall()
 
-    if not rows:
+    ordered_rows = sorted(
+        rows_to_list(rows),
+        key=lambda r: (_sort_key(str(r["clause_id"])), str(r["clause_id"])),
+    )
+
+    if not ordered_rows:
         raise HTTPException(
             status_code=404,
             detail=f"No {body.source_language} clauses found for standard",
@@ -294,7 +300,7 @@ async def translate_iso_clauses(
 
     translated: list[tuple[str, str, str, int]] = []
     errors: list[str] = []
-    for row in rows_to_list(rows):
+    for row in ordered_rows:
         try:
             title_out, body_out = await translate_clause_text(
                 row["title"],
@@ -302,7 +308,14 @@ async def translate_iso_clauses(
                 source_language=body.source_language,
                 target_language=body.target_language,
             )
-            translated.append((row["clause_id"], title_out, body_out, int(row["sort_order"])))
+            translated.append(
+                (
+                    row["clause_id"],
+                    title_out,
+                    body_out,
+                    _sort_key(str(row["clause_id"])),
+                )
+            )
         except Exception as exc:
             errors.append(f"{row['clause_id']}: {exc}")
 

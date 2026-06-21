@@ -30,9 +30,10 @@ def _schema():
 def test_sort_key_fits_postgres_integer():
     from app.iso.parser import _sort_key
 
-    assert _sort_key("4.1") == 401
-    assert _sort_key("10.1") == 1001
-    assert _sort_key("4.1.2") == 40102
+    assert _sort_key("4.1") == 401000000
+    assert _sort_key("10.1") == 1001000000
+    assert _sort_key("4.1.2") == 401020000
+    assert _sort_key("4") < _sort_key("4.1") < _sort_key("4.2") < _sort_key("5")
     assert _sort_key("4.1") < 2_147_483_647
 
 
@@ -238,3 +239,56 @@ def test_hebrew_fallback_to_english():
     # Seeded data has Hebrew — ensure API returns Hebrew text for 4.1
     c41 = next(c for c in clauses if c["clause_id"] == "4.1")
     assert "ארגון" in c41["text"] or c41.get("fallback")
+
+
+def test_seed_data_sort_order_scale():
+    """Verify seed data uses new 9-digit scale."""
+    from pathlib import Path
+    from app.iso.parser import _sort_key
+
+    seed_path = Path(__file__).parent.parent / "app/data/iso_clauses_seed.json"
+    data = json.load(seed_path.open())
+
+    for item in data:
+        expected = _sort_key(item["clause_id"])
+        actual = item["sort_order"]
+        assert actual == expected, \
+            f"Clause {item['clause_id']}: sort_order {actual} != expected {expected}"
+
+
+def test_clause_ordering_consistency():
+    """Verify clause ordering matches natural hierarchy."""
+    from app.iso.parser import _sort_key
+
+    content = json.dumps(
+        [
+            {"clause_id": "4", "title": "Context", "body": "4 body", "sort_order": _sort_key("4")},
+            {"clause_id": "4.1", "title": "Understanding", "body": "4.1 body", "sort_order": _sort_key("4.1")},
+            {"clause_id": "4.1.1", "title": "Sub", "body": "4.1.1 body", "sort_order": _sort_key("4.1.1")},
+            {"clause_id": "4.2", "title": "Needs", "body": "4.2 body", "sort_order": _sort_key("4.2")},
+            {"clause_id": "5", "title": "Leadership", "body": "5 body", "sort_order": _sort_key("5")},
+        ]
+    ).encode()
+
+    with get_conn() as conn:
+        import_iso_upload(
+            conn,
+            content=content,
+            filename="test-order.json",
+            standard="TESTORDER",
+            language="en",
+            edition="2025",
+            admin_id=None,
+            replace_previous=True,
+        )
+        conn.commit()
+
+    token = client.post("/auth/dev-login", json={"email": "yaakovpreiger@gmail.com"}).json()["access_token"]
+    r = client.get(
+        "/v1/iso/clauses?standard=TESTORDER&language=en",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    clause_ids = [c["clause_id"] for c in r.json()["clauses"]]
+    expected_order = ["4", "4.1", "4.1.1", "4.2", "5"]
+    assert clause_ids == expected_order, f"Expected {expected_order}, got {clause_ids}"

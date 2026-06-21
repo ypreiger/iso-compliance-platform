@@ -25,8 +25,12 @@ class Settings:
         self.database_name = os.getenv("DATABASE_NAME", "iso")
         self.jwt_secret = os.getenv("JWT_SECRET", "dev-jwt-secret-change-me")
         self.jwt_ttl_hours = int(os.getenv("JWT_TTL_HOURS", "24"))
-        self.google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
-        self.google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+        self.google_client_id = (
+            os.getenv("GOOGLE_CLIENT_ID")
+            or os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+            or ""
+        ).strip()
+        self.google_client_secret = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip()
         self.saml_idp_entity_id = os.getenv("SAML_IDP_ENTITY_ID", "")
         self.saml_idp_sso_url = os.getenv("SAML_IDP_SSO_URL", "")
         self.saml_idp_x509_cert = os.getenv("SAML_IDP_X509_CERT", "")
@@ -61,7 +65,10 @@ class Settings:
     @property
     def google_signin_enabled(self) -> bool:
         """Google Identity Services (any @gmail.com / Google account)."""
-        return bool(self.google_client_id)
+        return bool(
+            self.google_client_id
+            and self.google_client_id != "REPLACE_GOOGLE_CLIENT_ID"
+        )
 
     @property
     def google_oauth_redirect_enabled(self) -> bool:

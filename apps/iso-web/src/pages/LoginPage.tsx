@@ -13,19 +13,20 @@ export function LoginPage() {
   const [params] = useSearchParams();
   const [email, setEmail] = useState('yaakovpreiger@gmail.com');
   const [err, setErr] = useState('');
-  const [cfg, setCfg] = useState<AuthConfig>({
-    saml_enabled: false,
-    google_enabled: false,
-    google_client_id: '',
-    dev_mode: false,
-  });
+  const [cfgErr, setCfgErr] = useState('');
+  const [cfg, setCfg] = useState<AuthConfig | null>(null);
 
   useEffect(() => {
     if (token) nav('/iso', { replace: true });
   }, [token, nav]);
 
   useEffect(() => {
-    api.authConfig().then(setCfg).catch(() => undefined);
+    api.authConfig()
+      .then((next) => {
+        setCfg(next);
+        setCfgErr('');
+      })
+      .catch(() => setCfgErr('Unable to load auth configuration from API'));
   }, []);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export function LoginPage() {
       .catch((e: Error) => setErr(e.message));
   }, [params, loginToken, nav, token]);
 
-  const googleReady = cfg.google_enabled && cfg.google_client_id;
+  const googleReady = cfg !== null && cfg.google_enabled && !!cfg.google_client_id;
 
   const loginCard = (
     <div className="login-card">
@@ -57,6 +58,7 @@ export function LoginPage() {
       <h1>{t('login.title')}</h1>
       <p className="login-sub">{t('login.subtitle')}</p>
       {err && <div className="alert">{err}</div>}
+      {cfgErr && <div className="alert">{cfgErr}</div>}
       {googleReady ? (
         <div className="google-signin-wrap">
           <GoogleLogin
@@ -80,17 +82,19 @@ export function LoginPage() {
             shape="rectangular"
           />
         </div>
-      ) : (
+      ) : cfg !== null ? (
         <div className="alert alert-warn">{t('login.googleUnavailable')}</div>
+      ) : (
+        <div className="alert alert-warn">Loading authentication configuration...</div>
       )}
-      {!googleReady && cfg.saml_enabled && (
+      {!googleReady && cfg && cfg.saml_enabled && (
         <p className="login-alt">
           <button type="button" className="link-btn" onClick={() => { window.location.href = samlLoginHref(); }}>
             {t('login.workspaceSso')}
           </button>
         </p>
       )}
-      {cfg.dev_mode && (
+      {cfg && cfg.dev_mode && (
         <div className="login-dev">
           <label>{t('login.email')}</label>
           <input value={email} onChange={(e) => setEmail(e.target.value)} />

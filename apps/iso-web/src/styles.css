@@ -43,11 +43,24 @@ input, textarea, select { width: 100%; padding: 0.4rem; margin-bottom: 0.5rem; }
 .iso-clause-list ul { list-style: none; margin: 0; padding: 0; }
 .iso-clause-btn { width: 100%; text-align: start; border: none; border-bottom: 1px solid #eee; background: #fff; padding: 0.65rem 0.75rem; cursor: pointer; display: flex; flex-direction: column; gap: 0.2rem; }
 .iso-clause-btn.active { background: #eef4ff; }
-.iso-clause-id { font-weight: 600; font-size: 0.85rem; color: #334; }
+.iso-clause-id {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #334;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
 .iso-clause-title { font-size: 0.9rem; color: #555; }
 .iso-content { border: 1px solid #ddd; border-radius: 6px; padding: 1.25rem; background: #fff; }
 .iso-content h2 { margin-top: 0; }
 .iso-content p { line-height: 1.6; }
+.iso-content.iso-rtl {
+  font-family: "Noto Sans Hebrew", "Rubik", "Arial", sans-serif;
+}
+.iso-content.iso-ltr {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
 .iso-empty { color: #666; padding: 1rem; }
 @media (max-width: 900px) {
   .iso-layout { grid-template-columns: 1fr; }

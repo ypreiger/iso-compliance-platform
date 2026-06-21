@@ -1,11 +1,15 @@
 """Extract clean reading-order text from PDF, DOC, and DOCX.
 
+VENDORED MODULE: This code is duplicated in services/docgen/app/agents/parser.py
+for service isolation. Bug fixes must be applied to BOTH locations.
+
 PDF  → PyMuPDF (fitz) — better reading order than pypdf
 DOCX → python-docx — heading styles + paragraph walk
 DOC  → antiword (compiled into image) → plain text
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import tempfile
@@ -43,7 +47,11 @@ def extract_text_from_pdf(content: bytes) -> str:
     doc = fitz.open(stream=content, filetype="pdf")
     pages: list[str] = []
     for page in doc:
-        # sort=True uses reading-order sort (left-right, top-bottom)
+        # "text" mode often keeps better line flow for clause headings.
+        text = page.get_text("text", sort=True)
+        if text.strip():
+            pages.append(text)
+            continue
         blocks = page.get_text("blocks", sort=True)
         for block in blocks:
             if block[6] == 0:  # type 0 = text block
@@ -128,20 +136,32 @@ def extract_text_from_doc(content: bytes) -> str:
     with tempfile.TemporaryDirectory() as tmp:
         doc_path = Path(tmp) / "upload.doc"
         doc_path.write_bytes(content)
+        env = {"ANTIWORDHOME": "/usr/share/antiword", **os.environ}
         try:
             result = subprocess.run(
-                ["antiword", str(doc_path)],
+                ["antiword", "-m", "UTF-8.txt", "-w", "0", str(doc_path)],
                 check=True,
                 capture_output=True,
                 timeout=120,
+                env=env,
             )
         except FileNotFoundError as exc:
             raise ValueError(
                 "Legacy .doc files require antiword in the API container."
             ) from exc
-        except subprocess.CalledProcessError as exc:
-            stderr = (exc.stderr or b"").decode(errors="replace")
-            raise ValueError(f".doc text extraction failed: {stderr[:400]}") from exc
+        except subprocess.CalledProcessError:
+            # Fallback to antiword defaults if mapping resources are unavailable.
+            try:
+                result = subprocess.run(
+                    ["antiword", "-w", "0", str(doc_path)],
+                    check=True,
+                    capture_output=True,
+                    timeout=120,
+                    env=env,
+                )
+            except subprocess.CalledProcessError as exc:
+                stderr = (exc.stderr or b"").decode(errors="replace")
+                raise ValueError(f".doc text extraction failed: {stderr[:400]}") from exc
         text = result.stdout.decode("utf-8", errors="replace")
         if not text.strip():
             raise ValueError(".doc file contains no extractable text")

@@ -99,13 +99,22 @@ class BilingualUpload:
 
 
 def _sort_key(clause_id: str) -> int:
-    """Hierarchical sort key that fits PostgreSQL INTEGER (max ~2.1e9)."""
+    """Hierarchical sort key that keeps 4 < 4.1 < 4.2 < 5.
+
+    We encode up to 5 hierarchy levels with fixed-width base-100 digits:
+      4      -> 4,00,00,00,00
+      4.1    -> 4,01,00,00,00
+      4.1.2  -> 4,01,02,00,00
+    This preserves natural clause order while still fitting INT.
+    """
     parts = [int(p) for p in clause_id.split(".") if p.isdigit()]
     if not parts:
         return 0
+    depth = 5
+    padded = [min(p, 99) for p in parts[:depth]] + [0] * max(0, depth - len(parts))
     key = 0
-    for p in parts[:4]:
-        key = key * 100 + min(p, 99)
+    for p in padded:
+        key = key * 100 + p
     return key
 
 

@@ -418,13 +418,14 @@ def _seed_prompts(conn: Any) -> None:
 
 def _seed_iso_clauses(conn: Any) -> None:
     from pathlib import Path
+    from app.iso.parser import _sort_key
 
     seed_path = Path(__file__).parent / "data" / "iso_clauses_seed.json"
     items = json.loads(seed_path.read_text(encoding="utf-8"))
     for item in items:
         standard = item["standard"]
         clause_id = item["clause_id"]
-        sort_order = int(item.get("sort_order", 0))
+        sort_order = int(item.get("sort_order", _sort_key(clause_id)))
         for lang in ("en", "he"):
             loc = item[lang]
             conn.execute(

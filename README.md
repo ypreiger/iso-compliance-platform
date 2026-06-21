@@ -44,3 +44,15 @@ playground   → Unified AI chat (Qwen3 + GPT-4o + GPT-4o-mini + GPT-3.5-turbo)
 
 - **`deploy/openshift/`** — Red Hat OpenShift (Routes, BuildConfig, RHOAI, Kuadrant)
 - **`deploy/kubernetes/`** — Pure Kubernetes (Ingress, Ollama, standard k8s)
+
+## Database Migrations
+
+Migrations run automatically via GitOps PostSync hooks in layer 02-app-infra.
+
+### sort_order Scale Migration (2026-06)
+ISO clause `sort_order` migrated from 3-digit (401) to 9-digit base-100 encoding (401000000)
+to support hierarchical sorting (4 < 4.1 < 4.2 < 5).
+
+**Migration Job:** `gitops/layers/02-app-infra/migrate-sort-order-job.yaml`  
+**Idempotent:** Safe to re-run; only updates rows with `sort_order < 1000000`  
+**Rollback:** Automated rollback available via GitOps revert

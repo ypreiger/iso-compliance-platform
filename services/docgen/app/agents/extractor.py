@@ -79,6 +79,10 @@ def _normalize_id(raw: str) -> str:
     return ".".join(str(int(p)) for p in parts)
 
 
+def _clause_sort_key(clause_id: str) -> tuple[int, ...]:
+    return tuple(int(p) for p in clause_id.split(".") if p.isdigit())
+
+
 async def extract_clauses(
     text: str,
     *,
@@ -127,6 +131,6 @@ async def extract_clauses(
     from app.config import get_model_config
     model_used = get_model_config()["extract"]["model"]
 
-    result = [merged[cid] for cid in order]
+    result = [merged[cid] for cid in sorted(order, key=_clause_sort_key)]
     log.info("extract_clauses done: %d clauses, model=%s", len(result), model_used)
     return result, model_used

@@ -91,8 +91,10 @@ def _inline_parse(
     from app.iso.document_extract import extract_text
     from app.iso.llm_parser import parse_text_with_llm
     from app.iso.clause_parse import parse_iso_document_text
+    from app.iso.parser import preprocess_extracted_text
 
     raw_text = extract_text(content, filename=filename)
+    raw_text = preprocess_extracted_text(raw_text)
 
     try:
         clauses = parse_text_with_llm(raw_text, standard=standard, language=language)

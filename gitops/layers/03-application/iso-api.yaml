@@ -56,8 +56,8 @@ spec:
                   key: JWT_SECRET
             - name: GOOGLE_CLIENT_ID
               valueFrom:
-                configMapKeyRef:
-                  name: iso-app-config
+                secretKeyRef:
+                  name: iso-secrets
                   key: GOOGLE_CLIENT_ID
                   optional: true
             - name: SAML_IDP_ENTITY_ID

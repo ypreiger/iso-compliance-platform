@@ -1,7 +1,7 @@
 """Tests for hierarchical ISO clause parsing."""
 from __future__ import annotations
 
-from app.iso.clause_parse import parse_iso_document_text
+from app.iso.clause_parse import parse_iso_document_text, repair_broken_words
 
 
 def test_stack_parser_assigns_body_to_correct_clause():
@@ -45,3 +45,22 @@ The org anization shall determine interested parties.
     clauses = parse_iso_document_text(raw)
     c41 = next(c for c in clauses if c.clause_id == "4.1")
     assert "shall determine external" in c41.body
+
+
+def test_repair_broken_words_does_not_corrupt_hebrew():
+    raw = "הארגון יבצע בקרה על מסמכים פנימיים"
+    assert repair_broken_words(raw) == raw
+
+
+def test_split_heading_lines_from_pdf_are_joined():
+    raw = """
+4
+Context of the organization
+4.1
+Understanding the organization and its context
+The organization shall determine internal and external issues.
+"""
+    clauses = parse_iso_document_text(raw)
+    by_id = {c.clause_id: c for c in clauses}
+    assert by_id["4"].title == "Context of the organization"
+    assert "internal and external issues" in by_id["4.1"].body

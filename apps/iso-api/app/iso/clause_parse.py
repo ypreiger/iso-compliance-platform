@@ -9,6 +9,7 @@ from app.iso.parser import (
     _clean_body,
     is_plausible_clause,
     normalize_clause_id,
+    preprocess_extracted_text,
 )
 
 CLAUSE_LINE = re.compile(
@@ -17,6 +18,7 @@ CLAUSE_LINE = re.compile(
     r"(?:\s*[\.\)]?\s*)"
     r"(\S(?:.*\S)?)\s*$"
 )
+CLAUSE_ID_ONLY = re.compile(r"^\d{1,2}(?:\.\d{1,2}){0,4}$")
 
 JUNK_LINE = re.compile(
     r"(©\s*ISO|All rights reserved|Licensed to|ANSI order|Downloaded \d/"
@@ -64,8 +66,10 @@ def repair_broken_words(text: str) -> str:
         "on", "at", "by", "or", "an", "as", "is", "it", "its", "shall", "will", "not", "may", "can",
         "has", "have", "had", "were", "been", "being",
     }
+    # Apply only to latin words. Running this on Hebrew caused valid words
+    # to be merged and damaged clause readability.
     return re.sub(
-        r"\b([a-z\u0590-\u05ff]{2,4})\s+([a-z\u0590-\u05ff]{4,})\b",
+        r"\b([a-z]{2,4})\s+([a-z]{4,})\b",
         lambda m: m.group(1) + m.group(2) if m.group(1) not in stop else m.group(0),
         text,
     )
@@ -90,6 +94,16 @@ def reflow_continuation_lines(text: str) -> list[str]:
             flush_buffer()
             logical.append(line)
             continue
+        # Common PDF extraction pattern:
+        #   4.1
+        #   Understanding the organization...
+        # Join these two lines into one clause header.
+        if buffer and CLAUSE_ID_ONLY.fullmatch(buffer):
+            joined = f"{buffer} {line}"
+            if try_clause_header(joined):
+                logical.append(joined)
+                buffer = ""
+                continue
         if not buffer:
             buffer = line
             continue
@@ -260,5 +274,6 @@ def parse_document_bytes(content: bytes, *, filename: str) -> list[ParsedClause]
         return parse_docx_faithful(content)
     if lower.endswith((".pdf", ".doc")):
         text = extract_text(content, filename=filename)
+        text = preprocess_extracted_text(text)
         return parse_iso_document_text(text, roll_up=False)
     raise ValueError("Use parse_upload for .json/.md/.txt")

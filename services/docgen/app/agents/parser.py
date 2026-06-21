@@ -1,10 +1,14 @@
 """Document text extraction from PDF, DOC, DOCX, and Excel.
 
+VENDORED MODULE: This code is duplicated in apps/iso-api/app/iso/document_extract.py
+for service isolation. Bug fixes must be applied to BOTH locations.
+
 This layer is purely mechanical — it extracts raw text without interpretation.
 The LLM extractor (extractor.py) handles semantic structuring.
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import tempfile
@@ -27,6 +31,10 @@ def extract_pdf(data: bytes) -> str:
         doc = fitz.open(stream=data, filetype="pdf")
         pages: list[str] = []
         for page in doc:
+            text = page.get_text("text", sort=True)
+            if text.strip():
+                pages.append(text)
+                continue
             blocks = page.get_text("blocks", sort=True)
             for b in blocks:
                 if b[6] == 0:  # text block
@@ -79,15 +87,23 @@ def extract_doc(data: bytes) -> str:
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "upload.doc"
         p.write_bytes(data)
+        env = {"ANTIWORDHOME": "/usr/share/antiword", **os.environ}
         try:
             res = subprocess.run(
-                ["antiword", str(p)],
-                check=True, capture_output=True, timeout=120,
+                ["antiword", "-m", "UTF-8.txt", "-w", "0", str(p)],
+                check=True, capture_output=True, timeout=120, env=env,
             )
         except FileNotFoundError as e:
             raise ValueError("antiword not installed in container") from e
-        except subprocess.CalledProcessError as e:
-            raise ValueError(f".doc extraction failed: {(e.stderr or b'').decode()[:300]}") from e
+        except subprocess.CalledProcessError:
+            # Retry without explicit mapping when map files are missing.
+            try:
+                res = subprocess.run(
+                    ["antiword", "-w", "0", str(p)],
+                    check=True, capture_output=True, timeout=120, env=env,
+                )
+            except subprocess.CalledProcessError as e:
+                raise ValueError(f".doc extraction failed: {(e.stderr or b'').decode()[:300]}") from e
         text = res.stdout.decode("utf-8", errors="replace")
         if not text.strip():
             raise ValueError(".doc file has no extractable text")
