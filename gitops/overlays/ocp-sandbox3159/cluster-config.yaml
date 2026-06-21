@@ -38,4 +38,4 @@ data:
   SAML_IDP_SSO_URL: "https://accounts.google.com/o/saml2/idp?idpid=C03huz8l6"
   SAML_SP_ENTITY_ID: "https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com/api/auth/saml/metadata"
   SAML_SP_ACS_URL: "https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com/api/auth/saml/acs"
-  GOOGLE_CLIENT_ID: ""
+  GOOGLE_CLIENT_ID: "908462563457-487crcm9db3hjkratv2akksnia025srn.apps.googleusercontent.com"
