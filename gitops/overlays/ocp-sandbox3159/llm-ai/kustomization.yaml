@@ -6,3 +6,4 @@ resources:
   - guardrails-orchestrator.yaml
   - rbac.yaml
   - model-aliases.yaml
+  - whisper-maas.yaml

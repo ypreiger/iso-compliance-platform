@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: doc-agent
+  namespace: iso-platform-k8s
+spec:
+  host: doc-agent-k8s-iso-platform-k8s.apps.ocp.8mkwb.sandbox3159.opentlc.com
+  to:
+    kind: Service
+    name: doc-agent
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

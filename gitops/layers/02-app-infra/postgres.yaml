@@ -42,13 +42,17 @@ spec:
           readinessProbe:
             exec:
               command:
-                - /usr/libexec/check_postgresql
+                - /bin/bash
+                - -c
+                - pg_isready -h 127.0.0.1 -p 5432 -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE"
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             exec:
               command:
-                - /usr/libexec/check_postgresql
+                - /bin/bash
+                - -c
+                - pg_isready -h 127.0.0.1 -p 5432 -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE"
             initialDelaySeconds: 30
             periodSeconds: 20
           volumeMounts:

@@ -15,11 +15,154 @@ import tempfile
 from io import BytesIO
 from pathlib import Path
 
+HEBREW_CHAR_RE = re.compile(r"[\u0590-\u05FF]")
+CLAUSE_ID_TOKEN_RE = re.compile(r"^\d{1,2}(?:\.\d{1,2}){0,4}[\.\)]?$")
+HEBREW_PREFIX_LETTERS = {"ו", "ב", "כ", "ל", "מ", "ש", "ה"}
+
 
 def _normalize(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\f", "\n")
     lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in text.split("\n")]
     return "\n".join(ln for ln in lines if ln)
+
+
+def _contains_hebrew(text: str) -> bool:
+    return bool(HEBREW_CHAR_RE.search(text))
+
+
+def _hebrew_ratio(text: str) -> float:
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return 0.0
+    hebrew = sum(1 for c in letters if HEBREW_CHAR_RE.match(c))
+    return hebrew / len(letters)
+
+
+def _is_single_hebrew_letter(token: str) -> bool:
+    return len(token) == 1 and bool(HEBREW_CHAR_RE.match(token))
+
+
+def _starts_with_hebrew(token: str) -> bool:
+    for char in token:
+        if char.isalpha():
+            return bool(HEBREW_CHAR_RE.match(char))
+    return False
+
+
+def _fix_hebrew_spacing(text: str) -> str:
+    """Conservative fix for Hebrew token fragmentation."""
+    if not text or not _contains_hebrew(text):
+        return text
+
+    fixed_lines: list[str] = []
+    for line in text.split("\n"):
+        if not _contains_hebrew(line):
+            fixed_lines.append(line)
+            continue
+        words = line.split()
+        rebuilt: list[str] = []
+        i = 0
+        while i < len(words):
+            word = words[i]
+            if _is_single_hebrew_letter(word):
+                run = [word]
+                j = i + 1
+                while j < len(words) and _is_single_hebrew_letter(words[j]):
+                    run.append(words[j])
+                    j += 1
+                if len(run) >= 2:
+                    rebuilt.append("".join(run))
+                    i = j
+                    continue
+                if (
+                    j < len(words)
+                    and word in HEBREW_PREFIX_LETTERS
+                    and _starts_with_hebrew(words[j])
+                ):
+                    rebuilt.append(word + words[j])
+                    i = j + 1
+                    continue
+            rebuilt.append(word)
+            i += 1
+        fixed_lines.append(" ".join(rebuilt))
+    return "\n".join(fixed_lines)
+
+
+def _is_clause_id_token(token: str) -> bool:
+    return bool(CLAUSE_ID_TOKEN_RE.match(token))
+
+
+def _reconstruct_hebrew_line(entries: list[tuple[float, str]]) -> str:
+    if not entries:
+        return ""
+    tokens = [word for _, word in sorted(entries, key=lambda item: item[0])]
+    sample = " ".join(tokens)
+    if _hebrew_ratio(sample) < 0.4:
+        return " ".join(tokens)
+    prefix_len = 0
+    for tok in tokens:
+        if _is_clause_id_token(tok):
+            prefix_len += 1
+            continue
+        break
+    ordered = tokens[:prefix_len] + list(reversed(tokens[prefix_len:]))
+    return _fix_hebrew_spacing(" ".join(ordered))
+
+
+def _extract_hebrew_page_text(page) -> str:
+    words_list = page.get_text("words", sort=False)
+    if not words_list:
+        return page.get_text("text", sort=True)
+
+    words_by_block: dict[int, dict[int, list[tuple[float, float, str]]]] = {}
+    for item in words_list:
+        if len(item) < 8:
+            continue
+        x0, y0, _x1, _y1, word, block_no, line_no, _word_no = item[:8]
+        word_text = str(word).strip()
+        if not word_text:
+            continue
+        words_by_block.setdefault(int(block_no), {}).setdefault(int(line_no), []).append(
+            (float(x0), float(y0), word_text)
+        )
+
+    rendered_blocks: list[str] = []
+    seen_blocks: set[int] = set()
+    for block in page.get_text("blocks", sort=True):
+        if len(block) < 7 or int(block[6]) != 0:
+            continue
+        block_no = int(block[5])
+        seen_blocks.add(block_no)
+        line_map = words_by_block.get(block_no)
+        if not line_map:
+            fallback = str(block[4]).strip()
+            if fallback:
+                rendered_blocks.append(fallback)
+            continue
+        rendered_lines: list[tuple[float, int, str]] = []
+        for line_no, words in line_map.items():
+            line = _reconstruct_hebrew_line([(x, text) for x, _y, text in words]).strip()
+            if line:
+                y0 = min(y for _x, y, _text in words)
+                rendered_lines.append((y0, line_no, line))
+        rendered_lines.sort(key=lambda item: (item[0], item[1]))
+        if rendered_lines:
+            rendered_blocks.append("\n".join(line for _y, _ln, line in rendered_lines))
+
+    for block_no, line_map in words_by_block.items():
+        if block_no in seen_blocks:
+            continue
+        rendered_lines: list[tuple[float, int, str]] = []
+        for line_no, words in line_map.items():
+            line = _reconstruct_hebrew_line([(x, text) for x, _y, text in words]).strip()
+            if line:
+                y0 = min(y for _x, y, _text in words)
+                rendered_lines.append((y0, line_no, line))
+        rendered_lines.sort(key=lambda item: (item[0], item[1]))
+        if rendered_lines:
+            rendered_blocks.append("\n".join(line for _y, _ln, line in rendered_lines))
+
+    return "\n\n".join(rendered_blocks)
 
 
 # ── PDF ────────────────────────────────────────────────────────────────────
@@ -29,36 +172,26 @@ def extract_pdf(data: bytes) -> str:
 
     For Hebrew PDFs, uses word-based extraction for better quality.
     """
+    is_hebrew = False
     try:
         import fitz  # PyMuPDF
         doc = fitz.open(stream=data, filetype="pdf")
 
         # Check if Hebrew content (sample first 2 pages)
-        is_hebrew = False
         for page_num in range(min(2, len(doc))):
             sample = doc[page_num].get_text("text")[:400]
-            if sum(1 for c in sample if '֐' <= c <= '׿') > 15:
+            if sum(1 for c in sample if HEBREW_CHAR_RE.match(c)) > 15:
                 is_hebrew = True
                 break
 
         pages: list[str] = []
 
         if is_hebrew:
-            # Use words mode for better Hebrew extraction
+            # Preserve block/line structure and reconstruct RTL lines.
             for page in doc:
-                words_list = page.get_text("words", sort=True)
-                if not words_list:
-                    continue
-                # Group by line (y-coordinate)
-                lines_dict: dict[int, list[str]] = {}
-                for word_tuple in words_list:
-                    word = word_tuple[4]
-                    y = int(word_tuple[1])
-                    line_key = (y // 5) * 5
-                    lines_dict.setdefault(line_key, []).append(word)
-                # Reconstruct lines
-                line_texts = [' '.join(lines_dict[y]) for y in sorted(lines_dict.keys())]
-                pages.append('\n'.join(line_texts))
+                text = _extract_hebrew_page_text(page)
+                if text.strip():
+                    pages.append(text)
         else:
             # Standard text extraction
             for page in doc:
@@ -80,6 +213,8 @@ def extract_pdf(data: bytes) -> str:
 
     if not text.strip():
         raise ValueError("PDF contains no extractable text (scanned PDF not supported)")
+    if is_hebrew or _contains_hebrew(text):
+        text = _fix_hebrew_spacing(text)
     return _normalize(text)
 
 

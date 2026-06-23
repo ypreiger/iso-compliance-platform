@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: iso-platform-k8s
+resources:
+  - ../base
+  - namespace.yaml
+  - route.yaml
+patches:
+  - path: patch-remove-ingress.yaml
+images:
+  - name: ghcr.io/ypreiger/iso-doc-agent
+    newName: image-registry.openshift-image-registry.svc:5000/iso-platform-k8s/iso-doc-agent-k8s
+    newTag: latest

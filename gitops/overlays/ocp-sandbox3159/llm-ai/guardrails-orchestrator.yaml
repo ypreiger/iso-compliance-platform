@@ -1,6 +1,7 @@
 ---
-# Orchestrator config — points to the internal vLLM service for Qwen3
-# The vLLM pod uses mTLS; insecure_skip_verify skips cert validation for the cluster-internal svc.
+# Orchestrator config — points to the internal vLLM service for Qwen3.
+# TLS is intentionally omitted here because the current orchestrator image expects
+# mTLS cert/key paths when a tls block is provided and panics otherwise.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,8 +27,6 @@ data:
       service:
         hostname: qwen3-4b-instruct-kserve-workload-svc.llm.svc.cluster.local
         port: 8000
-        tls:
-          insecureSkipVerify: true
       model_id: qwen3-4b-instruct
     chunkers:
       full_text:
@@ -67,6 +66,8 @@ metadata:
   labels:
     app.kubernetes.io/part-of: llm-platform
     app.kubernetes.io/component: guardrails
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/genai-asset: "true"
 spec:
   replicas: 1
   orchestratorConfig: qwen3-orchestrator-config

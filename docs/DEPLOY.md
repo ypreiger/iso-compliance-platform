@@ -94,7 +94,11 @@ Key settings in `gitops/overlays/ocp-sandbox3159/cluster-config.yaml`:
 
 ### Playground models (`playground-models-config`)
 
-`gitops/overlays/ocp-sandbox3159/playground-models-config.yaml` — edit `MODELS_CONFIG` JSON to add/remove models. No code change required.
+Playground operations are documented in one canonical file to avoid duplication:
+
+- See [`PLAYGROUND.md`](./PLAYGROUND.md)
+
+`gitops/overlays/ocp-sandbox3159/playground-models-config.yaml` remains the source for model/config values.
 
 ### Model task routing (`iso-app-config`)
 
@@ -116,24 +120,7 @@ Key settings in `gitops/overlays/ocp-sandbox3159/cluster-config.yaml`:
 ## RHOAI Setup
 
 See [RHOAI_MAAS_GUARDRAILS.md](./RHOAI_MAAS_GUARDRAILS.md) for full MaaS + TrustyAI setup.
-
-Quick reference:
-```bash
-# Apply TrustyAI + Guardrails to llm namespace
-oc apply -f gitops/overlays/ocp-sandbox3159/llm-ai/ -n llm
-
-# Apply playground models ConfigMap
-oc apply -f gitops/overlays/ocp-sandbox3159/playground-models-config.yaml -n iso-platform
-
-# Switch to Qwen3 for EXTRACT task (saves OpenAI cost)
-oc patch configmap iso-app-config -n iso-platform --type=merge -p '{
-  "data": {
-    "EXTRACT_MODEL_URL": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1",
-    "EXTRACT_MODEL_NAME": "qwen3-4b-instruct"
-  }
-}'
-oc rollout restart deployment/iso-doc-parse-rag -n iso-platform
-```
+See [PLAYGROUND.md](./PLAYGROUND.md) for Playground/STT/guardrails runtime behavior.
 
 ---
 

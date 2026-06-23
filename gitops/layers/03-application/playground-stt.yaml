@@ -1,0 +1,197 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: playground-stt-app
+  labels:
+    app.kubernetes.io/name: playground-stt
+    app.kubernetes.io/component: playground-stt
+data:
+  app.py: |
+    from __future__ import annotations
+
+    import os
+    import tempfile
+    from pathlib import Path
+    from threading import Lock
+
+    from flask import Flask, jsonify, request
+    from faster_whisper import WhisperModel
+
+    app = Flask(__name__)
+
+    MODEL_NAME = os.getenv("STT_MODEL_NAME", "small")
+    MODEL_DEVICE = os.getenv("STT_MODEL_DEVICE", "cpu")
+    MODEL_COMPUTE_TYPE = os.getenv("STT_MODEL_COMPUTE_TYPE", "int8")
+    MAX_AUDIO_MB = int(os.getenv("STT_MAX_AUDIO_MB", "25"))
+    VAD_FILTER = os.getenv("STT_VAD_FILTER", "true").strip().lower() not in ("0", "false", "no")
+
+    _model: WhisperModel | None = None
+    _lock = Lock()
+
+
+    def _get_model() -> WhisperModel:
+      global _model
+      if _model is not None:
+        return _model
+      with _lock:
+        if _model is None:
+          _model = WhisperModel(MODEL_NAME, device=MODEL_DEVICE, compute_type=MODEL_COMPUTE_TYPE)
+      return _model
+
+
+    @app.get("/health")
+    def health():
+      return jsonify(
+        {
+          "status": "healthy",
+          "service": "playground-stt",
+          "model_name": MODEL_NAME,
+          "model_device": MODEL_DEVICE,
+          "model_compute_type": MODEL_COMPUTE_TYPE,
+          "max_audio_mb": MAX_AUDIO_MB,
+          "model_loaded": _model is not None,
+        }
+      )
+
+
+    @app.post("/v1/transcribe")
+    def transcribe():
+      upload = request.files.get("audio")
+      if upload is None or not upload.filename:
+        return jsonify({"error": "missing multipart file field 'audio'"}), 400
+
+      data = upload.read()
+      if not data:
+        return jsonify({"error": "empty audio file"}), 400
+      if len(data) > MAX_AUDIO_MB * 1024 * 1024:
+        return jsonify({"error": f"audio exceeds max size {MAX_AUDIO_MB} MB"}), 413
+
+      language = (request.form.get("language") or "").strip() or None
+      suffix = Path(upload.filename).suffix or ".wav"
+      tmp_name = ""
+      try:
+        with tempfile.NamedTemporaryFile(prefix="playground-stt-", suffix=suffix, delete=False) as tmp:
+          tmp.write(data)
+          tmp_name = tmp.name
+
+        model = _get_model()
+        segments, info = model.transcribe(tmp_name, language=language, vad_filter=VAD_FILTER)
+        transcript = " ".join(seg.text.strip() for seg in segments if seg.text and seg.text.strip())
+        if not transcript:
+          return jsonify({"error": "no text detected in audio"}), 422
+
+        return jsonify(
+          {
+            "transcript": transcript,
+            "detected_language": getattr(info, "language", None),
+            "duration_seconds": getattr(info, "duration", None),
+            "language_probability": getattr(info, "language_probability", None),
+            "model_name": MODEL_NAME,
+          }
+        )
+      except Exception as exc:
+        return jsonify({"error": f"transcription failed: {str(exc)[:240]}"}), 500
+      finally:
+        if tmp_name:
+          try:
+            os.unlink(tmp_name)
+          except OSError:
+            pass
+
+
+    if __name__ == "__main__":
+      app.run(host="0.0.0.0", port=8080)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playground-stt
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: playground-stt
+    app.kubernetes.io/component: playground-stt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: playground-stt
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: playground-stt
+    spec:
+      containers:
+        - name: playground-stt
+          image: registry.access.redhat.com/ubi9/python-311:latest
+          command: ["sh", "-c", "pip install flask faster-whisper --quiet && python /app/app.py"]
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: playground-models-config
+          env:
+            - name: HF_HOME
+              value: /cache/hf
+            - name: XDG_CACHE_HOME
+              value: /cache
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: cache
+              mountPath: /cache
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 90
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: app
+          configMap:
+            name: playground-stt-app
+        - name: cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: playground-stt
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/name: playground-stt
+spec:
+  selector:
+    app.kubernetes.io/name: playground-stt
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

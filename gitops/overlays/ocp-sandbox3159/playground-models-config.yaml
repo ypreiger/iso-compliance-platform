@@ -27,7 +27,7 @@ data:
       {
         "id": "qwen3-4b-instruct",
         "label": "Qwen3 4B Instruct 2507 — RHOAI MaaS (on-prem GPU)",
-        "url": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1",
+        "url": "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/qwen3-4b-instruct/v1",
         "provider": "rhoai",
         "auth": "maas_token",
         "note": "4B params · 131k context · L40 GPU · Red Hat vLLM serving"
@@ -35,7 +35,7 @@ data:
       {
         "id": "gpt-4o",
         "label": "GPT-4o — OpenAI (via MaaS)",
-        "url": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/gpt-4o/v1",
+        "url": "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/gpt-4o/v1",
         "provider": "rhoai",
         "auth": "maas_token",
         "note": "OpenAI model proxied through MaaS gateway and policy stack"
@@ -43,7 +43,7 @@ data:
       {
         "id": "gpt-4o-mini",
         "label": "GPT-4o Mini — OpenAI (via MaaS)",
-        "url": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/gpt-4o-mini/v1",
+        "url": "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/gpt-4o-mini/v1",
         "provider": "rhoai",
         "auth": "maas_token",
         "note": "OpenAI model proxied through MaaS gateway and policy stack"
@@ -51,7 +51,7 @@ data:
       {
         "id": "gpt-3.5-turbo",
         "label": "GPT-3.5 Turbo — OpenAI (via MaaS)",
-        "url": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/gpt-3.5-turbo/v1",
+        "url": "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/gpt-3.5-turbo/v1",
         "provider": "rhoai",
         "auth": "maas_token",
         "note": "OpenAI model proxied through MaaS gateway and policy stack"
@@ -62,8 +62,14 @@ data:
   # Guardrails topic policy mode:
   #   allow_all -> do not block by topic keyword filter
   #   enforce   -> apply ALLOWED_TOPICS keyword filter
-  TOPIC_FILTER_MODE: "allow_all"
-  ALLOWED_TOPICS: ""
+  TOPIC_FILTER_MODE: "enforce"
+  GUARDRAIL_DEFAULT_MODE: "iso_only"
+  # Guardrail modes available in UI:
+  #   iso_only            -> enforce Red Hat / ISO scope
+  #   cv_analysis         -> allow CV/resume analysis requests
+  #   speech_any_subject  -> allow speech/text analysis for any subject
+  CV_ALLOWED_KEYWORDS: "cv,resume,curriculum vitae,cover letter,job,position,candidate,skills,experience,education,קורות חיים,מועמד,משרה,ניסיון,השכלה,سيرة ذاتية,وظيفة,مرشح,مهارات,خبرة,تعليم"
+  ALLOWED_TOPICS: "red hat,redhat,rhel,openshift,open shift,ocp,okd,kubernetes,k8s,helm,operator,olm,argo,argocd,gitops,tekton,pipelines,ansible,quay,podman,selinux,service mesh,istio,keycloak,sso,rhoai,openshift ai,model serving,maas,trustyai,guardrails,llm,inference,vllm,iso,איסו,תקן,תקנים,ايزو,معيار,معايير,امتثال,تدقيق,أمن المعلومات,استمرارية الأعمال,إدارة المخاطر,iso 9001,iso9001,9001,iso 27001,iso27001,27001,iso 22301,iso22301,22301,iso 20000,iso20000,20000,iso 14001,iso14001,14001,iso 31000,iso31000,31000,iso 42001,iso42001,42001,compliance,ציות,audit,ביקורת,quality management,ניהול איכות,information security,אבטחת מידע,risk management,ניהול סיכונים,business continuity,המשכיות עסקית"
 
   # Default selected model in the playground UI.
   DEFAULT_MODEL_ID: "qwen3-4b-instruct"
@@ -73,12 +79,36 @@ data:
 
     Be concise, accurate, and practical.
     Prefer implementation-ready guidance and include caveats when uncertain.
+    If a user asks about topics outside Red Hat technologies or ISO standards, politely refuse and ask them to keep the discussion in scope.
+  ANY_SUBJECT_SYSTEM_PROMPT: "You are a general-purpose assistant. You may answer across any subject while staying factual and concise."
+  CV_SYSTEM_PROMPT: "You are a CV and hiring analyst. Evaluate resumes against requested criteria with practical, evidence-based recommendations."
+
+  # Speech-to-text tab settings (browser microphone -> transcript -> model summary).
+  SPEECH_SUMMARY_PROMPT: "Summarize the transcript into concise actionable bullets. Keep ISO and Red Hat context."
+  SPEECH_RECOGNITION_LANG: "he-IL"
+  STT_SERVICE_URL: "http://playground-stt:8080"
+  STT_TIMEOUT_SEC: "240"
+  STT_MODEL_NAME: "small"
+  STT_MODEL_DEVICE: "cpu"
+  STT_MODEL_COMPUTE_TYPE: "int8"
+  STT_MAX_AUDIO_MB: "25"
+  STT_VAD_FILTER: "true"
+  STT_DEFAULT_MODEL_ID: "whisper-small"
+  STT_DISCOVER_MAAS_WHISPER: "true"
+  STT_MAAS_MODEL_IDS: "whisper-small"
+  STT_EXPOSE_LOCAL_MODEL: "false"
+
+  # File upload + criteria analysis tab settings.
+  FILE_ANALYSIS_SYSTEM_PROMPT: "You are an expert ISO compliance analyst. Analyze the uploaded file according to the user's criteria and provide practical findings."
+  FILE_ANALYSIS_MAX_MB: "25"
+  FILE_ANALYSIS_MAX_CHARS: "22000"
+  FILE_PARSE_LANGUAGE: "he"
 
   # ── RHOAI & TrustyAI integration ─────────────────────────────────────────
-  RHOAI_DASHBOARD_URL: "https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com"
-  MAAS_BASE_URL: "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com"
+  RHOAI_DASHBOARD_URL: "https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com"
+  MAAS_BASE_URL: "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com"
   TRUSTYAI_URL: "http://trustyai.llm.svc.cluster.local"
-  TRUSTYAI_EXTERNAL_URL: "https://trustyai-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com"
+  TRUSTYAI_EXTERNAL_URL: "https://trustyai-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com"
   GUARDRAILS_ORCHESTRATOR_URL: "http://qwen3-guardrails-service.llm.svc.cluster.local:8034"
 
   # ── Branding ─────────────────────────────────────────────────────────────

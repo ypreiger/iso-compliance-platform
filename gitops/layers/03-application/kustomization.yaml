@@ -6,6 +6,7 @@ resources:
   - iso-web.yaml
   - iso-docgen.yaml
   - playground.yaml
+  - playground-stt.yaml
   - playground-servicemonitor.yaml
   - maas-openai-proxy.yaml
 

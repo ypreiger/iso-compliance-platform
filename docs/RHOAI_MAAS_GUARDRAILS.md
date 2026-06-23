@@ -1,5 +1,8 @@
 # RHOAI MaaS + Qwen3 + TrustyAI Guardrails Setup
 
+> Playground operational behavior (tabs, STT, file analysis, guardrail modes, Whisper selection) is documented canonically in [`PLAYGROUND.md`](./PLAYGROUND.md).
+> This document focuses on MaaS / TrustyAI / Guardrails platform setup only.
+
 ## Architecture
 
 ```
@@ -63,14 +66,8 @@ Browser → Playground (iso-platform)
 - **Guardrailed endpoint** (internal): `http://qwen3-guardrails-guardrails-gateway.llm.svc.cluster.local:8090`
 
 ### AI Playground
-- **Namespace**: iso-platform
-- **Deployment**: `playground`
-- **Route**: `https://playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com`
-- **Auth to MaaS**: reads pod SA token from `/var/run/secrets/kubernetes.io/serviceaccount/token`
-- **Models**:
-  - `qwen3-4b-instruct` via RHOAI MaaS (primary, on-prem GPU)
-  - `gpt-4o` / `gpt-4o-mini` via OpenAI (if `OPENAI_API_KEY` is set)
-- **Guardrails**: keyword filter (topic) + TrustyAI guardrails on the model side
+- Runtime behavior and options: see [`PLAYGROUND.md`](./PLAYGROUND.md)
+- This file only tracks platform prerequisites for MaaS/TrustyAI/Guardrails
 
 ---
 

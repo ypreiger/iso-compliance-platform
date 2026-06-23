@@ -21,6 +21,8 @@ The platform uses `iso-api-orchestrator` as the single workflow coordinator:
 | `iso-doc-gen` | `services/docgen/` | Generation/export agent (`/generate`) |
 | `playground` | `gitops/layers/03-application/playground.yaml` | Unified AI chat, all models |
 
+Operational details for Playground (guardrail modes, STT, Whisper/MaaS options, file analysis) are maintained in [`PLAYGROUND.md`](./PLAYGROUND.md).
+
 ## Agent Architecture
 
 `iso-api-orchestrator` pipeline:
