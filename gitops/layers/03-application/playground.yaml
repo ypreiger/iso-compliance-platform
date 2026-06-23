@@ -23,7 +23,7 @@ data:
       MaaS token          projected SA token at /var/run/secrets/maas/token
     """
     from __future__ import annotations
-    import os, json, time, base64
+    import os, json, time, base64, threading, uuid
     from collections import defaultdict
     from pathlib import Path
     from flask import Flask, request, jsonify, render_template_string
@@ -71,6 +71,9 @@ data:
     STT_SERVICE_URL = os.getenv("STT_SERVICE_URL", "http://playground-stt:8080").rstrip("/")
     STT_TIMEOUT_SEC = int(os.getenv("STT_TIMEOUT_SEC", "240"))
     STT_MAAS_TIMEOUT_SEC = int(os.getenv("STT_MAAS_TIMEOUT_SEC", str(min(STT_TIMEOUT_SEC, 45))))
+    STT_MAX_AUDIO_MB = int(os.getenv("STT_MAX_AUDIO_MB", "100"))
+    STT_ASYNC_DEFAULT = os.getenv("STT_ASYNC_DEFAULT", "true").strip().lower() not in ("0", "false", "no")
+    STT_JOB_TTL_SEC = int(os.getenv("STT_JOB_TTL_SEC", "7200"))
     STT_DEFAULT_MODEL_ID = os.getenv("STT_DEFAULT_MODEL_ID", "local-whisper")
     STT_DISCOVER_MAAS_WHISPER = os.getenv("STT_DISCOVER_MAAS_WHISPER", "true").strip().lower() not in ("0", "false", "no")
     STT_EXPOSE_LOCAL_MODEL = os.getenv("STT_EXPOSE_LOCAL_MODEL", "false").strip().lower() in ("1", "true", "yes")
@@ -84,6 +87,8 @@ data:
     FILE_PARSE_LANGUAGE = os.getenv("FILE_PARSE_LANGUAGE", "he")
     DOC_PARSE_AGENT_URL = os.getenv("DOC_PARSE_AGENT_URL", "http://iso-doc-parse-rag:8080").rstrip("/")
     USAGE = defaultdict(lambda: {"requests": 0, "blocked": 0, "errors": 0, "tokens": 0})
+    STT_JOBS: dict[str, dict] = {}
+    STT_JOBS_LOCK = threading.Lock()
 
     def _load_models() -> list[dict]:
         raw = os.getenv("MODELS_CONFIG", "[]")
@@ -456,6 +461,144 @@ data:
                 422,
             )
         return (raw or "transcription failed", 500)
+
+    def _cleanup_stt_jobs() -> None:
+        now = time.time()
+        with STT_JOBS_LOCK:
+            stale_ids = [
+                job_id
+                for job_id, item in STT_JOBS.items()
+                if now - float(item.get("updated_at", item.get("created_at", now))) > STT_JOB_TTL_SEC
+            ]
+            for job_id in stale_ids:
+                STT_JOBS.pop(job_id, None)
+
+    def _set_stt_job(job_id: str, payload: dict) -> None:
+        payload = dict(payload)
+        payload.setdefault("created_at", time.time())
+        payload["updated_at"] = time.time()
+        with STT_JOBS_LOCK:
+            STT_JOBS[job_id] = payload
+
+    def _get_stt_job(job_id: str) -> dict | None:
+        with STT_JOBS_LOCK:
+            item = STT_JOBS.get(job_id)
+            return dict(item) if item else None
+
+    def _transcribe_audio_bytes(
+        audio_filename: str,
+        audio_bytes: bytes,
+        audio_mimetype: str,
+        language: str,
+        selected_model_id: str,
+    ) -> tuple[dict, int]:
+        stt_model = _stt_model_by_id(selected_model_id)
+        if stt_model is None:
+            return {"error": f"unknown stt model: {selected_model_id}"}, 400
+
+        payload = {"audio": (audio_filename, audio_bytes, audio_mimetype or "application/octet-stream")}
+        form = {}
+        if language:
+            form["language"] = language
+
+        def _transcribe_local(fallback_note: str = "") -> tuple[dict, int]:
+            try:
+                local_resp = httpx.post(
+                    f"{STT_SERVICE_URL}/v1/transcribe",
+                    files=payload,
+                    data=form,
+                    timeout=STT_TIMEOUT_SEC,
+                    verify=False,
+                )
+                try:
+                    local_body = local_resp.json()
+                except Exception:
+                    local_body = {}
+            except Exception as exc:
+                return {"error": f"stt service unreachable: {str(exc)[:120]}"}, 502
+            if local_resp.status_code >= 400:
+                err = _error_text(
+                    local_body.get("error") if isinstance(local_body, dict) else None,
+                    f"stt request failed (HTTP {local_resp.status_code})",
+                )
+                friendly_err, mapped_status = _friendly_stt_error(err)
+                status_code = local_resp.status_code
+                if mapped_status == 422 and status_code >= 500:
+                    status_code = 422
+                return {"error": friendly_err, "details": local_body}, status_code
+            if isinstance(local_body, dict):
+                local_body["provider"] = "local"
+                if fallback_note:
+                    local_body["fallback_note"] = fallback_note
+            return local_body if isinstance(local_body, dict) else {"transcript": ""}, 200
+
+        if stt_model.get("type") == "maas":
+            maas_token = _get_token("maas_token")
+            if not maas_token:
+                return _transcribe_local("MaaS token unavailable; used local STT.")
+            stt_url = str(stt_model.get("url", "")).rstrip("/")
+            if not stt_url:
+                return _transcribe_local("MaaS STT endpoint missing; used local STT.")
+            form["model"] = selected_model_id
+            try:
+                resp = httpx.post(
+                    f"{stt_url}/audio/transcriptions",
+                    files={"file": payload["audio"]},
+                    data=form,
+                    headers={"Authorization": f"Bearer {maas_token}"},
+                    timeout=STT_MAAS_TIMEOUT_SEC,
+                    verify=False,
+                )
+                try:
+                    body = resp.json()
+                except Exception:
+                    body = {}
+            except Exception as exc:
+                return _transcribe_local(f"MaaS STT request failed ({str(exc)[:80]}); used local STT.")
+            if resp.status_code >= 400:
+                err = _error_text(
+                    body.get("error") if isinstance(body, dict) else None,
+                    f"maas whisper failed (HTTP {resp.status_code})",
+                )
+                friendly_err, mapped_status = _friendly_stt_error(err)
+                if resp.status_code >= 500:
+                    return _transcribe_local(f"MaaS STT HTTP {resp.status_code}; used local STT.")
+                status_code = resp.status_code
+                if mapped_status == 422:
+                    status_code = 422
+                return {"error": friendly_err, "details": body}, status_code
+            transcript = (body.get("text") or body.get("transcript") or "").strip()
+            if not transcript:
+                return _transcribe_local("MaaS STT returned empty transcript; used local STT.")
+            return {
+                "transcript": transcript,
+                "detected_language": body.get("language") or language or "unknown",
+                "duration_seconds": body.get("duration"),
+                "model_name": selected_model_id,
+                "provider": "maas",
+            }, 200
+
+        return _transcribe_local()
+
+    def _run_stt_job(
+        job_id: str,
+        audio_filename: str,
+        audio_bytes: bytes,
+        audio_mimetype: str,
+        language: str,
+        selected_model_id: str,
+    ) -> None:
+        result, status_code = _transcribe_audio_bytes(
+            audio_filename=audio_filename,
+            audio_bytes=audio_bytes,
+            audio_mimetype=audio_mimetype,
+            language=language,
+            selected_model_id=selected_model_id,
+        )
+        if status_code >= 400:
+            _set_stt_job(job_id, {"status": "failed", "http_status": status_code, "result": result})
+            return
+        _set_stt_job(job_id, {"status": "done", "http_status": 200, "result": result})
 
     # ── HTML ───────────────────────────────────────────────────────────────
     HTML = r'''<!DOCTYPE html>
@@ -843,6 +986,28 @@ data:
       setSpeechStatus('Stopped');
     }
 
+    async function pollSpeechTranscriptionJob(jobId){
+      const started = Date.now();
+      while(true){
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const res = await fetch(`/speech/transcribe/${encodeURIComponent(jobId)}`);
+        let d = null;
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        if(ct.includes('application/json')){
+          d = await res.json();
+        }else{
+          const txt = await res.text();
+          d = { error: txt ? txt.slice(0, 280) : `HTTP ${res.status}` };
+        }
+        if(res.status === 202 && (d.status || '').toLowerCase() === 'processing'){
+          const sec = Math.max(1, Math.round((Date.now() - started) / 1000));
+          setSpeechStatus(`Transcribing audio… ${sec}s`);
+          continue;
+        }
+        return d;
+      }
+    }
+
     async function transcribeSpeech(){
       const fileInput = document.getElementById('speechFile');
       const file = fileInput.files && fileInput.files[0];
@@ -870,6 +1035,10 @@ data:
         }else{
           const txt = await res.text();
           d = { error: txt ? txt.slice(0, 280) : `HTTP ${res.status}` };
+        }
+        if(res.status === 202 && d && d.job_id){
+          setSpeechStatus('Transcribing audio…');
+          d = await pollSpeechTranscriptionJob(d.job_id);
         }
         if(d.error){
           let err = d.error;
@@ -1164,6 +1333,7 @@ data:
 
     @app.route('/speech/transcribe', methods=['POST'])
     def speech_transcribe():
+        _cleanup_stt_jobs()
         try:
             audio = request.files.get("audio") or request.files.get("file")
         except Exception as exc:
@@ -1184,91 +1354,63 @@ data:
         if stt_model is None:
             return jsonify({"error": f"unknown stt model: {selected_model_id}"}), 400
 
-        payload = {"audio": (audio.filename, audio.read(), audio.mimetype or "application/octet-stream")}
-        form = {}
-        if language:
-            form["language"] = language
+        audio_bytes = audio.read()
+        if not audio_bytes:
+            return jsonify({"error": "empty audio payload"}), 400
+        max_bytes = STT_MAX_AUDIO_MB * 1024 * 1024
+        if len(audio_bytes) > max_bytes:
+            return jsonify({"error": f"audio exceeds max size ({STT_MAX_AUDIO_MB}MB)"}), 413
 
-        def _transcribe_local(fallback_note: str = ""):
-            try:
-                local_resp = httpx.post(
-                    f"{STT_SERVICE_URL}/v1/transcribe",
-                    files=payload,
-                    data=form,
-                    timeout=STT_TIMEOUT_SEC,
-                    verify=False,
-                )
-                try:
-                    local_body = local_resp.json()
-                except Exception:
-                    local_body = {}
-            except Exception as exc:
-                return jsonify({"error": f"stt service unreachable: {str(exc)[:120]}"}), 502
-            if local_resp.status_code >= 400:
-                err = _error_text(
-                    local_body.get("error") if isinstance(local_body, dict) else None,
-                    f"stt request failed (HTTP {local_resp.status_code})",
-                )
-                friendly_err, mapped_status = _friendly_stt_error(err)
-                status_code = local_resp.status_code
-                if mapped_status == 422 and status_code >= 500:
-                    status_code = 422
-                return jsonify({"error": friendly_err, "details": local_body}), status_code
-            if isinstance(local_body, dict):
-                local_body["provider"] = "local"
-                if fallback_note:
-                    local_body["fallback_note"] = fallback_note
-            return jsonify(local_body)
-
-        if stt_model.get("type") == "maas":
-            maas_token = _get_token("maas_token")
-            if not maas_token:
-                return _transcribe_local("MaaS token unavailable; used local STT.")
-            stt_url = str(stt_model.get("url", "")).rstrip("/")
-            if not stt_url:
-                return _transcribe_local("MaaS STT endpoint missing; used local STT.")
-            form["model"] = selected_model_id
-            try:
-                resp = httpx.post(
-                    f"{stt_url}/audio/transcriptions",
-                    files={"file": payload["audio"]},
-                    data=form,
-                    headers={"Authorization": f"Bearer {maas_token}"},
-                    timeout=STT_MAAS_TIMEOUT_SEC,
-                    verify=False,
-                )
-                try:
-                    body = resp.json()
-                except Exception:
-                    body = {}
-            except Exception as exc:
-                return _transcribe_local(f"MaaS STT request failed ({str(exc)[:80]}); used local STT.")
-            if resp.status_code >= 400:
-                err = _error_text(
-                    body.get("error") if isinstance(body, dict) else None,
-                    f"maas whisper failed (HTTP {resp.status_code})",
-                )
-                friendly_err, mapped_status = _friendly_stt_error(err)
-                if resp.status_code >= 500:
-                    return _transcribe_local(f"MaaS STT HTTP {resp.status_code}; used local STT.")
-                status_code = resp.status_code
-                if mapped_status == 422:
-                    status_code = 422
-                return jsonify({"error": friendly_err, "details": body}), status_code
-            transcript = (body.get("text") or body.get("transcript") or "").strip()
-            if not transcript:
-                return _transcribe_local("MaaS STT returned empty transcript; used local STT.")
-            return jsonify(
+        async_raw = request.form.get("async")
+        if async_raw is None:
+            async_raw = request.args.get("async")
+        async_mode = STT_ASYNC_DEFAULT if async_raw is None else str(async_raw).strip().lower() not in ("0", "false", "no")
+        if async_mode:
+            job_id = str(uuid.uuid4())
+            _set_stt_job(
+                job_id,
                 {
-                    "transcript": transcript,
-                    "detected_language": body.get("language") or language or "unknown",
-                    "duration_seconds": body.get("duration"),
-                    "model_name": selected_model_id,
-                    "provider": "maas",
-                }
+                    "status": "processing",
+                    "http_status": 202,
+                    "result": {"job_id": job_id, "status": "processing"},
+                },
             )
+            thread = threading.Thread(
+                target=_run_stt_job,
+                kwargs={
+                    "job_id": job_id,
+                    "audio_filename": audio.filename,
+                    "audio_bytes": audio_bytes,
+                    "audio_mimetype": audio.mimetype or "application/octet-stream",
+                    "language": language,
+                    "selected_model_id": selected_model_id,
+                },
+                daemon=True,
+            )
+            thread.start()
+            return jsonify({"job_id": job_id, "status": "processing"}), 202
 
-        return _transcribe_local()
+        result, status_code = _transcribe_audio_bytes(
+            audio_filename=audio.filename,
+            audio_bytes=audio_bytes,
+            audio_mimetype=audio.mimetype or "application/octet-stream",
+            language=language,
+            selected_model_id=selected_model_id,
+        )
+        return jsonify(result), status_code
+
+    @app.route('/speech/transcribe/<job_id>', methods=['GET'])
+    def speech_transcribe_status(job_id: str):
+        _cleanup_stt_jobs()
+        job = _get_stt_job(job_id)
+        if not job:
+            return jsonify({"error": "job not found"}), 404
+        status = (job.get("status") or "").lower()
+        if status == "processing":
+            return jsonify({"job_id": job_id, "status": "processing"}), 202
+        result = job.get("result") if isinstance(job.get("result"), dict) else {}
+        http_status = int(job.get("http_status") or (200 if status == "done" else 500))
+        return jsonify(result), http_status
 
     @app.route('/file/analyze', methods=['POST'])
     def file_analyze():

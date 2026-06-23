@@ -48,12 +48,17 @@ This split is intentional:
 - Runtime fallback behavior:
   - if MaaS Whisper returns `5xx`/network/empty-transcript, Playground retries local STT automatically.
   - provider/fallback metadata is shown in Speech tab status text.
+- Long-running uploads use async STT jobs:
+  - `POST /speech/transcribe` may return `202` with `job_id`.
+  - UI polls `GET /speech/transcribe/<job_id>` until transcript/error is ready.
 
 Relevant config keys in `playground-models-config`:
 
 - `STT_SERVICE_URL`
 - `STT_TIMEOUT_SEC`
 - `STT_MAX_AUDIO_MB`
+- `STT_ASYNC_DEFAULT`
+- `STT_JOB_TTL_SEC`
 - `STT_DEFAULT_MODEL_ID`
 - `STT_DISCOVER_MAAS_WHISPER`
 - `STT_MAAS_MODEL_IDS`
@@ -105,6 +110,7 @@ curl -sk -H "Authorization: Bearer $TOKEN" \
 - `Transcription error` with `audio exceeds max size`:
   - increase `STT_MAX_AUDIO_MB` and `WHISPER_MAX_AUDIO_MB` together.
 - `Network error` for long files:
+  - verify async STT job polling is enabled (`STT_ASYNC_DEFAULT=true`).
   - verify `STT_TIMEOUT_SEC`, MaaS `HTTPRoute` timeouts, and Playground Route timeout are aligned.
 - `transcription failed: Invalid data found when processing input`:
   - file container/codec is not decodable by current runtime; re-encode to WAV/MP3 or add server-side normalization.
