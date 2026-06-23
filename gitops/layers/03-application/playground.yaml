@@ -303,7 +303,7 @@ data:
                     elif isinstance(err, list):
                         err = "; ".join(str(x) for x in err if x)
                 raise RuntimeError(err or f"doc parser error {resp.status_code}")
-            clauses = body.get("clauses") if isinstance(body, dict) else []
+            clauses = (body.get("clauses") or []) if isinstance(body, dict) else []
             parts: list[str] = []
             for item in clauses:
                 if isinstance(item, dict):
