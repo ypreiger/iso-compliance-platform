@@ -290,10 +290,20 @@ data:
                 "task": "general",
             }
             resp = httpx.post(f"{DOC_PARSE_AGENT_URL}/parse", json=payload, timeout=max(STT_TIMEOUT_SEC, 240), verify=False)
-            body = resp.json()
+            try:
+                body = resp.json()
+            except Exception:
+                body = {}
             if resp.status_code >= 400:
-                raise RuntimeError(body.get("error", f"doc parser error {resp.status_code}"))
-            clauses = body.get("clauses") or []
+                err = None
+                if isinstance(body, dict):
+                    err = body.get("error") or body.get("detail")
+                    if isinstance(err, dict):
+                        err = json.dumps(err, ensure_ascii=False)
+                    elif isinstance(err, list):
+                        err = "; ".join(str(x) for x in err if x)
+                raise RuntimeError(err or f"doc parser error {resp.status_code}")
+            clauses = body.get("clauses") if isinstance(body, dict) else []
             parts: list[str] = []
             for item in clauses:
                 if isinstance(item, dict):
@@ -308,32 +318,87 @@ data:
                         parts.append(json.dumps(item, ensure_ascii=False))
                 else:
                     parts.append(str(item))
+            if not parts and isinstance(body, dict):
+                sheets = body.get("sheets") or []
+                for sheet in sheets:
+                    if not isinstance(sheet, dict):
+                        continue
+                    rows = sheet.get("rows") or []
+                    for row in rows:
+                        if not isinstance(row, dict):
+                            if str(row).strip():
+                                parts.append(str(row).strip())
+                            continue
+                        for key in ("line", "text", "value", "content"):
+                            val = row.get(key)
+                            if isinstance(val, str) and val.strip():
+                                parts.append(val.strip())
+                                break
+            if not parts and isinstance(body, dict):
+                for key in ("raw_text", "text", "content", "document_text"):
+                    val = body.get(key)
+                    if isinstance(val, str) and val.strip():
+                        parts.append(val.strip())
+                        break
             text = "\n".join(parts).strip()
             if not text:
                 raise RuntimeError("doc parser returned no text")
             meta.update(
                 {
-                    "parse_method": body.get("parse_method", "doc-parser"),
-                    "model_used": body.get("model_used"),
-                    "warnings": body.get("warnings", []),
+                    "parse_method": body.get("parse_method", "doc-parser") if isinstance(body, dict) else "doc-parser",
+                    "model_used": body.get("model_used") if isinstance(body, dict) else None,
+                    "warnings": body.get("warnings", []) if isinstance(body, dict) else [],
                 }
             )
             return text, meta
         raise RuntimeError(f"unsupported file type: {ext or 'unknown'}")
+
+    def _looks_like_cv(criteria: str = "", filename: str = "", extracted_text: str = "") -> bool:
+        scope_text = f"{criteria} {filename}".lower()
+        if any(kw in scope_text for kw in CV_ALLOWED_KEYWORDS):
+            return True
+        sample = (extracted_text or "")[:8000].lower()
+        if not sample:
+            return False
+        for strong_marker in ("curriculum vitae", "resume", "קורות חיים", "سيرة ذاتية"):
+            if strong_marker in sample:
+                return True
+        section_terms = (
+            "experience", "education", "skills", "employment", "summary", "objective",
+            "ניסיון", "השכלה", "כישורים", "תעסוקה",
+            "خبرة", "تعليم", "مهارات", "السيرة",
+        )
+        hits = sum(1 for term in section_terms if term in sample)
+        return hits >= 3
+
+    def _resolve_guardrail_mode(mode: str, criteria: str = "", filename: str = "", extracted_text: str = "") -> str:
+        selected = (mode or GUARDRAIL_DEFAULT_MODE or "iso_only").strip().lower()
+        if selected not in ("iso_only", "cv_analysis", "speech_any_subject", "cv", "any_subject", "speech_any"):
+            selected = "iso_only"
+        if selected in ("cv",):
+            return "cv_analysis"
+        if selected in ("any_subject", "speech_any"):
+            return "speech_any_subject"
+        if selected == "iso_only" and _looks_like_cv(criteria=criteria, filename=filename, extracted_text=extracted_text):
+            return "cv_analysis"
+        return selected
 
     # ── topic guardrails ───────────────────────────────────────────────────
     def _allowed(msg: str, mode: str = "iso_only", filename: str = "") -> bool:
         if TOPIC_FILTER_MODE in ("off", "allow_all", "disabled", "false", "0"):
             return True
         low = (msg or "").lower()
-        mode = (mode or "iso_only").strip().lower()
+        mode = _resolve_guardrail_mode(mode, criteria=msg, filename=filename)
         # Option 2: speech/text analyzer in any subject (user-selected mode).
         if mode in ("speech_any_subject", "any_subject", "speech_any"):
             return True
         # Option 1: CV analysis mode (user-selected mode).
         if mode in ("cv_analysis", "cv"):
-            scope_text = f"{low} {(filename or '').lower()}".strip()
-            return any(kw in scope_text for kw in CV_ALLOWED_KEYWORDS)
+            if filename:
+                # In file analyzer flow, once CV mode is selected we allow
+                # arbitrary matching criteria (role/domain can be any subject).
+                return True
+            return any(kw in low for kw in CV_ALLOWED_KEYWORDS)
         # Default: ISO/Red Hat scoped mode.
         return any(kw in low for kw in ALLOWED_TOPICS)
 
@@ -1104,12 +1169,9 @@ data:
         if uploaded is None or not uploaded.filename:
             return jsonify({"error": "missing multipart file field 'file'"}), 400
         model_id = (request.form.get("model") or DEFAULT_MODEL_ID or (MODELS[0]["id"] if MODELS else "unknown")).strip()
-        guardrail_mode = (request.form.get("guardrail_mode") or GUARDRAIL_DEFAULT_MODE or "iso_only").strip().lower()
+        requested_guardrail_mode = (request.form.get("guardrail_mode") or GUARDRAIL_DEFAULT_MODE or "iso_only").strip().lower()
         criteria = (request.form.get("criteria") or "").strip()
         requested_system_prompt = (request.form.get("system_prompt") or "").strip()
-        system_prompt = requested_system_prompt or (
-            CV_SYSTEM_PROMPT if guardrail_mode in ("cv_analysis", "cv") else FILE_ANALYSIS_SYSTEM_PROMPT
-        )
         language = (request.form.get("language") or FILE_PARSE_LANGUAGE).strip().lower()
         if language.startswith("en"):
             language = "en"
@@ -1125,9 +1187,6 @@ data:
             return jsonify({"error": f"Unknown model: {model_id}"}), 400
         if model.get("_disabled"):
             return jsonify({"error": model.get("_disabled_reason", "Model unavailable")}), 503
-        if not _allowed(criteria, guardrail_mode, uploaded.filename):
-            USAGE[model_id]["blocked"] += 1
-            return jsonify({"blocked": True, "response": f'Blocked by guardrails mode "{guardrail_mode}".'})
 
         data = uploaded.read()
         if not data:
@@ -1139,6 +1198,27 @@ data:
             extracted_text, extract_meta = _extract_text_from_uploaded_file(uploaded.filename, data, language)
         except Exception as exc:
             return jsonify({"error": f"file extraction failed: {str(exc)[:220]}"}), 422
+
+        guardrail_mode = _resolve_guardrail_mode(
+            requested_guardrail_mode,
+            criteria=criteria,
+            filename=uploaded.filename,
+            extracted_text=extracted_text,
+        )
+        if not _allowed(criteria, guardrail_mode, uploaded.filename):
+            USAGE[model_id]["blocked"] += 1
+            return jsonify(
+                {
+                    "blocked": True,
+                    "response": f'Blocked by guardrails mode "{guardrail_mode}".',
+                    "guardrail_mode_requested": requested_guardrail_mode,
+                    "guardrail_mode_effective": guardrail_mode,
+                }
+            )
+
+        system_prompt = requested_system_prompt or (
+            CV_SYSTEM_PROMPT if guardrail_mode == "cv_analysis" else FILE_ANALYSIS_SYSTEM_PROMPT
+        )
 
         truncated = False
         if len(extracted_text) > FILE_ANALYSIS_MAX_CHARS:
@@ -1181,6 +1261,8 @@ data:
                     "file_warnings": extract_meta.get("warnings", []),
                     "file_chars": len(extracted_text),
                     "file_truncated": truncated,
+                    "guardrail_mode_requested": requested_guardrail_mode,
+                    "guardrail_mode_effective": guardrail_mode,
                 }
             )
         except Exception as exc:
