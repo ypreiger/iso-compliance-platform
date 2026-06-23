@@ -201,45 +201,6 @@ def _extract_hebrew_page_text(page) -> str:
     return "\n\n".join(rendered_blocks)
 
 
-def _fix_hebrew_word_order(text: str) -> str:
-    """Fix reversed Hebrew words that occur in some PDF extractions.
-
-    Some PDF extractors reverse the order of Hebrew words in RTL text.
-    This function detects Hebrew-heavy lines and reverses word order if needed.
-    """
-    if not text:
-        return text
-
-    # Check if text contains significant Hebrew content
-    hebrew_chars = sum(1 for c in text if '֐' <= c <= '׿')
-    if hebrew_chars < 10:  # Not enough Hebrew to warrant processing
-        return text
-
-    lines = text.split("\n")
-    fixed_lines: list[str] = []
-
-    for line in lines:
-        line_hebrew = sum(1 for c in line if '֐' <= c <= '׿')
-        line_total = len([c for c in line if c.isalpha()])
-
-        # If line is >60% Hebrew, it might be reversed
-        if line_total > 0 and line_hebrew / line_total > 0.6:
-            words = line.split()
-            # Check if it looks reversed: numbers at end, Hebrew at start
-            if words and words[0] and any('֐' <= c <= '׿' for c in words[0]):
-                # Don't reverse if line starts with a clause number pattern
-                if not re.match(r'^\d+(\.\d+)*\s', line):
-                    # Heuristic: if first word is Hebrew and last might be English/number
-                    if words and (words[-1].isdigit() or words[-1][0].isascii()):
-                        # Likely reversed, fix it
-                        fixed_lines.append(" ".join(reversed(words)))
-                        continue
-
-        fixed_lines.append(line)
-
-    return "\n".join(fixed_lines)
-
-
 # ── PDF ────────────────────────────────────────────────────────────────────
 
 def extract_text_from_pdf(content: bytes) -> str:

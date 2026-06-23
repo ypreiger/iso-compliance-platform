@@ -33,6 +33,10 @@ Operational details for Playground (guardrail modes, STT, Whisper/MaaS options, 
 5. Run validation (`rag_hit_rate`, phrase checks) and attach report metadata.
 6. Route export requests to `iso-doc-gen /generate`.
 
+Parsing fidelity notes:
+- `task=iso_clauses` uses preprocessed text for better clause-boundary detection.
+- `task=general` preserves extracted raw text for retrieval fidelity (no clause-preprocess rewrite).
+
 ## Model as a Service (MaaS) — Per-Task Configuration
 
 Each task uses an independently configurable model:

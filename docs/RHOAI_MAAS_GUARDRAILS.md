@@ -184,4 +184,4 @@ oc rollout restart deployment/iso-doc-parse-rag -n iso-platform
 
 ---
 
-_See also: [AGENT_ARCHITECTURE.md](./AGENT_ARCHITECTURE.md) | [PARSING_ARCHITECTURE.md](./PARSING_ARCHITECTURE.md)_
+_See also: [ARCHITECTURE.md](./ARCHITECTURE.md) | [PLAYGROUND.md](./PLAYGROUND.md)_

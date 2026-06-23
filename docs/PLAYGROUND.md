@@ -44,17 +44,30 @@ This split is intentional:
 - STT supports: `en`, `he`, `ar` (+ auto for upload flow).
 - Playground discovers MaaS Whisper models through `/v1/models`.
 - If MaaS Whisper exists, it is shown in STT selector.
-- Local STT fallback is hidden by default and only used when MaaS Whisper is unavailable (or explicitly enabled).
+- Local STT fallback is hidden by default.
+- Runtime fallback behavior:
+  - if MaaS Whisper returns `5xx`/network/empty-transcript, Playground retries local STT automatically.
+  - provider/fallback metadata is shown in Speech tab status text.
 
 Relevant config keys in `playground-models-config`:
 
 - `STT_SERVICE_URL`
 - `STT_TIMEOUT_SEC`
+- `STT_MAX_AUDIO_MB`
 - `STT_DEFAULT_MODEL_ID`
 - `STT_DISCOVER_MAAS_WHISPER`
 - `STT_MAAS_MODEL_IDS`
 - `STT_EXPOSE_LOCAL_MODEL`
 - `STT_MODEL_NAME`, `STT_MODEL_DEVICE`, `STT_MODEL_COMPUTE_TYPE`
+
+Relevant MaaS route setting in `whisper-maas.yaml`:
+
+- `HTTPRoute.spec.rules[].timeouts.request`
+- `HTTPRoute.spec.rules[].timeouts.backendRequest`
+
+Relevant Playground route setting in `playground.yaml`:
+
+- `haproxy.router.openshift.io/timeout`
 
 ## Guardrail Modes
 
@@ -86,3 +99,12 @@ curl -sk -H "Authorization: Bearer $TOKEN" \
 
 - Keep one playground deployment unless explicit A/B isolation is requested.
 - Do not duplicate playground runbooks in multiple docs; link to this file.
+
+## STT Troubleshooting
+
+- `Transcription error` with `audio exceeds max size`:
+  - increase `STT_MAX_AUDIO_MB` and `WHISPER_MAX_AUDIO_MB` together.
+- `Network error` for long files:
+  - verify `STT_TIMEOUT_SEC`, MaaS `HTTPRoute` timeouts, and Playground Route timeout are aligned.
+- `transcription failed: Invalid data found when processing input`:
+  - file container/codec is not decodable by current runtime; re-encode to WAV/MP3 or add server-side normalization.

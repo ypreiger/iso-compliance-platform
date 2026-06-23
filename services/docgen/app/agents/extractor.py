@@ -83,6 +83,27 @@ def _clause_sort_key(clause_id: str) -> tuple[int, ...]:
     return tuple(int(p) for p in clause_id.split(".") if p.isdigit())
 
 
+def _iter_clause_items(payload: object) -> list[dict]:
+    """Normalize heterogeneous LLM JSON into a list of clause dicts."""
+    if isinstance(payload, list):
+        out: list[dict] = []
+        for item in payload:
+            out.extend(_iter_clause_items(item))
+        return out
+    if isinstance(payload, dict):
+        preferred = payload.get("clauses")
+        if isinstance(preferred, (list, dict)):
+            return _iter_clause_items(preferred)
+        if all(k in payload for k in ("clause_id", "title", "body")):
+            return [payload]
+        out: list[dict] = []
+        for value in payload.values():
+            if isinstance(value, (list, dict)):
+                out.extend(_iter_clause_items(value))
+        return out
+    return []
+
+
 async def extract_clauses(
     text: str,
     *,
@@ -106,10 +127,8 @@ async def extract_clauses(
             )},
         ]
         raw = await llm_call("extract", msgs, temperature=0, response_format="json")
-        items = parse_json_response(raw)
-        if isinstance(items, dict):
-            items = items.get("clauses") or list(items.values())
-        for item in (items or []):
+        items = _iter_clause_items(parse_json_response(raw))
+        for item in items:
             cid = _normalize_id(str(item.get("clause_id", "")))
             if not cid or not _CLAUSE_ID_RE.match(cid):
                 continue

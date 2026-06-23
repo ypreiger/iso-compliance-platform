@@ -137,7 +137,12 @@ metadata:
     app.kubernetes.io/name: playground-stt
     app.kubernetes.io/component: playground-stt
 spec:
-  replicas: 1
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: playground-stt

@@ -87,7 +87,7 @@ data:
   SPEECH_SUMMARY_PROMPT: "Summarize the transcript into concise actionable bullets. Keep ISO and Red Hat context."
   SPEECH_RECOGNITION_LANG: "he-IL"
   STT_SERVICE_URL: "http://playground-stt:8080"
-  STT_TIMEOUT_SEC: "600"
+  STT_TIMEOUT_SEC: "1200"
   STT_MAAS_TIMEOUT_SEC: "45"
   STT_MODEL_NAME: "small"
   STT_MODEL_DEVICE: "cpu"

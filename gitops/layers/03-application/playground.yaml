@@ -304,6 +304,19 @@ data:
                     elif isinstance(err, list):
                         err = "; ".join(str(x) for x in err if x)
                 raise RuntimeError(err or f"doc parser error {resp.status_code}")
+            if isinstance(body, dict):
+                for key in ("raw_text", "text", "content", "document_text"):
+                    val = body.get(key)
+                    if isinstance(val, str) and val.strip():
+                        meta.update(
+                            {
+                                "parse_method": body.get("parse_method", "doc-parser"),
+                                "model_used": body.get("model_used"),
+                                "warnings": body.get("warnings", []),
+                            }
+                        )
+                        return val.strip(), meta
+
             clauses = (body.get("clauses") or []) if isinstance(body, dict) else []
             parts: list[str] = []
             for item in clauses:
@@ -335,12 +348,6 @@ data:
                             if isinstance(val, str) and val.strip():
                                 parts.append(val.strip())
                                 break
-            if not parts and isinstance(body, dict):
-                for key in ("raw_text", "text", "content", "document_text"):
-                    val = body.get(key)
-                    if isinstance(val, str) and val.strip():
-                        parts.append(val.strip())
-                        break
             text = "\n".join(parts).strip()
             if not text:
                 raise RuntimeError("doc parser returned no text")
@@ -1427,7 +1434,12 @@ metadata:
     app.kubernetes.io/name: playground
     app.kubernetes.io/component: playground
 spec:
-  replicas: 1
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: playground
@@ -1440,7 +1452,12 @@ spec:
       containers:
         - name: playground
           image: registry.access.redhat.com/ubi9/python-311:latest
-          command: ["sh", "-c", "pip install flask openai httpx --quiet && python /app/app.py"]
+          command:
+            [
+              "sh",
+              "-c",
+              "pip install flask openai httpx gunicorn --quiet && gunicorn --workers 2 --threads 8 --timeout 1200 --bind 0.0.0.0:8080 --chdir /app app:app",
+            ]
           ports:
             - containerPort: 8080
           volumeMounts:
@@ -1463,11 +1480,11 @@ spec:
                   optional: true
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
-              memory: "640Mi"
+              memory: "1Gi"
               cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
           readinessProbe:
             httpGet:
               path: /health

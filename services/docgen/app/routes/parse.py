@@ -29,6 +29,7 @@ class ParseResponse(BaseModel):
     parse_method: str          # "llm" | "structured" | "regex"
     clauses: list[dict] | None = None   # iso_clauses task
     sheets: list[dict] | None = None    # findings/general task for Excel
+    raw_text: str | None = None         # original extracted text for retrieval fidelity
     raw_text_length: int = 0
     warnings: list[str] = []
 
@@ -75,17 +76,17 @@ async def parse_document(req: ParseRequest) -> ParseResponse:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Text extraction failed: {exc}") from exc
-    raw_text = _preprocess_extracted_text(raw_text)
+    raw_text_for_parse = _preprocess_extracted_text(raw_text)
 
     log.info("Extracted %d chars from %s", len(raw_text), filename)
 
     # ── LLM structuring ───────────────────────────────────────────────────
     if req.task == "iso_clauses":
         from app.agents.extractor import extract_clauses
-        regex_clauses = _regex_extract_clauses(raw_text)
+        regex_clauses = _regex_extract_clauses(raw_text_for_parse)
         try:
             llm_clauses, model_used = await extract_clauses(
-                raw_text, standard=req.standard, language=req.language
+                raw_text_for_parse, standard=req.standard, language=req.language
             )
             clauses, method = _choose_best_clause_set(
                 llm_clauses=llm_clauses,
@@ -129,6 +130,7 @@ async def parse_document(req: ParseRequest) -> ParseResponse:
         model_used="none",
         parse_method="text",
         sheets=sheets,
+        raw_text=raw_text,
         raw_text_length=len(raw_text),
     )
 
