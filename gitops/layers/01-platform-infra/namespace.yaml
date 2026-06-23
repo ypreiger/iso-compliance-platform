@@ -6,3 +6,6 @@ metadata:
     app.kubernetes.io/part-of: iso-compliance-platform
     pod-security.kubernetes.io/enforce: baseline
     openshift.io/cluster-monitoring: "true"
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/project-type: default
+    opendatahub.io/managed: "true"

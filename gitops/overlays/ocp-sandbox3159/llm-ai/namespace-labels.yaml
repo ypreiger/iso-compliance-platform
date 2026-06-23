@@ -16,16 +16,6 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: iso-platform
-  labels:
-    opendatahub.io/dashboard: "true"
-    opendatahub.io/project-type: default
-    opendatahub.io/managed: "true"
-    kubernetes.io/metadata.name: iso-platform
----
-apiVersion: v1
-kind: Namespace
-metadata:
   name: maas-api
   labels:
     opendatahub.io/dashboard: "true"
