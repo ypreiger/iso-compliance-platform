@@ -1469,7 +1469,7 @@ metadata:
   labels:
     app.kubernetes.io/name: playground
   annotations:
-    haproxy.router.openshift.io/timeout: "120s"
+    haproxy.router.openshift.io/timeout: "600s"
 spec:
   to:
     kind: Service
