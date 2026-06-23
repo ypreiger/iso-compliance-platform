@@ -239,6 +239,9 @@ spec:
         - kind: Service
           name: whisper-small
           port: 8080
+      timeouts:
+        request: 600s
+        backendRequest: 600s
       filters:
         - type: URLRewrite
           urlRewrite:
