@@ -70,6 +70,7 @@ data:
     SPEECH_RECOGNITION_LANG = os.getenv("SPEECH_RECOGNITION_LANG", "he-IL")
     STT_SERVICE_URL = os.getenv("STT_SERVICE_URL", "http://playground-stt:8080").rstrip("/")
     STT_TIMEOUT_SEC = int(os.getenv("STT_TIMEOUT_SEC", "240"))
+    STT_MAAS_TIMEOUT_SEC = int(os.getenv("STT_MAAS_TIMEOUT_SEC", str(min(STT_TIMEOUT_SEC, 45))))
     STT_DEFAULT_MODEL_ID = os.getenv("STT_DEFAULT_MODEL_ID", "local-whisper")
     STT_DISCOVER_MAAS_WHISPER = os.getenv("STT_DISCOVER_MAAS_WHISPER", "true").strip().lower() not in ("0", "false", "no")
     STT_EXPOSE_LOCAL_MODEL = os.getenv("STT_EXPOSE_LOCAL_MODEL", "false").strip().lower() in ("1", "true", "yes")
@@ -427,6 +428,27 @@ data:
             joined = "; ".join(p for p in parts if p)
             return joined or fallback
         return fallback
+
+    def _friendly_stt_error(err_text: str) -> tuple[str, int]:
+        raw = (err_text or "").strip()
+        low = raw.lower()
+        unsupported_markers = (
+            "invalid data found when processing input",
+            "unsupported",
+            "unknown input format",
+            "could not find codec parameters",
+            "error decoding",
+            "tuple index out of range",
+            "invalid audio",
+            "codec",
+            "container",
+        )
+        if any(marker in low for marker in unsupported_markers):
+            return (
+                "Unsupported or invalid audio format/codec. Upload audio-only WAV, MP3, M4A, OGG, or FLAC.",
+                422,
+            )
+        return (raw or "transcription failed", 500)
 
     # ── HTML ───────────────────────────────────────────────────────────────
     HTML = r'''<!DOCTYPE html>
@@ -843,10 +865,24 @@ data:
           d = { error: txt ? txt.slice(0, 280) : `HTTP ${res.status}` };
         }
         if(d.error){
-          setSpeechStatus(res.status === 413 ? 'File too large' : 'Transcription error');
           let err = d.error;
           if (typeof err !== 'string') {
             err = (err && (err.message || err.error || err.detail)) || JSON.stringify(err || d.details || 'transcription failed');
+          }
+          const errLow = String(err || '').toLowerCase();
+          if (res.status === 413) {
+            setSpeechStatus('File too large');
+          } else if (
+            res.status === 422 ||
+            errLow.includes('unsupported') ||
+            errLow.includes('invalid audio') ||
+            errLow.includes('codec') ||
+            errLow.includes('container') ||
+            errLow.includes('format')
+          ) {
+            setSpeechStatus('Unsupported audio format');
+          } else {
+            setSpeechStatus('Transcription error');
           }
           document.getElementById('speechMeta').textContent = err;
           return;
@@ -1166,7 +1202,11 @@ data:
                     local_body.get("error") if isinstance(local_body, dict) else None,
                     f"stt request failed (HTTP {local_resp.status_code})",
                 )
-                return jsonify({"error": err, "details": local_body}), local_resp.status_code
+                friendly_err, mapped_status = _friendly_stt_error(err)
+                status_code = local_resp.status_code
+                if mapped_status == 422 and status_code >= 500:
+                    status_code = 422
+                return jsonify({"error": friendly_err, "details": local_body}), status_code
             if isinstance(local_body, dict):
                 local_body["provider"] = "local"
                 if fallback_note:
@@ -1187,7 +1227,7 @@ data:
                     files={"file": payload["audio"]},
                     data=form,
                     headers={"Authorization": f"Bearer {maas_token}"},
-                    timeout=STT_TIMEOUT_SEC,
+                    timeout=STT_MAAS_TIMEOUT_SEC,
                     verify=False,
                 )
                 try:
@@ -1201,9 +1241,13 @@ data:
                     body.get("error") if isinstance(body, dict) else None,
                     f"maas whisper failed (HTTP {resp.status_code})",
                 )
+                friendly_err, mapped_status = _friendly_stt_error(err)
                 if resp.status_code >= 500:
                     return _transcribe_local(f"MaaS STT HTTP {resp.status_code}; used local STT.")
-                return jsonify({"error": err, "details": body}), resp.status_code
+                status_code = resp.status_code
+                if mapped_status == 422:
+                    status_code = 422
+                return jsonify({"error": friendly_err, "details": body}), status_code
             transcript = (body.get("text") or body.get("transcript") or "").strip()
             if not transcript:
                 return _transcribe_local("MaaS STT returned empty transcript; used local STT.")

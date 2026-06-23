@@ -88,15 +88,16 @@ data:
   SPEECH_RECOGNITION_LANG: "he-IL"
   STT_SERVICE_URL: "http://playground-stt:8080"
   STT_TIMEOUT_SEC: "600"
+  STT_MAAS_TIMEOUT_SEC: "45"
   STT_MODEL_NAME: "small"
   STT_MODEL_DEVICE: "cpu"
   STT_MODEL_COMPUTE_TYPE: "int8"
   STT_MAX_AUDIO_MB: "100"
   STT_VAD_FILTER: "true"
-  STT_DEFAULT_MODEL_ID: "whisper-small"
+  STT_DEFAULT_MODEL_ID: "local-whisper"
   STT_DISCOVER_MAAS_WHISPER: "true"
   STT_MAAS_MODEL_IDS: "whisper-small"
-  STT_EXPOSE_LOCAL_MODEL: "false"
+  STT_EXPOSE_LOCAL_MODEL: "true"
 
   # File upload + criteria analysis tab settings.
   FILE_ANALYSIS_SYSTEM_PROMPT: "You are an expert ISO compliance analyst. Analyze the uploaded file according to the user's criteria and provide practical findings."

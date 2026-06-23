@@ -31,6 +31,29 @@ data:
     _lock = Lock()
 
 
+    def _friendly_transcription_error(exc: Exception) -> tuple[str, int, str]:
+      raw = str(exc)[:220]
+      low = raw.lower()
+      unsupported_markers = (
+        "invalid data found when processing input",
+        "unsupported",
+        "unknown input format",
+        "could not find codec parameters",
+        "error decoding",
+        "tuple index out of range",
+        "invalid audio",
+        "codec",
+        "container",
+      )
+      if any(marker in low for marker in unsupported_markers):
+        return (
+          "unsupported or invalid audio format/codec; upload audio-only WAV, MP3, M4A, OGG, or FLAC",
+          422,
+          raw,
+        )
+      return (f"whisper transcription failed: {raw}", 500, raw)
+
+
     def _get_model() -> WhisperModel:
       global _model
       if _model is not None:
@@ -105,7 +128,8 @@ data:
           }
         )
       except Exception as exc:
-        return jsonify({"error": {"message": f"whisper transcription failed: {str(exc)[:220]}"}}), 500
+        msg, status, raw = _friendly_transcription_error(exc)
+        return jsonify({"error": {"message": msg, "raw_error": raw}}), status
       finally:
         if tmp_name:
           try:
