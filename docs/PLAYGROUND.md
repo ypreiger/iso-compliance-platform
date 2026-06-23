@@ -51,6 +51,7 @@ This split is intentional:
 - Long-running uploads use async STT jobs:
   - `POST /speech/transcribe` may return `202` with `job_id`.
   - UI polls `GET /speech/transcribe/<job_id>` until transcript/error is ready.
+  - Job state is Redis-backed (`REDIS_URL`) so polling stays stable with multiple Playground replicas.
 
 Relevant config keys in `playground-models-config`:
 

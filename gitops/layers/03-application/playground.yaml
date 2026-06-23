@@ -28,6 +28,7 @@ data:
     from pathlib import Path
     from flask import Flask, request, jsonify, render_template_string
     import openai, httpx
+    import redis
 
     app = Flask(__name__)
 
@@ -74,6 +75,7 @@ data:
     STT_MAX_AUDIO_MB = int(os.getenv("STT_MAX_AUDIO_MB", "100"))
     STT_ASYNC_DEFAULT = os.getenv("STT_ASYNC_DEFAULT", "true").strip().lower() not in ("0", "false", "no")
     STT_JOB_TTL_SEC = int(os.getenv("STT_JOB_TTL_SEC", "7200"))
+    REDIS_URL = os.getenv("REDIS_URL", "redis://iso-redis:6379/1").strip()
     STT_DEFAULT_MODEL_ID = os.getenv("STT_DEFAULT_MODEL_ID", "local-whisper")
     STT_DISCOVER_MAAS_WHISPER = os.getenv("STT_DISCOVER_MAAS_WHISPER", "true").strip().lower() not in ("0", "false", "no")
     STT_EXPOSE_LOCAL_MODEL = os.getenv("STT_EXPOSE_LOCAL_MODEL", "false").strip().lower() in ("1", "true", "yes")
@@ -89,6 +91,14 @@ data:
     USAGE = defaultdict(lambda: {"requests": 0, "blocked": 0, "errors": 0, "tokens": 0})
     STT_JOBS: dict[str, dict] = {}
     STT_JOBS_LOCK = threading.Lock()
+    STT_REDIS_PREFIX = "playground:sttjob:"
+    STT_REDIS = None
+    if REDIS_URL:
+        try:
+            STT_REDIS = redis.Redis.from_url(REDIS_URL, decode_responses=True, socket_timeout=1)
+            STT_REDIS.ping()
+        except Exception:
+            STT_REDIS = None
 
     def _load_models() -> list[dict]:
         raw = os.getenv("MODELS_CONFIG", "[]")
@@ -463,6 +473,8 @@ data:
         return (raw or "transcription failed", 500)
 
     def _cleanup_stt_jobs() -> None:
+        if STT_REDIS:
+            return
         now = time.time()
         with STT_JOBS_LOCK:
             stale_ids = [
@@ -477,10 +489,27 @@ data:
         payload = dict(payload)
         payload.setdefault("created_at", time.time())
         payload["updated_at"] = time.time()
+        if STT_REDIS:
+            try:
+                STT_REDIS.setex(STT_REDIS_PREFIX + job_id, STT_JOB_TTL_SEC, json.dumps(payload, ensure_ascii=False))
+                return
+            except Exception:
+                pass
         with STT_JOBS_LOCK:
             STT_JOBS[job_id] = payload
 
     def _get_stt_job(job_id: str) -> dict | None:
+        if STT_REDIS:
+            try:
+                raw = STT_REDIS.get(STT_REDIS_PREFIX + job_id)
+                if not raw:
+                    return None
+                if isinstance(raw, bytes):
+                    raw = raw.decode("utf-8", errors="ignore")
+                val = json.loads(raw)
+                return dict(val) if isinstance(val, dict) else None
+            except Exception:
+                return None
         with STT_JOBS_LOCK:
             item = STT_JOBS.get(job_id)
             return dict(item) if item else None
@@ -1598,7 +1627,7 @@ spec:
             [
               "sh",
               "-c",
-              "pip install flask openai httpx gunicorn --quiet && gunicorn --workers 2 --threads 8 --timeout 1200 --bind 0.0.0.0:8080 --chdir /app app:app",
+              "pip install flask openai httpx gunicorn redis --quiet && gunicorn --workers 2 --threads 8 --timeout 1200 --bind 0.0.0.0:8080 --chdir /app app:app",
             ]
           ports:
             - containerPort: 8080
@@ -1620,6 +1649,8 @@ spec:
                   name: openai-api-key
                   key: OPENAI_API_KEY
                   optional: true
+            - name: REDIS_URL
+              value: "redis://iso-redis:6379/1"
           resources:
             requests:
               memory: "1Gi"
