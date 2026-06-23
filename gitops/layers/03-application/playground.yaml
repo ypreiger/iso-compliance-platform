@@ -410,6 +410,24 @@ data:
             return CV_SYSTEM_PROMPT
         return SYSTEM_PROMPT
 
+    def _error_text(value, fallback: str) -> str:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, dict):
+            for key in ("message", "error", "detail", "msg"):
+                candidate = value.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+            try:
+                return json.dumps(value, ensure_ascii=False)[:240]
+            except Exception:
+                return fallback
+        if isinstance(value, list):
+            parts = [_error_text(v, "") for v in value]
+            joined = "; ".join(p for p in parts if p)
+            return joined or fallback
+        return fallback
+
     # ── HTML ───────────────────────────────────────────────────────────────
     HTML = r'''<!DOCTYPE html>
     <html lang="en">
@@ -818,8 +836,12 @@ data:
         const res = await fetch('/speech/transcribe', {method:'POST', body: fd});
         const d = await res.json();
         if(d.error){
-          setSpeechStatus('Transcription error');
-          document.getElementById('speechMeta').textContent = d.error;
+          setSpeechStatus(res.status === 413 ? 'File too large' : 'Transcription error');
+          let err = d.error;
+          if (typeof err !== 'string') {
+            err = (err && (err.message || err.error || err.detail)) || JSON.stringify(err || d.details || 'transcription failed');
+          }
+          document.getElementById('speechMeta').textContent = err;
           return;
         }
         document.getElementById('speechTranscript').value = d.transcript || '';
@@ -1129,11 +1151,18 @@ data:
                     timeout=STT_TIMEOUT_SEC,
                     verify=False,
                 )
-                body = resp.json()
+                try:
+                    body = resp.json()
+                except Exception:
+                    body = {}
             except Exception as exc:
                 return jsonify({"error": f"maas whisper request failed: {str(exc)[:120]}"}), 502
             if resp.status_code >= 400:
-                return jsonify({"error": body.get("error", "maas whisper failed"), "details": body}), resp.status_code
+                err = _error_text(
+                    body.get("error") if isinstance(body, dict) else None,
+                    f"maas whisper failed (HTTP {resp.status_code})",
+                )
+                return jsonify({"error": err, "details": body}), resp.status_code
             transcript = (body.get("text") or body.get("transcript") or "").strip()
             if not transcript:
                 return jsonify({"error": "whisper response did not include transcript text", "details": body}), 502

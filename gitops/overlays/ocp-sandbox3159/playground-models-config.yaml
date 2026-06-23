@@ -91,7 +91,7 @@ data:
   STT_MODEL_NAME: "small"
   STT_MODEL_DEVICE: "cpu"
   STT_MODEL_COMPUTE_TYPE: "int8"
-  STT_MAX_AUDIO_MB: "25"
+  STT_MAX_AUDIO_MB: "100"
   STT_VAD_FILTER: "true"
   STT_DEFAULT_MODEL_ID: "whisper-small"
   STT_DISCOVER_MAAS_WHISPER: "true"
