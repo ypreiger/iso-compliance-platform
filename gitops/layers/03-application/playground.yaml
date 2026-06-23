@@ -848,8 +848,10 @@ data:
         const model = d.model_name || '?';
         const detLang = d.detected_language || 'unknown';
         const dur = d.duration_seconds ? `${Number(d.duration_seconds).toFixed(1)}s` : 'n/a';
+        const provider = d.provider || 'unknown';
+        const fallback = d.fallback_note ? ` · ${d.fallback_note}` : '';
         setSpeechStatus('Transcribed');
-        document.getElementById('speechMeta').textContent = `STT model: ${model} · detected: ${detLang} · audio: ${dur}`;
+        document.getElementById('speechMeta').textContent = `STT model: ${model} · provider: ${provider} · detected: ${detLang} · audio: ${dur}${fallback}`;
       }catch(e){
         setSpeechStatus('Network error');
         document.getElementById('speechMeta').textContent = e.message;
@@ -1134,13 +1136,40 @@ data:
         if language:
             form["language"] = language
 
+        def _transcribe_local(fallback_note: str = ""):
+            try:
+                local_resp = httpx.post(
+                    f"{STT_SERVICE_URL}/v1/transcribe",
+                    files=payload,
+                    data=form,
+                    timeout=STT_TIMEOUT_SEC,
+                    verify=False,
+                )
+                try:
+                    local_body = local_resp.json()
+                except Exception:
+                    local_body = {}
+            except Exception as exc:
+                return jsonify({"error": f"stt service unreachable: {str(exc)[:120]}"}), 502
+            if local_resp.status_code >= 400:
+                err = _error_text(
+                    local_body.get("error") if isinstance(local_body, dict) else None,
+                    f"stt request failed (HTTP {local_resp.status_code})",
+                )
+                return jsonify({"error": err, "details": local_body}), local_resp.status_code
+            if isinstance(local_body, dict):
+                local_body["provider"] = "local"
+                if fallback_note:
+                    local_body["fallback_note"] = fallback_note
+            return jsonify(local_body)
+
         if stt_model.get("type") == "maas":
             maas_token = _get_token("maas_token")
             if not maas_token:
-                return jsonify({"error": "MaaS token unavailable for whisper transcription"}), 503
+                return _transcribe_local("MaaS token unavailable; used local STT.")
             stt_url = str(stt_model.get("url", "")).rstrip("/")
             if not stt_url:
-                return jsonify({"error": f"stt model {selected_model_id} has no endpoint url"}), 500
+                return _transcribe_local("MaaS STT endpoint missing; used local STT.")
             form["model"] = selected_model_id
             try:
                 resp = httpx.post(
@@ -1156,16 +1185,18 @@ data:
                 except Exception:
                     body = {}
             except Exception as exc:
-                return jsonify({"error": f"maas whisper request failed: {str(exc)[:120]}"}), 502
+                return _transcribe_local(f"MaaS STT request failed ({str(exc)[:80]}); used local STT.")
             if resp.status_code >= 400:
                 err = _error_text(
                     body.get("error") if isinstance(body, dict) else None,
                     f"maas whisper failed (HTTP {resp.status_code})",
                 )
+                if resp.status_code >= 500:
+                    return _transcribe_local(f"MaaS STT HTTP {resp.status_code}; used local STT.")
                 return jsonify({"error": err, "details": body}), resp.status_code
             transcript = (body.get("text") or body.get("transcript") or "").strip()
             if not transcript:
-                return jsonify({"error": "whisper response did not include transcript text", "details": body}), 502
+                return _transcribe_local("MaaS STT returned empty transcript; used local STT.")
             return jsonify(
                 {
                     "transcript": transcript,
@@ -1176,21 +1207,7 @@ data:
                 }
             )
 
-        try:
-            resp = httpx.post(
-                f"{STT_SERVICE_URL}/v1/transcribe",
-                files=payload,
-                data=form,
-                timeout=STT_TIMEOUT_SEC,
-                verify=False,
-            )
-            body = resp.json()
-        except Exception as exc:
-            return jsonify({"error": f"stt service unreachable: {str(exc)[:120]}"}), 502
-        if resp.status_code >= 400:
-            return jsonify({"error": body.get("error", "stt request failed"), "details": body}), resp.status_code
-        body["provider"] = "local"
-        return jsonify(body)
+        return _transcribe_local()
 
     @app.route('/file/analyze', methods=['POST'])
     def file_analyze():
