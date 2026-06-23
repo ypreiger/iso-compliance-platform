@@ -834,7 +834,14 @@ data:
       }
       try{
         const res = await fetch('/speech/transcribe', {method:'POST', body: fd});
-        const d = await res.json();
+        let d = null;
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        if(ct.includes('application/json')){
+          d = await res.json();
+        }else{
+          const txt = await res.text();
+          d = { error: txt ? txt.slice(0, 280) : `HTTP ${res.status}` };
+        }
         if(d.error){
           setSpeechStatus(res.status === 413 ? 'File too large' : 'Transcription error');
           let err = d.error;
@@ -1114,7 +1121,10 @@ data:
 
     @app.route('/speech/transcribe', methods=['POST'])
     def speech_transcribe():
-        audio = request.files.get("audio")
+        try:
+            audio = request.files.get("audio") or request.files.get("file")
+        except Exception as exc:
+            return jsonify({"error": f"invalid upload form-data: {str(exc)[:180]}"}), 400
         if audio is None or not audio.filename:
             return jsonify({"error": "missing multipart file field 'audio'"}), 400
         language = (request.form.get("language") or "").strip().lower()
