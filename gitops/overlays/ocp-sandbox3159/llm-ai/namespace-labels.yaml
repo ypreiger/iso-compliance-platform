@@ -11,6 +11,7 @@ metadata:
     opendatahub.io/dashboard: "true"
     opendatahub.io/project-type: model-serving
     opendatahub.io/managed: "true"
+    openshift.io/user-monitoring: "true"
     kubernetes.io/metadata.name: llm
 ---
 apiVersion: v1
