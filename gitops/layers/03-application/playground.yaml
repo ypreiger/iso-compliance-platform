@@ -1668,7 +1668,7 @@ data:
             lines.append(f'playground_stt_transcription_latency_seconds_bucket{{{labels},le="+Inf"}} {latency_count}')
             lines.append(f"playground_stt_transcription_latency_seconds_sum{{{labels}}} {latency_sum}")
             lines.append(f"playground_stt_transcription_latency_seconds_count{{{labels}}} {latency_count}")
-        return "\\n".join(lines) + "\\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
+        return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
 
     @app.route('/health')
     def health():
