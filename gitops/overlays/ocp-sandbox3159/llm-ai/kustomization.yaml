@@ -7,5 +7,4 @@ resources:
   - rbac.yaml
   - model-aliases.yaml
   - whisper-maas.yaml
-  - playground-servicemonitor.yaml
   - maas-lab-whisper-dashboard.yaml
