@@ -165,6 +165,8 @@ Seed files in `RAG/` directory:
 
 Manifest `RAG/manifest.yaml` drives ingest order and metadata. The `iso-rag-populate` Job (GitOps layer 4) runs `git lfs pull` after clone.
 
+**Note:** `audio/` directory (if present) contains temporary audio files and should not be committed to git.
+
 ## Environment configuration
 
 ### iso-api required env vars
@@ -203,6 +205,12 @@ DOCGEN_URL=http://iso-docgen:8080
 - TestClient from FastAPI for API smoke tests
 - All tests must pass in `dry-run-local.sh` before commits
 
+### Run docgen service tests
+```bash
+python3 -m pip install -r services/docgen/requirements.txt pytest
+PYTHONPATH=services/docgen python3 -m pytest services/docgen/tests -v
+```
+
 ## Important patterns
 
 ### Database abstraction
@@ -220,6 +228,14 @@ DOCGEN_URL=http://iso-docgen:8080
 ### Pipeline stages (prompt-administrable)
 All prompts versioned in DB, editable via `/admin/instructions` without code deploy:
 - `context_summarize`, `finding_normalize`, `iso_map_and_score`, `clause_coverage`, `corrective_action_draft`, `ofi_instruction_draft`, `report_narrative`
+
+### Database migrations
+Migrations run automatically via GitOps PostSync hooks in layer 02-app-infra.
+
+**sort_order scale migration (2026-06)**: ISO clause `sort_order` migrated from 3-digit (401) to 9-digit base-100 encoding (401000000) to support hierarchical sorting (4 < 4.1 < 4.2 < 5).
+- Migration Job: `gitops/layers/02-app-infra/migrate-sort-order-job.yaml`
+- Idempotent: Safe to re-run; only updates rows with `sort_order < 1000000`
+- Rollback: Automated via GitOps revert
 
 ## Development workflow
 
