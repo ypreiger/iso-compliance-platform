@@ -83,13 +83,14 @@ function CorpusPage({ type, titleKey }: { type: string; titleKey: string }) {
     form.append('language', language);
     form.append('edition', edition);
     form.append('replace_previous', replaceExisting ? 'true' : 'false');
+    setMsg(t('admin.uploading'));
     api.corpus.uploadIso(token, form)
       .then((r) => {
         setLastUpload(r);
         const base =
           r.language === 'both' && r.clauses_en != null
             ? t('admin.uploadDoneBoth', { en: r.clauses_en, he: r.clauses_he, chunks: r.rag_chunks })
-            : t('admin.uploadDone', { count: r.clauses_imported, chunks: r.rag_chunks });
+            : t('admin.uploadDone', { count: r.clauses_imported ?? 0, chunks: r.rag_chunks ?? 0 });
         const method = r.parse_method ? ` [${r.parse_method}]` : '';
         const warn = r.warnings?.length ? ` (${r.warnings.length} warnings)` : '';
         setMsg(base + method + warn);

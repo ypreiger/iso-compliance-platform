@@ -123,29 +123,39 @@ export const api = {
     list: (t: string, type: string) => req(`/admin/corpus/${type}`, t),
     register: (t: string, type: string, body: object) =>
       req(`/admin/corpus/${type}`, t, { method: 'POST', body: JSON.stringify(body) }),
-    uploadIso: (t: string, form: FormData) =>
-      fetch(`${API_BASE}/admin/corpus/iso/upload`, {
+    uploadIso: async (t: string, form: FormData): Promise<UploadResult> => {
+      const started = await fetch(`${API_BASE}/admin/corpus/iso/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${t}` },
         body: form,
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: res.statusText }));
-            throw new Error(err.detail || res.statusText);
+      }).then(async (res) => {
+        if (!res.ok && res.status !== 202) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || res.statusText);
+        }
+        return res.json() as Promise<UploadResult>;
+      });
+
+      // Async ingest: poll until ready/failed (survives API rollouts / proxy limits)
+      if (started.status === 'processing' && started.corpus_id) {
+        const deadline = Date.now() + 20 * 60 * 1000;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 2500));
+          const st = await req<UploadResult>(
+            `/admin/corpus/iso/upload/${started.corpus_id}`,
+            t,
+          );
+          if (st.status === 'ready') return st;
+          if (st.status === 'failed') {
+            throw new Error(st.error || 'ISO upload processing failed');
           }
-          return res.json() as Promise<UploadResult>;
-        })
-        .catch((err: unknown) => {
-          // Browsers surface aborted/reset connections as TypeError("NetworkError...")
-          const msg = err instanceof Error ? err.message : String(err);
-          if (/networkerror|failed to fetch|load failed/i.test(msg)) {
-            throw new Error(
-              'Upload connection was interrupted (API restart or proxy timeout). Retry once; large ISO PDFs can take several minutes.',
-            );
-          }
-          throw err instanceof Error ? err : new Error(msg);
-        }),
+        }
+        throw new Error('Timed out waiting for ISO upload processing');
+      }
+      return started;
+    },
+    uploadStatus: (t: string, corpusId: string) =>
+      req<UploadResult>(`/admin/corpus/iso/upload/${corpusId}`, t),
     translateIso: (t: string, body: {
       standard: string;
       edition?: string;
@@ -183,8 +193,10 @@ export type ValidationResult = {
 };
 
 export type UploadResult = {
-  clauses_imported: number;
-  rag_chunks: number;
+  corpus_id?: string;
+  status?: string;
+  clauses_imported?: number;
+  rag_chunks?: number;
   parse_method?: string;
   language?: string;
   clauses_en?: number;
@@ -192,6 +204,8 @@ export type UploadResult = {
   warnings?: string[];
   validation?: ValidationResult;
   file_id?: string;
+  error?: string;
+  message?: string;
 };
 
 export type CorpusFile = {

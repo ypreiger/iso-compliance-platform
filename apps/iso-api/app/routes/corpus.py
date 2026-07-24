@@ -6,17 +6,22 @@ import json
 from typing import Annotated, Any
 from uuid import uuid4
 
+import logging
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.auth.deps import CurrentUser, require_admin
 from app.db import get_conn, rows_to_list
 from app.iso.import_service import import_translated_clauses
 from app.iso.parser import _sort_key
+from app.iso.pipeline import store_file
 from app.iso.standard_cleanup import delete_iso_standard
 from app.iso.translate import translate_clause_text
 
 router = APIRouter(prefix="/admin/corpus", tags=["corpus"])
+log = logging.getLogger(__name__)
 
 
 def _parse_form_bool(value: str | bool) -> bool:
@@ -102,7 +107,126 @@ def register_corpus(
     return {"id": cid, "status": "ready"}
 
 
-# ── PDF / DOC / DOCX upload (full pipeline) ────────────────────────────────
+# ── PDF / DOC / DOCX upload (async pipeline) ───────────────────────────────
+
+def _content_type_for(filename: str) -> str:
+    lower = filename.lower()
+    if lower.endswith(".pdf"):
+        return "application/pdf"
+    if lower.endswith(".docx"):
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    if lower.endswith(".doc"):
+        return "application/msword"
+    return "application/octet-stream"
+
+
+def _run_ingest_job(
+    *,
+    corpus_id: str,
+    file_id: str,
+    content: bytes,
+    filename: str,
+    standard: str,
+    language: str,
+    edition: str,
+    admin_id: str,
+    replace: bool,
+) -> None:
+    """Background worker: parse + index after the HTTP response has returned."""
+    try:
+        from app.db import audit
+        from app.iso.pipeline import run_ingest_pipeline
+
+        with get_conn() as conn:
+            result = run_ingest_pipeline(
+                conn,
+                content=content,
+                filename=filename,
+                standard=standard,
+                language=language,
+                edition=edition,
+                corpus_id=corpus_id,
+                admin_id=admin_id,
+                replace_previous=replace,
+                skip_store=True,
+                file_id=file_id,
+            )
+            conn.execute(
+                """
+                UPDATE corpus_documents
+                SET status = 'ready',
+                    metadata = metadata || %s::jsonb
+                WHERE id = %s
+                """,
+                (json.dumps(result), corpus_id),
+            )
+            audit(
+                conn,
+                admin_id,
+                "corpus.iso.uploaded",
+                "corpus_document",
+                corpus_id,
+                after={
+                    "standard": standard,
+                    "language": language,
+                    "edition": edition,
+                    "clauses": result["clauses_imported"],
+                    "parse_method": result["parse_method"],
+                    "validation": result["validation"],
+                },
+            )
+            conn.commit()
+        log.info(
+            "async ingest ready corpus_id=%s clauses=%s method=%s",
+            corpus_id,
+            result.get("clauses_imported"),
+            result.get("parse_method"),
+        )
+    except Exception as exc:
+        log.exception("async ingest failed corpus_id=%s", corpus_id)
+        _mark_failed(corpus_id, str(exc))
+
+
+@router.get("/iso/upload/{corpus_id}")
+def get_iso_upload_status(
+    corpus_id: str,
+    admin: Annotated[CurrentUser, Depends(require_admin)],
+):
+    """Poll async ISO upload progress."""
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT id, name, standards, language, edition, status, metadata, created_at
+            FROM corpus_documents
+            WHERE id = %s AND doc_type = 'iso_standard'
+            """,
+            (corpus_id,),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Upload not found")
+    meta = row.get("metadata") or {}
+    if isinstance(meta, str):
+        try:
+            meta = json.loads(meta)
+        except json.JSONDecodeError:
+            meta = {}
+    return {
+        "corpus_id": row["id"],
+        "status": row["status"],
+        "standard": (row.get("standards") or [None])[0],
+        "language": row.get("language"),
+        "edition": row.get("edition"),
+        "filename": row.get("name"),
+        "created_at": row.get("created_at"),
+        "clauses_imported": meta.get("clauses_imported"),
+        "rag_chunks": meta.get("rag_chunks"),
+        "parse_method": meta.get("parse_method"),
+        "warnings": meta.get("warnings") or [],
+        "validation": meta.get("validation"),
+        "file_id": meta.get("file_id"),
+        "error": meta.get("error"),
+    }
+
 
 @router.post("/iso/upload")
 async def upload_iso_standard(
@@ -113,14 +237,11 @@ async def upload_iso_standard(
     edition: str = Form("2015"),
     replace_previous: str = Form("true"),
 ):
-    """Upload a PDF, DOC, or DOCX ISO standard file.
+    """Accept an ISO PDF/DOC/DOCX upload and process it asynchronously.
 
-    Pipeline:
-      1. Store original file (corpus_files)
-      2. Extract text with PyMuPDF / antiword / python-docx
-      3. Parse clauses via LLM agent (GPT-4o) with regex fallback
-      4. Index into iso_clause_text + rag_documents
-      5. Validate retrieval; return report
+    Returns HTTP 202 quickly after persisting the file so browser/proxy
+    timeouts and Argo rollouts cannot interrupt the long GPT-oss parse.
+    Poll GET /admin/corpus/iso/upload/{corpus_id} until status is ready/failed.
     """
     if language not in ("en", "he", "both"):
         raise HTTPException(status_code=400, detail="language must be en, he, or both")
@@ -155,7 +276,7 @@ async def upload_iso_standard(
             raise HTTPException(status_code=500, detail=f"Upload failed: {exc}") from exc
         return result
 
-    # PDF / DOC / DOCX → LLM pipeline
+    # PDF / DOC / DOCX → async LLM pipeline
     if not any(lower.endswith(ext) for ext in (".pdf", ".doc", ".docx")):
         raise HTTPException(
             status_code=400,
@@ -163,12 +284,10 @@ async def upload_iso_standard(
         )
 
     corpus_id = str(uuid4())
+    std = standard.upper().replace(" ", "")
 
-    # Heavy parse/LLM work is sync and can take minutes with GPT-oss-20b.
-    # Run it off the event loop so /health probes keep answering (avoids 502).
-    def _ingest() -> dict[str, Any]:
+    def _prepare() -> str:
         with get_conn() as conn:
-            # Create corpus_documents record first so corpus_files FK works
             conn.execute(
                 """
                 INSERT INTO corpus_documents
@@ -178,79 +297,70 @@ async def upload_iso_standard(
                 (
                     corpus_id,
                     filename,
-                    [standard.upper().replace(" ", "")],
+                    [std],
                     language,
                     edition,
-                    json.dumps({"source": "upload", "filename": filename}),
+                    json.dumps(
+                        {
+                            "source": "upload",
+                            "filename": filename,
+                            "size_bytes": len(content),
+                        }
+                    ),
                 ),
             )
-            conn.commit()
-
-            from app.iso.pipeline import run_ingest_pipeline
-
-            result = run_ingest_pipeline(
+            file_id = store_file(
                 conn,
-                content=content,
-                filename=filename,
-                standard=standard,
-                language=language,
-                edition=edition,
                 corpus_id=corpus_id,
-                admin_id=admin.id,
-                replace_previous=replace,
+                filename=filename,
+                content=content,
+                content_type=_content_type_for(filename),
             )
-
             conn.execute(
                 """
                 UPDATE corpus_documents
-                SET status = 'ready',
-                    metadata = metadata || %s::jsonb
+                SET metadata = metadata || %s::jsonb
                 WHERE id = %s
                 """,
-                (json.dumps(result), corpus_id),
-            )
-
-            from app.db import audit
-            audit(
-                conn,
-                admin.id,
-                "corpus.iso.uploaded",
-                "corpus_document",
-                corpus_id,
-                after={
-                    "standard": standard,
-                    "language": language,
-                    "edition": edition,
-                    "clauses": result["clauses_imported"],
-                    "parse_method": result["parse_method"],
-                    "validation": result["validation"],
-                },
+                (json.dumps({"file_id": file_id}), corpus_id),
             )
             conn.commit()
-            return result
+            return file_id
 
     try:
-        result = await asyncio.to_thread(_ingest)
-    except ValueError as exc:
-        _mark_failed(corpus_id, str(exc))
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        file_id = await asyncio.to_thread(_prepare)
     except Exception as exc:
         _mark_failed(corpus_id, str(exc))
-        raise HTTPException(status_code=500, detail=f"Upload failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail=f"Upload store failed: {exc}") from exc
 
-    return {
-        "corpus_id": corpus_id,
-        "standard": standard.upper().replace(" ", ""),
-        "language": language,
-        "edition": edition,
-        "clauses_imported": result["clauses_imported"],
-        "rag_chunks": result["rag_chunks"],
-        "parse_method": result["parse_method"],
-        "warnings": result.get("warnings", []),
-        "validation": result["validation"],
-        "file_id": result["file_id"],
-        "replace_previous": replace,
-    }
+    asyncio.create_task(
+        asyncio.to_thread(
+            _run_ingest_job,
+            corpus_id=corpus_id,
+            file_id=file_id,
+            content=content,
+            filename=filename,
+            standard=std,
+            language=language,
+            edition=edition,
+            admin_id=admin.id,
+            replace=replace,
+        )
+    )
+
+    return JSONResponse(
+        status_code=202,
+        content={
+            "corpus_id": corpus_id,
+            "status": "processing",
+            "standard": std,
+            "language": language,
+            "edition": edition,
+            "file_id": file_id,
+            "replace_previous": replace,
+            "message": "File stored; clause extraction running in background.",
+        },
+    )
 
 
 def _mark_failed(corpus_id: str, error: str) -> None:

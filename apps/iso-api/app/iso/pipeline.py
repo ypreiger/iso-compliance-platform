@@ -164,6 +164,8 @@ def run_ingest_pipeline(
     corpus_id: str,
     admin_id: str | None,
     replace_previous: bool = True,
+    skip_store: bool = False,
+    file_id: str | None = None,
 ) -> dict:
     std = standard.upper().replace(" ", "")
     sha = file_sha256(content)
@@ -173,17 +175,22 @@ def run_ingest_pipeline(
         steps.append({"step": name, **kwargs})
         log.info("pipeline[%s/%s] %s %s", std, language, name, kwargs)
 
-    # 1. Store original file
-    content_type = _infer_content_type(filename)
-    file_id = store_file(
-        conn, corpus_id=corpus_id, filename=filename,
-        content=content, content_type=content_type,
-    )
-    log_step("store_file", file_id=file_id, size_bytes=len(content))
-    # Commit before LLM parse — holding RowExclusiveLocks across minutes of
-    # GPT-oss work blocks CREATE TABLE IF NOT EXISTS on new API pods (NetworkError).
-    if hasattr(conn, "commit"):
-        conn.commit()
+    # 1. Store original file (skipped when caller already persisted + committed)
+    if skip_store:
+        if not file_id:
+            raise ValueError("file_id is required when skip_store=True")
+        log_step("store_file", file_id=file_id, size_bytes=len(content), skipped=True)
+    else:
+        content_type = _infer_content_type(filename)
+        file_id = store_file(
+            conn, corpus_id=corpus_id, filename=filename,
+            content=content, content_type=content_type,
+        )
+        log_step("store_file", file_id=file_id, size_bytes=len(content))
+        # Commit before LLM parse — holding RowExclusiveLocks across minutes of
+        # GPT-oss work blocks CREATE TABLE IF NOT EXISTS on new API pods (NetworkError).
+        if hasattr(conn, "commit"):
+            conn.commit()
 
     # 2. Parse via agent (no open DB transaction)
     parsed, method = parse_via_agent(
