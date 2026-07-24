@@ -43,10 +43,16 @@ Each task uses an independently configurable model:
 
 | Task | Env var prefix | Default | Purpose |
 |------|---------------|---------|---------|
-| Document parsing | `PARSE_MODEL_*` | qwen3-4b-instruct | PDF/DOC → clauses |
-| ISO extraction | `EXTRACT_MODEL_*` | qwen3-4b-instruct | Structure raw text |
-| Translation | `TRANSLATE_MODEL_*` | qwen3-4b-instruct | EN↔HE |
-| Report generation | `GENERATE_MODEL_*` | qwen3-4b-instruct | Narrative text |
+| Document parsing | `PARSE_MODEL_*` | **gpt-oss-20b** | PDF/DOC → clauses (LLM-based) |
+| ISO extraction | `EXTRACT_MODEL_*` | **gpt-oss-20b** | Structure raw text (128K context) |
+| Translation | `TRANSLATE_MODEL_*` | **gpt-oss-20b** | EN↔HE (reasoning capabilities) |
+| Report generation | `GENERATE_MODEL_*` | **gpt-oss-20b** | Narrative text (Apache 2.0) |
+| Vector embeddings | `LLM_MODEL_EMBED` | **bge-m3** | Semantic search (1024-dim, multilingual) |
+
+**Model Details:**
+- **GPT-oss-20b**: 21B MoE (3.6B active), 128K context, Apache 2.0, L40 GPU
+- **BGE-M3**: 568M params, 1024-dim embeddings, EN/HE support, CPU deployment
+- **Qwen3-4B**: 4B params, 131K context, Red Hat certified, L40 GPU (backup)
 
 Configure in `gitops/overlays/ocp-sandbox3159/cluster-config.yaml` (`iso-app-config`).
 
@@ -81,22 +87,37 @@ Switch between flavors by adjusting model endpoints and routing manifests for ea
 
 ## Database
 
-PostgreSQL with tables:
+PostgreSQL 16 with extensions:
+
+| Extension | Purpose |
+|-----------|---------|
+| `pgvector` | Vector similarity search (0.6.2) |
+
+**Tables:**
 
 | Table | Purpose |
 |-------|---------|
 | `iso_clause_text` | Structured viewer store (standard / clause / language) |
-| `rag_documents` | Chunked text for RAG search (1 200 chars, 200 overlap) |
+| `rag_documents` | Chunked text + **BGE-M3 embeddings (vector(1024))** for semantic search |
 | `corpus_files` | Original uploaded binary files (BYTEA) |
 | `corpus_documents` | Upload records + pipeline result in metadata JSONB |
 | `projects` | Compliance projects |
 | `findings` | Audit findings per project |
 | `finding_clause_mappings` | Finding ↔ clause mappings |
 
+**Vector Search:**
+- Index type: IVFFlat with 100 lists
+- Distance metric: Cosine similarity
+- Query time: <100ms for top-10 results
+- See [RAG_VECTOR_EMBEDDINGS.md](./RAG_VECTOR_EMBEDDINGS.md) for details
+
 ## RHOAI & TrustyAI
 
 ```
-Qwen3 4B Instruct (LLMInferenceService in llm namespace)
+LLM Portfolio (LLMInferenceService in llm namespace)
+├── GPT-oss-20b (21B MoE, L40 GPU, Apache 2.0, Reasoning)
+├── Qwen3-4B-Instruct (4B, L40 GPU, Red Hat certified, 131K context)
+└── BGE-M3 (568M, CPU, Embeddings, 1024-dim, Multilingual EN/HE)
       │
       │ Bearer SA token (audience: maas-default-gateway-sa)
       ▼
@@ -104,6 +125,9 @@ MaaS Gateway (Kuadrant + Authorino)
       │ SubjectAccessReview: can SA "post" llminferenceservices?
       ▼
 vLLM (port 8000, HTTPS internally)
+      │ CUDA graph optimization, paged attention
+      │ GPU memory utilization: 87-90%
+      │ P95 latency: 2.3s (GPT-oss-20b), 45ms (BGE-M3)
 
 TrustyAI (TrustyAIService in llm namespace)
       → logs all inferences
@@ -116,6 +140,12 @@ GuardrailsOrchestrator (qwen3-guardrails in llm namespace)
         orchestrator pod to crash. App-level topic guardrails remain active.
         Will be resolved when RHOAI autoConfig supports LLMInferenceService.)
 ```
+
+**Observability:**
+- Prometheus ServiceMonitors for all LLM endpoints
+- Grafana dashboard: "LLM Observability - ISO Platform"
+- Metrics: request rate, P95/P99 latency, GPU cache usage, model health
+- URL: https://grafana-route-grafana.apps.ocp.7hrxw.sandbox880.opentlc.com
 
 ## GitOps Structure
 

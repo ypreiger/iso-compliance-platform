@@ -6,11 +6,12 @@ AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 
 | | URL |
 |---|---|
-| **AI Playground** | https://playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| **ISO Compliance App** | https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| **RHOAI Dashboard** | https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| **ArgoCD** | https://openshift-gitops-server-openshift-gitops.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| **MaaS Gateway** | https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com |
+| **AI Playground** | https://playground-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| **ISO Compliance App** | https://iso-web-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| **RHOAI Dashboard** | https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| **Grafana** | https://grafana-route-grafana.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| **ArgoCD** | https://openshift-gitops-server-openshift-gitops.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| **MaaS Gateway** | https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com |
 
 ## Documentation
 
@@ -36,10 +37,12 @@ playground   → Unified AI chat (Qwen3 + GPT-4o + GPT-4o-mini + GPT-3.5-turbo)
 
 | Model | Provider | Tier | Notes |
 |-------|----------|------|-------|
-| Qwen3 4B Instruct 2507 | RHOAI MaaS (on-prem GPU) | Enterprise | 131k context, L40 GPU |
-| GPT-4o | OpenAI | — | External |
-| GPT-4o Mini | OpenAI | — | External |
-| GPT-3.5 Turbo | OpenAI | — | External |
+| **GPT-oss-20b** | RHOAI vLLM (on-prem L40 GPU) | Enterprise | 21B MoE (3.6B active), 128K context, Apache 2.0, Reasoning |
+| **BGE-M3** | RHOAI vLLM (on-prem CPU) | Enterprise | Multilingual embeddings (EN/HE), 1024-dim, 568M params |
+| **Qwen3-4B-Instruct** | RHOAI vLLM (on-prem L40 GPU) | Enterprise | 131K context, 4B params, Red Hat certified |
+| **GPT-4o** | OpenAI (via MaaS proxy) | Premium | External, highest quality |
+| **GPT-4o-mini** | OpenAI (via MaaS proxy) | Cost-effective | External, fast |
+| **GPT-3.5-turbo** | OpenAI (via MaaS proxy) | Cost-effective | External, legacy |
 
 ## Two Deployment Flavors
 

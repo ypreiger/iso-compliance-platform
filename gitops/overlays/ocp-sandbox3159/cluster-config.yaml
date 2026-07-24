@@ -11,7 +11,8 @@ data:
   DATABASE_USER: "iso"
   REDIS_URL: "redis://iso-redis:6379/0"
   # Use direct KServe endpoint for GPT-oss-20b (bypass MaaS auth requirement)
-  LLM_GATEWAY_URL: "http://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
+  # NOTE: KServe services use HTTPS internally (self-signed certs)
+  LLM_GATEWAY_URL: "https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
   LLM_MODEL_MAPPING: "gpt-oss-20b"
   LLM_MODEL_REPORT: "gpt-oss-20b"
   LLM_MODEL_EMBED: "bge-m3"
@@ -20,19 +21,19 @@ data:
   MAAS_BASE_URL: "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com"
   MAAS_MODEL_LOCAL: "gpt-oss-20b"
   # GPT-oss-20b direct KServe endpoint (no MaaS auth needed for cluster-internal calls)
-  QWEN3_MODEL_URL: "http://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
+  QWEN3_MODEL_URL: "https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
   QWEN3_MODEL_NAME: "gpt-oss-20b"
   # Guardrails endpoint (set after GuardrailsOrchestrator is Ready)
   GUARDRAILS_ENDPOINT: ""
   RHOAI_DASHBOARD_URL: "https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com"
   # Use GPT-oss-20b direct KServe endpoint for all doc-agent tasks (bypass MaaS auth)
-  PARSE_MODEL_URL: "http://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
+  PARSE_MODEL_URL: "https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
   PARSE_MODEL_NAME: "gpt-oss-20b"
-  EXTRACT_MODEL_URL: "http://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
+  EXTRACT_MODEL_URL: "https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
   EXTRACT_MODEL_NAME: "gpt-oss-20b"
-  TRANSLATE_MODEL_URL: "http://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
+  TRANSLATE_MODEL_URL: "https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
   TRANSLATE_MODEL_NAME: "gpt-oss-20b"
-  GENERATE_MODEL_URL: "http://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
+  GENERATE_MODEL_URL: "https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
   GENERATE_MODEL_NAME: "gpt-oss-20b"
   RAG_MANIFEST_PATH: "/seed/RAG/manifest.yaml"
   AUTH_DEV_MODE: "0"
