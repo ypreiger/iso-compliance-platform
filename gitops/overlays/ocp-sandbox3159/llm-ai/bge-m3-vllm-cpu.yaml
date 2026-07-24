@@ -1,0 +1,132 @@
+---
+# BGE-M3 embedding service using vLLM CPU mode
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bge-m3-embed
+  namespace: llm
+  labels:
+    app: bge-m3-embed
+    component: embeddings
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bge-m3-embed
+  template:
+    metadata:
+      labels:
+        app: bge-m3-embed
+        component: embeddings
+    spec:
+      initContainers:
+        - name: model-download
+          image: python:3.11-slim
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export HOME=/tmp && \
+              pip install --user huggingface-hub && \
+              python3 -c "from huggingface_hub import snapshot_download; snapshot_download('BAAI/bge-m3', cache_dir='/models')"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+          env:
+            - name: HOME
+              value: /tmp
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          command:
+            - python3
+            - -m
+            - vllm.entrypoints.openai.api_server
+          args:
+            - --model=BAAI/bge-m3
+            - --task=embed
+            - --trust-remote-code
+            - --port=8080
+            - --download-dir=/models
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          env:
+            - name: HF_HOME
+              value: /models
+            - name: USER
+              value: vllm
+            - name: HOME
+              value: /tmp
+            - name: TORCHINDUCTOR_CACHE_DIR
+              value: /tmp/torch
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+      volumes:
+        - name: model-cache
+          emptyDir:
+            sizeLimit: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bge-m3-embed
+  namespace: llm
+  labels:
+    app: bge-m3-embed
+    component: embeddings
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: bge-m3-embed
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: bge-m3-embed
+  namespace: llm
+  labels:
+    app: bge-m3-embed
+    component: embeddings
+spec:
+  to:
+    kind: Service
+    name: bge-m3-embed
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

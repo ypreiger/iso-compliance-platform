@@ -8,5 +8,6 @@ resources:
   - model-aliases.yaml
   - whisper-maas.yaml
   - maas-lab-whisper-dashboard.yaml
-  - bge-m3-embedding.yaml
+  - bge-m3-simple.yaml
+  - bge-m3-external-model.yaml
   - gpt-oss-20b.yaml

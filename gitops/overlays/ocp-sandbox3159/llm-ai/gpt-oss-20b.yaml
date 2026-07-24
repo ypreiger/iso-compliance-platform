@@ -42,8 +42,7 @@ spec:
           # GPT-oss optimizations
           - --trust-remote-code
           - --max-model-len=131072
-          # Use FP8 for better performance on L40S
-          - --quantization=fp8
+          # Model comes pre-quantized as mxfp4 - no quantization arg needed
           - --gpu-memory-utilization=0.90
           # Enable structured outputs and function calling
           - --enable-auto-tool-choice
