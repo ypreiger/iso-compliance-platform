@@ -25,6 +25,14 @@ data:
   MODELS_CONFIG: |
     [
       {
+        "id": "gpt-oss-20b",
+        "label": "GPT-oss-20b — OpenAI (on-prem GPU, Reasoning)",
+        "url": "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/gpt-oss-20b/v1",
+        "provider": "rhoai",
+        "auth": "maas_token",
+        "note": "21B params (3.6B active MoE) · 128k context · Reasoning · L40 GPU · Apache 2.0"
+      },
+      {
         "id": "qwen3-4b-instruct",
         "label": "Qwen3 4B Instruct 2507 — RHOAI MaaS (on-prem GPU)",
         "url": "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/qwen3-4b-instruct/v1",
@@ -72,7 +80,7 @@ data:
   ALLOWED_TOPICS: "red hat,redhat,rhel,openshift,open shift,ocp,okd,kubernetes,k8s,helm,operator,olm,argo,argocd,gitops,tekton,pipelines,ansible,quay,podman,selinux,service mesh,istio,keycloak,sso,rhoai,openshift ai,model serving,maas,trustyai,guardrails,llm,inference,vllm,iso,איסו,תקן,תקנים,ايزو,معيار,معايير,امتثال,تدقيق,أمن المعلومات,استمرارية الأعمال,إدارة المخاطر,iso 9001,iso9001,9001,iso 27001,iso27001,27001,iso 22301,iso22301,22301,iso 20000,iso20000,20000,iso 14001,iso14001,14001,iso 31000,iso31000,31000,iso 42001,iso42001,42001,compliance,ציות,audit,ביקורת,quality management,ניהול איכות,information security,אבטחת מידע,risk management,ניהול סיכונים,business continuity,המשכיות עסקית"
 
   # Default selected model in the playground UI.
-  DEFAULT_MODEL_ID: "qwen3-4b-instruct"
+  DEFAULT_MODEL_ID: "gpt-oss-20b"
 
   SYSTEM_PROMPT: |
     You are an AI assistant specialized in Red Hat technologies and ISO standards.
