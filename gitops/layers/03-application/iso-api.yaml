@@ -111,12 +111,18 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 15
-            periodSeconds: 20
+            # Long ISO uploads (GPT-oss-20b parse) can run several minutes.
+            # Keep the pod alive while work progresses on a worker thread.
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 40
           resources:
             requests:
               cpu: 100m

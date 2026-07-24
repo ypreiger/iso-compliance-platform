@@ -1,8 +1,9 @@
 """Corpus admin — ISO upload, translate, delete, samples, templates."""
 from __future__ import annotations
 
+import asyncio
 import json
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -162,7 +163,10 @@ async def upload_iso_standard(
         )
 
     corpus_id = str(uuid4())
-    try:
+
+    # Heavy parse/LLM work is sync and can take minutes with GPT-oss-20b.
+    # Run it off the event loop so /health probes keep answering (avoids 502).
+    def _ingest() -> dict[str, Any]:
         with get_conn() as conn:
             # Create corpus_documents record first so corpus_files FK works
             conn.execute(
@@ -196,7 +200,6 @@ async def upload_iso_standard(
                 replace_previous=replace,
             )
 
-            # Update record with full metadata
             conn.execute(
                 """
                 UPDATE corpus_documents
@@ -224,7 +227,10 @@ async def upload_iso_standard(
                 },
             )
             conn.commit()
+            return result
 
+    try:
+        result = await asyncio.to_thread(_ingest)
     except ValueError as exc:
         _mark_failed(corpus_id, str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
