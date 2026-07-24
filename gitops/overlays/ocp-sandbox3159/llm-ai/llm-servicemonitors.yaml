@@ -1,0 +1,69 @@
+---
+# ServiceMonitor for GPT-oss-20b vLLM metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gpt-oss-20b-metrics
+  namespace: llm
+  labels:
+    app.kubernetes.io/name: gpt-oss-20b
+    app.kubernetes.io/component: llm-monitoring
+spec:
+  selector:
+    matchLabels:
+      serving.kserve.io/inferenceservice: gpt-oss-20b
+  namespaceSelector:
+    matchNames:
+      - llm
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+---
+# ServiceMonitor for Qwen3-4B-Instruct vLLM metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: qwen3-4b-instruct-metrics
+  namespace: llm
+  labels:
+    app.kubernetes.io/name: qwen3-4b-instruct
+    app.kubernetes.io/component: llm-monitoring
+spec:
+  selector:
+    matchLabels:
+      serving.kserve.io/inferenceservice: qwen3-4b-instruct
+  namespaceSelector:
+    matchNames:
+      - llm
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+---
+# ServiceMonitor for BGE-M3 embedding service
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bge-m3-metrics
+  namespace: llm
+  labels:
+    app.kubernetes.io/name: bge-m3
+    app.kubernetes.io/component: llm-monitoring
+spec:
+  selector:
+    matchLabels:
+      app: bge-m3
+  namespaceSelector:
+    matchNames:
+      - llm
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
