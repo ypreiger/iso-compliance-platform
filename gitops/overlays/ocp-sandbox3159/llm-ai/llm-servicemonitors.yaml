@@ -11,12 +11,13 @@ metadata:
 spec:
   selector:
     matchLabels:
-      serving.kserve.io/inferenceservice: gpt-oss-20b
+      app.kubernetes.io/name: gpt-oss-20b
+      app.kubernetes.io/part-of: llminferenceservice
   namespaceSelector:
     matchNames:
       - llm
   endpoints:
-    - port: metrics
+    - port: https
       path: /metrics
       interval: 30s
       scheme: https
@@ -35,12 +36,13 @@ metadata:
 spec:
   selector:
     matchLabels:
-      serving.kserve.io/inferenceservice: qwen3-4b-instruct
+      app.kubernetes.io/name: qwen3-4b-instruct
+      app.kubernetes.io/part-of: llminferenceservice
   namespaceSelector:
     matchNames:
       - llm
   endpoints:
-    - port: metrics
+    - port: https
       path: /metrics
       interval: 30s
       scheme: https
