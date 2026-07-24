@@ -1,4 +1,4 @@
-"""Ingest seed files into PostgreSQL (text stub chunks; embeddings later)."""
+"""Ingest seed files into PostgreSQL with BGE-M3 embeddings."""
 from __future__ import annotations
 
 import hashlib
@@ -10,6 +10,7 @@ from pathlib import Path
 import psycopg
 
 from rag_iso.manifest import Collection, iter_seed_files, load_manifest
+from rag_iso.embeddings import generate_embeddings
 
 
 def _ensure_iso_parser_path() -> None:
@@ -93,16 +94,25 @@ def _chunk(text: str, size: int, overlap: int) -> list[str]:
 def ensure_schema(conn: psycopg.Connection) -> None:
     conn.execute(
         """
+        CREATE EXTENSION IF NOT EXISTS vector;
+
         CREATE TABLE IF NOT EXISTS rag_documents (
             id SERIAL PRIMARY KEY,
             collection_id TEXT NOT NULL,
             source_path TEXT NOT NULL,
             chunk_index INT NOT NULL DEFAULT 0,
             content TEXT NOT NULL,
+            embedding vector(1024),
             metadata JSONB DEFAULT '{}'::jsonb,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             UNIQUE (collection_id, source_path, chunk_index)
         );
+
+        -- Create vector similarity index
+        CREATE INDEX IF NOT EXISTS rag_documents_embedding_cosine_idx
+            ON rag_documents
+            USING ivfflat (embedding vector_cosine_ops)
+            WITH (lists = 100);
         """
     )
 
@@ -111,6 +121,10 @@ def ingest_collection(conn: psycopg.Connection, collection: Collection) -> int:
     inserted = 0
     chunk_size = int(collection.ingest.get("chunk_size", 1000))
     overlap = int(collection.ingest.get("chunk_overlap", 100))
+    batch_size = 32  # Process embeddings in batches
+
+    # Collect all chunks first
+    chunks_to_insert = []
     for file_path in iter_seed_files(collection):
         rel = str(file_path.relative_to(collection.path.parent))
         text = _read_text(file_path)
@@ -122,16 +136,30 @@ def ingest_collection(conn: psycopg.Connection, collection: Collection) -> int:
                 "standard": _infer_standard(file_path, collection),
                 "edition": _infer_edition(file_path),
             }
+            chunks_to_insert.append((collection.id, rel, idx, piece, meta))
+
+    # Process in batches to generate embeddings
+    for i in range(0, len(chunks_to_insert), batch_size):
+        batch = chunks_to_insert[i:i + batch_size]
+        texts = [chunk[3] for chunk in batch]  # chunk[3] is the content
+
+        # Generate embeddings for this batch
+        print(f"Generating embeddings for batch {i//batch_size + 1}/{(len(chunks_to_insert) + batch_size - 1)//batch_size}")
+        embeddings = generate_embeddings(texts)
+
+        # Insert with embeddings
+        for (coll_id, rel, idx, piece, meta), embedding in zip(batch, embeddings):
             conn.execute(
                 """
-                INSERT INTO rag_documents (collection_id, source_path, chunk_index, content, metadata)
-                VALUES (%s, %s, %s, %s, %s::jsonb)
+                INSERT INTO rag_documents (collection_id, source_path, chunk_index, content, embedding, metadata)
+                VALUES (%s, %s, %s, %s, %s::vector, %s::jsonb)
                 ON CONFLICT (collection_id, source_path, chunk_index) DO UPDATE
-                SET content = EXCLUDED.content, metadata = EXCLUDED.metadata
+                SET content = EXCLUDED.content, embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata
                 """,
-                (collection.id, rel, idx, piece, json.dumps(meta)),
+                (coll_id, rel, idx, piece, embedding, json.dumps(meta)),
             )
             inserted += 1
+
     return inserted
 
 

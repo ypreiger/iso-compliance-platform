@@ -1,0 +1,77 @@
+---
+# Job to add pgvector extension and vector column to rag_documents
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iso-add-pgvector
+  labels:
+    app.kubernetes.io/name: iso-add-pgvector
+    app.kubernetes.io/component: migration
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "15"
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: iso-add-pgvector
+    spec:
+      serviceAccountName: iso-platform
+      restartPolicy: OnFailure
+      containers:
+        - name: add-pgvector
+          image: registry.redhat.io/rhel9/postgresql-16:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Adding pgvector extension and vector column..."
+
+              psql "$DATABASE_URL" <<'EOF'
+              -- Enable pgvector extension
+              CREATE EXTENSION IF NOT EXISTS vector;
+
+              -- Add embedding column to rag_documents if it doesn't exist
+              DO $$
+              BEGIN
+                IF NOT EXISTS (
+                  SELECT 1 FROM information_schema.columns
+                  WHERE table_name='rag_documents' AND column_name='embedding'
+                ) THEN
+                  ALTER TABLE rag_documents ADD COLUMN embedding vector(1024);
+                  COMMENT ON COLUMN rag_documents.embedding IS 'BGE-M3 embedding (1024 dimensions)';
+                END IF;
+              END $$;
+
+              -- Create index for vector similarity search (cosine distance)
+              CREATE INDEX IF NOT EXISTS rag_documents_embedding_cosine_idx
+                ON rag_documents
+                USING ivfflat (embedding vector_cosine_ops)
+                WITH (lists = 100);
+
+              -- Create index for metadata JSONB queries
+              CREATE INDEX IF NOT EXISTS rag_documents_metadata_idx
+                ON rag_documents
+                USING gin (metadata);
+
+              VACUUM ANALYZE rag_documents;
+              EOF
+
+              echo "pgvector setup complete!"
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: iso-secrets
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
