@@ -77,7 +77,10 @@ async def llm_call(
                     body = resp.text[:400]
                     raise LLMError(f"LLM API {resp.status_code} (task={task}): {body}")
                 data = resp.json()
-                return data["choices"][0]["message"]["content"]
+                # Handle both standard and reasoning model responses
+                message = data["choices"][0]["message"]
+                content = message.get("content") or message.get("reasoning_content") or ""
+                return content
         except LLMError:
             raise
         except (httpx.HTTPError, KeyError) as exc:
