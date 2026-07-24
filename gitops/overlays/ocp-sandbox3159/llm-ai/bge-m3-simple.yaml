@@ -1,0 +1,164 @@
+---
+# BGE-M3 embedding service using sentence-transformers (simple, CPU-optimized)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bge-m3
+  namespace: llm
+  labels:
+    app: bge-m3
+    component: embeddings
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bge-m3
+  template:
+    metadata:
+      labels:
+        app: bge-m3
+        component: embeddings
+    spec:
+      containers:
+        - name: embedding-server
+          image: python:3.11-slim
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export HOME=/tmp && \
+              pip install --no-cache-dir --user sentence-transformers flask && \
+              export PYTHONPATH=/tmp/.local/lib/python3.11/site-packages:$PYTHONPATH && \
+              python3 /app/server.py
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: app-code
+              mountPath: /app
+          env:
+            - name: MODEL_NAME
+              value: "BAAI/bge-m3"
+            - name: PORT
+              value: "8080"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 180
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 6Gi
+      volumes:
+        - name: app-code
+          configMap:
+            name: bge-m3-server
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bge-m3-server
+  namespace: llm
+data:
+  server.py: |
+    #!/usr/bin/env python3
+    """OpenAI-compatible embedding server for BGE-M3"""
+    import os
+    from flask import Flask, request, jsonify
+    from sentence_transformers import SentenceTransformer
+    import numpy as np
+
+    app = Flask(__name__)
+    model = None
+
+    def load_model():
+        global model
+        model_name = os.getenv("MODEL_NAME", "BAAI/bge-m3")
+        print(f"Loading model: {model_name}")
+        model = SentenceTransformer(model_name, device="cpu")
+        print("Model loaded successfully")
+
+    @app.route("/health", methods=["GET"])
+    def health():
+        return jsonify({"status": "healthy", "model": os.getenv("MODEL_NAME")})
+
+    @app.route("/v1/embeddings", methods=["POST"])
+    def embeddings():
+        data = request.json
+        input_texts = data.get("input", [])
+
+        # Handle single string or list
+        if isinstance(input_texts, str):
+            input_texts = [input_texts]
+
+        # Generate embeddings
+        embeddings = model.encode(input_texts, normalize_embeddings=True)
+
+        # Format response (OpenAI-compatible)
+        response = {
+            "object": "list",
+            "data": [
+                {
+                    "object": "embedding",
+                    "embedding": emb.tolist(),
+                    "index": idx
+                }
+                for idx, emb in enumerate(embeddings)
+            ],
+            "model": os.getenv("MODEL_NAME"),
+            "usage": {
+                "prompt_tokens": sum(len(t.split()) for t in input_texts),
+                "total_tokens": sum(len(t.split()) for t in input_texts)
+            }
+        }
+        return jsonify(response)
+
+    if __name__ == "__main__":
+        load_model()
+        port = int(os.getenv("PORT", 8080))
+        app.run(host="0.0.0.0", port=port)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bge-m3
+  namespace: llm
+  labels:
+    app: bge-m3
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: bge-m3
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: bge-m3
+  namespace: llm
+  labels:
+    app: bge-m3
+spec:
+  to:
+    kind: Service
+    name: bge-m3
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -8,3 +8,4 @@ resources:
   - model-aliases.yaml
   - whisper-maas.yaml
   - maas-lab-whisper-dashboard.yaml
+  - bge-m3-embedding.yaml
