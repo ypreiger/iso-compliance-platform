@@ -39,7 +39,7 @@ async def llm_call(
     temperature: float = 0,
     response_format: str = "json",  # "json" | "text"
     retries: int = 3,
-    timeout: float = 180.0,
+    timeout: float = 300.0,  # Increased for large Hebrew documents
 ) -> str:
     """Call the LLM for a given task; return the content string."""
     cfg = get_model_config()[task]
