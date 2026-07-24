@@ -11,3 +11,5 @@ resources:
   - bge-m3-simple.yaml
   - bge-m3-external-model.yaml
   - gpt-oss-20b.yaml
+  - llm-servicemonitors.yaml
+  - llm-grafana-dashboard.yaml
