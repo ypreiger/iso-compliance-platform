@@ -180,8 +180,12 @@ def run_ingest_pipeline(
         content=content, content_type=content_type,
     )
     log_step("store_file", file_id=file_id, size_bytes=len(content))
+    # Commit before LLM parse — holding RowExclusiveLocks across minutes of
+    # GPT-oss work blocks CREATE TABLE IF NOT EXISTS on new API pods (NetworkError).
+    if hasattr(conn, "commit"):
+        conn.commit()
 
-    # 2. Parse via agent
+    # 2. Parse via agent (no open DB transaction)
     parsed, method = parse_via_agent(
         content, filename=filename, standard=std, language=language
     )

@@ -348,9 +348,19 @@ def ensure_schema() -> None:
         return
     import psycopg
     with psycopg.connect(settings.dsn, autocommit=True) as conn:
-        conn.execute(SCHEMA_PG)
-        _migrate_iso_clause_columns_pg(conn)
-        _seed_postgres(conn)
+        # Avoid indefinite hang when an upload holds table locks (CREATE TABLE
+        # IF NOT EXISTS takes ShareLock, which conflicts with RowExclusiveLock).
+        conn.execute("SET lock_timeout = '10s'")
+        try:
+            conn.execute(SCHEMA_PG)
+            _migrate_iso_clause_columns_pg(conn)
+            _seed_postgres(conn)
+        except Exception as exc:
+            # Schema already exists in production; fail-open so /health can bind.
+            import logging
+            logging.getLogger(__name__).warning(
+                "ensure_schema skipped/partial due to lock or error: %s", exc
+            )
 
 
 def _migrate_iso_clause_columns(conn: Any) -> None:

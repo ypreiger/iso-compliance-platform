@@ -128,13 +128,24 @@ export const api = {
         method: 'POST',
         headers: { Authorization: `Bearer ${t}` },
         body: form,
-      }).then(async (res) => {
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || res.statusText);
-        }
-        return res.json() as Promise<UploadResult>;
-      }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: res.statusText }));
+            throw new Error(err.detail || res.statusText);
+          }
+          return res.json() as Promise<UploadResult>;
+        })
+        .catch((err: unknown) => {
+          // Browsers surface aborted/reset connections as TypeError("NetworkError...")
+          const msg = err instanceof Error ? err.message : String(err);
+          if (/networkerror|failed to fetch|load failed/i.test(msg)) {
+            throw new Error(
+              'Upload connection was interrupted (API restart or proxy timeout). Retry once; large ISO PDFs can take several minutes.',
+            );
+          }
+          throw err instanceof Error ? err : new Error(msg);
+        }),
     translateIso: (t: string, body: {
       standard: string;
       edition?: string;
