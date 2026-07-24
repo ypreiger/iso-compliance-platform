@@ -9,3 +9,4 @@ resources:
   - whisper-maas.yaml
   - maas-lab-whisper-dashboard.yaml
   - bge-m3-embedding.yaml
+  - gpt-oss-20b.yaml
