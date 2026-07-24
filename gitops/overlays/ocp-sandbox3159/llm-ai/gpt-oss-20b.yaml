@@ -44,9 +44,6 @@ spec:
           - --max-model-len=131072
           # Model comes pre-quantized as mxfp4 - no quantization arg needed
           - --gpu-memory-utilization=0.90
-          # Enable structured outputs and function calling
-          - --enable-auto-tool-choice
-          - --tool-call-parser=hermes
         ports:
           - containerPort: 8000
             name: http
