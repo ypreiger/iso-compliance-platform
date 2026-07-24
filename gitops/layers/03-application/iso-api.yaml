@@ -154,7 +154,7 @@ metadata:
   labels:
     app.kubernetes.io/name: iso-api-orchestrator
   annotations:
-    haproxy.router.openshift.io/timeout: 300s
+    haproxy.router.openshift.io/timeout: 600s
     haproxy.router.openshift.io/max-body-size: 100m
 spec:
   to:
