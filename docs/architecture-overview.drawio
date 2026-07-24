@@ -1,0 +1,220 @@
+<mxfile host="app.diagrams.net" modified="2026-07-24T19:42:00.000Z" agent="iso-compliance-platform" version="22.1.0" type="device">
+  <diagram id="iso-arch" name="Architecture Overview">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="ISO Compliance AI Platform — Architecture (OpenShift Flavor)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontStyle=1;fontSize=22;fontColor=#0D47A1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="20" width="1200" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="GPT-oss-20b · BGE-M3 embeddings · PostgreSQL 16 + pgvector · MaaS / TrustyAI · 4-layer GitOps" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontColor=#546E7A;" vertex="1" parent="1">
+          <mxGeometry x="200" y="52" width="1200" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- ===== APPLICATION PLANE ===== -->
+        <mxCell id="plane-app" value="Application Plane  ·  Namespace: iso-platform" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#64B5F6;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#37474F;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="1520" height="250" as="geometry" />
+        </mxCell>
+
+        <mxCell id="users" value="&lt;b&gt;Users&lt;/b&gt;&lt;br&gt;Admin / Auditor / Viewer&lt;br&gt;Google OAuth + JWT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#039BE5;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="70" y="140" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="web" value="&lt;b&gt;iso-web&lt;/b&gt;&lt;br&gt;React SPA · EN/HE · RTL&lt;br&gt;viewer · projects · admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1E88E5;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="320" y="140" width="220" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api" value="&lt;b&gt;iso-api-orchestrator&lt;/b&gt;&lt;br&gt;FastAPI workflow hub&lt;br&gt;projects · findings · mapping&lt;br&gt;corpus · bilingual ISO&lt;br&gt;RAG retrieve / persist" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#64B5F6;strokeColor=#1565C0;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="620" y="130" width="260" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="parse" value="&lt;b&gt;iso-doc-parse-rag agent&lt;/b&gt;&lt;br&gt;/parse · clause extract · EN/HE&lt;br&gt;→ GPT-oss-20b (parse/extract/translate)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="980" y="120" width="520" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gen" value="&lt;b&gt;iso-doc-gen agent&lt;/b&gt;&lt;br&gt;/generate · Hebrew RTL exports&lt;br&gt;XLSX / DOCX / PDF → GPT-oss-20b" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CE93D8;strokeColor=#8E24AA;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="980" y="230" width="520" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- App edges -->
+        <mxCell id="e-browser" value="browser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#1565C0;strokeWidth=2;fontSize=11;fontColor=#1565C0;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="users" target="web">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-api" value="api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#1565C0;strokeWidth=2;fontSize=11;fontColor=#1565C0;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" edge="1" parent="1" source="web" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-parse" value="parse pipeline" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6A1B9A;strokeWidth=2;fontSize=11;fontColor=#6A1B9A;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="parse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-gen" value="generate request" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6A1B9A;strokeWidth=2;fontSize=11;fontColor=#6A1B9A;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="gen">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== AI PLANE ===== -->
+        <mxCell id="plane-ai" value="AI / MaaS Plane  ·  Namespace: llm (+ maas-api)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE7F6;strokeColor=#9575CD;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#37474F;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="380" width="900" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="maas" value="&lt;b&gt;MaaS Gateway&lt;/b&gt;&lt;br&gt;Kuadrant + Authorino&lt;br&gt;JWT · RBAC · quotas&lt;br&gt;OpenAI-compatible /v1&lt;br&gt;+ GPT-4o family" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B39DDB;strokeColor=#5E35B1;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="70" y="430" width="220" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gpt" value="&lt;b&gt;GPT-oss-20b&lt;/b&gt;&lt;br&gt;LLMInferenceService · vLLM · L40 · 21B MoE · 128K" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1C4E9;strokeColor=#6A1B9A;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="360" y="420" width="520" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="bge" value="&lt;b&gt;BGE-M3&lt;/b&gt;&lt;br&gt;LLMInferenceService · vLLM · CPU · 568M · 1024-dim EN/HE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1C4E9;strokeColor=#6A1B9A;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="360" y="510" width="520" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="trust" value="&lt;b&gt;TrustyAI&lt;/b&gt;&lt;br&gt;inference logging · drift · fairness" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7CCC8;strokeColor=#6D4C41;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="360" y="600" width="250" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="guard" value="&lt;b&gt;GuardrailsOrchestrator&lt;/b&gt;&lt;br&gt;HAP / topic policy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D7CCC8;strokeColor=#6D4C41;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="630" y="600" width="250" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- MaaS → models independently (no arrows between models) -->
+        <mxCell id="e-auth-gpt" value="authorized" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5E35B1;strokeWidth=2;fontSize=11;fontColor=#5E35B1;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="maas" target="gpt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-auth-bge" value="embeddings" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5E35B1;strokeWidth=2;fontSize=11;fontColor=#5E35B1;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="maas" target="bge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-policy" value="policy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6D4C41;strokeWidth=2;fontSize=11;fontColor=#6D4C41;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="bge" target="trust">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Agents / API → MaaS -->
+        <mxCell id="e-parse-maas" value="PARSE / EXTRACT / TRANSLATE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5E35B1;strokeWidth=2;fontSize=11;fontColor=#5E35B1;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="parse" target="maas">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="350" />
+              <mxPoint x="180" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-gen-maas" value="GENERATE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#5E35B1;strokeWidth=2;fontSize=11;fontColor=#5E35B1;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.85;entryDx=0;entryDy=0;" edge="1" parent="1" source="gen" target="maas">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="940" y="270" />
+              <mxPoint x="940" y="350" />
+              <mxPoint x="310" y="350" />
+              <mxPoint x="310" y="549" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ===== DATA PLANE ===== -->
+        <mxCell id="plane-data" value="Data Plane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#66BB6A;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#37474F;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="980" y="380" width="580" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pg" value="&lt;b&gt;iso-postgres (PG 16 + pgvector)&lt;/b&gt;&lt;br&gt;iso_clause_text · rag_documents (vector 1024)&lt;br&gt;projects · findings · mappings · IVFFlat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A5D6A7;strokeColor=#2E7D32;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="430" width="520" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="redis" value="&lt;b&gt;iso-redis&lt;/b&gt;&lt;br&gt;cache / session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;strokeColor=#C62828;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="560" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pvc" value="&lt;b&gt;iso-rag-data PVC&lt;/b&gt;&lt;br&gt;seed + artifacts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="560" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-persist" value="persist clauses + RAG" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2E7D32;strokeWidth=2;fontSize=11;fontColor=#2E7D32;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.7;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="pg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="802" y="360" />
+              <mxPoint x="1166" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-cache" value="cache / session" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C62828;strokeWidth=2;fontSize=11;fontColor=#C62828;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="redis">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="698" y="360" />
+              <mxPoint x="960" y="360" />
+              <mxPoint x="960" y="595" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-seed" value="seed / artifacts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#388E3C;strokeWidth=2;fontSize=11;fontColor=#388E3C;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="gen" target="pvc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== OBS ===== -->
+        <mxCell id="plane-obs" value="Observability &amp; Policy Plane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#FFA726;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#37474F;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="900" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="prom" value="&lt;b&gt;Prometheus&lt;/b&gt;&lt;br&gt;ServiceMonitors: GPT-oss-20b · BGE-M3&lt;br&gt;+ MaaS / application scrapes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#EF6C00;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="70" y="745" width="380" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="graf" value="&lt;b&gt;Grafana&lt;/b&gt;&lt;br&gt;LLM Observability dashboard&lt;br&gt;req/s · P95/P99 · GPU · health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCC80;strokeColor=#EF6C00;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="520" y="745" width="380" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e-metrics" value="metrics" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeColor=#E65100;strokeWidth=2;fontSize=11;fontColor=#E65100;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="maas" target="prom">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-signals" value="signals" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeColor=#E65100;strokeWidth=2;fontSize=11;fontColor=#E65100;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="trust" target="graf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-dash" value="dashboards" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EF6C00;strokeWidth=2;fontSize=11;fontColor=#EF6C00;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="prom" target="graf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===== DELIVERY ===== -->
+        <mxCell id="plane-ctl" value="Delivery / Control Plane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#90A4AE;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#37474F;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="980" y="700" width="580" height="280" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gh" value="&lt;b&gt;GitHub&lt;/b&gt;&lt;br&gt;manifests source of truth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CFD8DC;strokeColor=#546E7A;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="750" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="argo" value="&lt;b&gt;ArgoCD&lt;/b&gt;&lt;br&gt;4 layers + llm-ai app" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0BEC5;strokeColor=#455A64;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="750" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="layers" value="&lt;b&gt;GitOps layers&lt;/b&gt;&lt;br&gt;01 platform → 02 app-infra (+pgvector)&lt;br&gt;→ 03 apps → 04 RAG populate (BGE-M3)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CFD8DC;strokeColor=#546E7A;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="840" width="520" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ci" value="&lt;b&gt;External CI&lt;/b&gt;&lt;br&gt;build / push images" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0BEC5;strokeColor=#455A64;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="920" width="240" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ocp" value="&lt;b&gt;OpenShift&lt;/b&gt;&lt;br&gt;iso-platform + llm" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#90A4AE;strokeColor=#37474F;fontSize=12;fontColor=#0D1B2A;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="920" width="240" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Fix CI/OCP geometry for better height -->
+        <mxCell id="e-manifests" value="manifests" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#455A64;strokeWidth=2;fontSize=11;fontColor=#455A64;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="gh" target="argo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-deploy" value="deploy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#455A64;strokeWidth=2;fontSize=11;fontColor=#455A64;fontStyle=1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="argo" target="ocp">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1550" y="780" />
+              <mxPoint x="1550" y="940" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-images" value="images" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#455A64;strokeWidth=2;fontSize=11;fontColor=#455A64;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="ci" target="ocp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Notes -->
+        <mxCell id="notes" value="&lt;b&gt;Notes&lt;/b&gt;&lt;br&gt;• All app LLM traffic uses OpenAI-compatible /v1 via MaaS (no provider SDKs).&lt;br&gt;• Default models: PARSE/EXTRACT/TRANSLATE/GENERATE → GPT-oss-20b; embeddings → BGE-M3.&lt;br&gt;• rag_documents stores BGE-M3 vector(1024); IVFFlat cosine for semantic EN/HE search.&lt;br&gt;• Dual flavor: OpenShift + RHOAI (shown) and Kubernetes + LiteLLM / Ollama." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=12;fontColor=#37474F;spacingLeft=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="870" width="900" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="footer" value="Updated 2026-07 — GPT-oss-20b, BGE-M3 + pgvector, TrustyAI/Guardrails, Grafana LLM Observability, 4-layer GitOps." style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#78909C;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="200" y="1050" width="1200" height="24" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

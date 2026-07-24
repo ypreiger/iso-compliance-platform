@@ -4,6 +4,8 @@
 
 ![General architecture overview](./architecture-overview.png)
 
+> Editable source: [`architecture-overview.drawio`](./architecture-overview.drawio) (open in [diagrams.net](https://app.diagrams.net/) or the Draw.io VS Code/Cursor extension).
+
 The platform uses `iso-api-orchestrator` as the single workflow coordinator:
 - `iso-web` calls orchestrator APIs for projects, corpus, mapping, and retrieval.
 - `iso-doc-parse-rag` handles upload parsing (`/parse`) for PDF/DOC/DOCX ingestion.

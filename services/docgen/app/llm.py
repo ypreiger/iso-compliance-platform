@@ -62,7 +62,8 @@ async def llm_call(
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            # Disable SSL verification for internal cluster HTTPS (self-signed certs)
+            async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
                 resp = await client.post(
                     url,
                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
