@@ -95,13 +95,21 @@ def _body_chars(clauses: list[ParsedClause]) -> int:
 
 def _bad_title(title: str, clause_id: str) -> bool:
     t = (title or "").strip()
-    if not t or t.startswith("Clause "):
+    if not t or t.startswith("Clause ") or t.startswith("סעיף "):
         return True
-    if t in {"סעיף", "וסעיף", "א -", "( א -", "א-", "חשיבה", "– ה", "ה", "-", "–", "הקדמה"}:
+    if t in {"סעיף", "וסעיף", "א -", "( א -", "א-", "חשיבה", "– ה", "ה", "-", "–", "הקדמה", "-א"}:
         return True
     if re.search(r"https?://|www\.iso\.org", t, re.I):
         return True
     if re.search(r"ציור\s*\d|Figure\s*\d", t, re.I):
+        return True
+    # Amendment / corrigendum front-matter mistaken for clause 1 / Scope.
+    if re.search(
+        r"גיליון\s*התיקון|תיקון\s*הטעות|Corrigendum|Amendment\s+\d|"
+        r"All rights reserved|Licensed to",
+        t,
+        re.I,
+    ):
         return True
     if t.startswith(("הערה", "( הערה", "(הערה", "Note:", "NOTE")):
         return True
@@ -119,7 +127,35 @@ def _bad_title(title: str, clause_id: str) -> bool:
     he = re.findall(r"[\u0590-\u05FF]+", t)
     if he and sum(len(x) for x in he) < 3:
         return True
+    # Glued RTL PDF tokens without spaces ("ההקשרשל", "איכותוה").
+    if re.search(r"[\u0590-\u05FF]", t) and " " not in t and len(t) >= 7:
+        return True
+    # Truncated HE stubs that end mid-phrase.
+    if re.search(r"[\u0590-\u05FF]", t) and re.search(r"(של|וה|ו)$", t) and len(t) <= 12:
+        return True
     return False
+
+
+def _title_compatible(title: str, canonical: str) -> bool:
+    """True when extracted title is the same idea as the known ISO heading."""
+    t = (title or "").strip()
+    c = (canonical or "").strip()
+    if not t or not c:
+        return False
+    if t == c:
+        return True
+    # Truncated stubs like "גישה" for "גישה תהליכית" are not good enough.
+    if len(t) < max(4, int(len(c) * 0.55)):
+        return False
+    if t in c or c in t:
+        return True
+    # Shared content words (≥2 chars), ignoring tiny particles.
+    stop = {"של", "את", "על", "עם", "או", "ה", "ו", "ב", "ל", "מ", "and", "the", "of", "to", "in"}
+    tw = {w for w in re.findall(r"[A-Za-z\u0590-\u05FF]{2,}", t.lower()) if w not in stop}
+    cw = {w for w in re.findall(r"[A-Za-z\u0590-\u05FF]{2,}", c.lower()) if w not in stop}
+    if not tw or not cw:
+        return False
+    return len(tw & cw) >= 1 and (len(tw & cw) / max(1, len(cw)) >= 0.34)
 
 
 def _structure_quality_ok(clauses: list[ParsedClause], *, language: str) -> bool:
@@ -146,6 +182,13 @@ def _structure_quality_ok(clauses: list[ParsedClause], *, language: str) -> bool
         return False
     if "1" in by_id and _bad_title(by_id["1"].title, "1"):
         return False
+    lang = language.lower()[:2]
+    known = _KNOWN_TITLES_BY_STANDARD.get("ISO9001", {}).get(lang, {})
+    for cid in ("1", "4", "6", "7", "8", "9", "10"):
+        clause = by_id.get(cid)
+        canonical = known.get(cid)
+        if clause and canonical and not _title_compatible(clause.title, canonical):
+            return False
     return True
 
 
@@ -317,20 +360,18 @@ def parse_via_agent(
             _level3_count(clauses),
         )
         if clauses:
-            # Merge agent output with local structure so HE keeps intro/IDs from
-            # structure while adopting better LLM titles/bodies when available.
-            if local:
+            # Merge only when local structure passed the quality gate. Bad HE PDF
+            # structure (amendment titles, glued RTL words) must not overwrite LLM.
+            if local and local_ok:
                 merged = _merge_clause_lists(clauses, local)
-                if local_ok:
-                    chosen, chosen_method = _choose_best(
-                        primary=merged,
-                        primary_method=f"{method}+structure",
-                        fallback=local,
-                        fallback_method="structure",
-                        language=language,
-                    )
-                    return chosen, chosen_method
-                return merged, f"{method}+structure"
+                chosen, chosen_method = _choose_best(
+                    primary=merged,
+                    primary_method=f"{method}+structure",
+                    fallback=local,
+                    fallback_method="structure",
+                    language=language,
+                )
+                return chosen, chosen_method
             return clauses, method
         log.warning("doc-agent returned 0 clauses; falling back")
     except Exception as exc:
@@ -390,22 +431,75 @@ _KNOWN_TITLES_BY_STANDARD: dict[str, dict[str, dict[str, str]]] = {
             "5.2.2": "תקשור מדיניות האיכות",
             "5.3": "תפקידים, אחריויות וסמכויות בארגון",
             "6": "תכנון",
+            "6.1": "פעולות לטיפול בסיכונים והזדמנויות",
+            "6.1.1": "כללי",
+            "6.1.2": "תכנון פעולות",
+            "6.2": "מטרות איכות ותכנון להשגתן",
+            "6.2.1": "מטרות איכות",
+            "6.2.2": "תכנון להשגת מטרות האיכות",
+            "6.3": "תכנון שינויים",
             "7": "תמיכה",
+            "7.1": "משאבים",
+            "7.1.1": "כללי",
+            "7.1.2": "אנשים",
             "7.1.3": "תשתית",
+            "7.1.4": "סביבה לתפעול תהליכים",
+            "7.1.5": "משאבי ניטור ומדידה",
+            "7.1.6": "ידע ארגוני",
+            "7.2": "כשירות",
+            "7.3": "מודעות",
+            "7.4": "תקשורת",
+            "7.5": "מידע מתועד",
+            "7.5.1": "כללי",
+            "7.5.2": "יצירה ועדכון",
+            "7.5.3": "בקרת מידע מתועד",
+            "7.5.3.1": "כללי",
             "7.5.3.2": "בקרת מידע מתועד",
             "8": "תפעול",
+            "8.1": "תכנון ובקרה תפעוליים",
+            "8.2": "דרישות למוצרים ושירותים",
+            "8.2.1": "תקשורת עם לקוחות",
+            "8.2.2": "קביעת דרישות למוצרים ושירותים",
+            "8.2.3": "סקירת הדרישות למוצרים ושירותים",
+            "8.2.3.1": "כללי",
             "8.2.3.2": "מידע מתועד לסקירת דרישות",
+            "8.2.4": "שינויים בדרישות למוצרים ושירותים",
+            "8.3": "תכן ופיתוח של מוצרים ושירותים",
+            "8.3.1": "כללי",
             "8.3.2": "תכנון תכן ופיתוח",
+            "8.3.3": "קלט לתכן ופיתוח",
+            "8.3.4": "בקרות תכן ופיתוח",
             "8.3.5": "תוצאות תכן ופיתוח",
+            "8.3.6": "שינויי תכן ופיתוח",
+            "8.4": "בקרה על תהליכים, מוצרים ושירותים המסופקים מבחוץ",
+            "8.4.1": "כללי",
             "8.4.2": "סוג והיקף הבקרה",
+            "8.4.3": "מידע לספקים חיצוניים",
+            "8.5": "ייצור ואספקת שירות",
+            "8.5.1": "בקרה על ייצור ואספקת שירות",
+            "8.5.2": "זיהוי ועקיבות",
+            "8.5.3": "רכוש השייך ללקוחות או לספקים חיצוניים",
             "8.5.4": "שימור",
             "8.5.5": "פעילויות לאחר האספקה",
+            "8.5.6": "בקרת שינויים",
+            "8.6": "שחרור מוצרים ושירותים",
+            "8.7": "בקרת פלטות לא תואמות",
             "9": "הערכת ביצועים",
+            "9.1": "ניטור, מדידה, ניתוח והערכה",
+            "9.1.1": "כללי",
+            "9.1.2": "שביעות רצון לקוח",
+            "9.1.3": "ניתוח והערכה",
+            "9.2": "מבדק פנימי",
+            "9.2.1": "כללי",
+            "9.2.2": "תכנית מבדק פנימי",
             "9.3": "סקירת הנהלה",
             "9.3.1": "כללי",
             "9.3.2": "קלט לסקירת הנהלה",
             "9.3.3": "פלט מסקירת הנהלה",
             "10": "שיפור",
+            "10.1": "כללי",
+            "10.2": "אי-התאמה ופעולה מתקנת",
+            "10.3": "שיפור מתמיד",
         },
         "en": {
             "0": "Introduction",
@@ -421,15 +515,43 @@ _KNOWN_TITLES_BY_STANDARD: dict[str, dict[str, dict[str, str]]] = {
             "3": "Terms and definitions",
             "4": "Context of the organization",
             "4.1": "Understanding the organization and its context",
+            "4.2": "Understanding the needs and expectations of interested parties",
+            "4.3": "Determining the scope of the quality management system",
+            "4.4": "Quality management system and its processes",
             "5": "Leadership",
             "5.1": "Leadership and commitment",
             "5.1.1": "General",
             "5.1.2": "Customer focus",
+            "5.2": "Policy",
+            "5.2.1": "Establishing the quality policy",
+            "5.2.2": "Communicating the quality policy",
+            "5.3": "Organizational roles, responsibilities and authorities",
             "6": "Planning",
+            "6.1": "Actions to address risks and opportunities",
+            "6.2": "Quality objectives and planning to achieve them",
+            "6.3": "Planning of changes",
             "7": "Support",
+            "7.1": "Resources",
+            "7.2": "Competence",
+            "7.3": "Awareness",
+            "7.4": "Communication",
+            "7.5": "Documented information",
             "8": "Operation",
+            "8.1": "Operational planning and control",
+            "8.2": "Requirements for products and services",
+            "8.3": "Design and development of products and services",
+            "8.4": "Control of externally provided processes, products and services",
+            "8.5": "Production and service provision",
+            "8.6": "Release of products and services",
+            "8.7": "Control of nonconforming outputs",
             "9": "Performance evaluation",
+            "9.1": "Monitoring, measurement, analysis and evaluation",
+            "9.2": "Internal audit",
+            "9.3": "Management review",
             "10": "Improvement",
+            "10.1": "General",
+            "10.2": "Nonconformity and corrective action",
+            "10.3": "Continual improvement",
         },
     },
 }
@@ -517,6 +639,12 @@ def _repair_known_titles(
     out: list[ParsedClause] = []
     for clause in clauses:
         title = (clause.title or "").strip()
+        # "4.2 הבנת ..." → "הבנת ..."
+        title = re.sub(
+            rf"^{re.escape(clause.clause_id)}\s*[\.\-–—:]?\s*",
+            "",
+            title,
+        ).strip() or title
         canonical = known.get(clause.clause_id)  # None unless this standard has a map
         foreign = _is_foreign_standard_title(title, standard=std, language=lang)
         if foreign:
@@ -524,6 +652,7 @@ def _repair_known_titles(
             title = canonical or _title_fallback(clause.clause_id, language=lang)
         elif canonical and (
             _bad_title(title, clause.clause_id)
+            or not _title_compatible(title, canonical)
             or (
                 title != canonical
                 and (
