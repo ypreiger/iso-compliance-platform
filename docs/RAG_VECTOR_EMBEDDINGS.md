@@ -55,9 +55,19 @@ Document Upload (Hebrew/English ISO Standards)
 - **Embedding Dimension**: 1024
 - **Languages**: 100+ (including English and Hebrew)
 - **License**: MIT
-- **Deployment**: vLLM on CPU (no GPU needed for embeddings)
+- **Deployment**: sentence-transformers on CPU (no GPU needed for embeddings)
+- **MaaS routing**: `HTTPRoute/bge-m3-maas-route` → Kuadrant Auth/RateLimit → Limitador `authorized_hits`
 
-**Endpoint:**
+**Endpoint (via MaaS — monitored):**
+```
+https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/embeddings
+https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/models
+```
+
+Auth: `Authorization: Bearer <SA token audience=maas-default-gateway-sa>`
+(`MAAS_BEARER_TOKEN_FILE` in iso-api / rag-iso jobs).
+
+Direct OpenShift Route (bypass MaaS, no token metrics):
 ```
 https://bge-m3-llm.apps.ocp.7hrxw.sandbox880.opentlc.com/v1/embeddings
 ```
@@ -250,17 +260,19 @@ Both queries return semantically similar clauses because BGE-M3 understands cros
 **GitOps:**
 ```
 gitops/overlays/ocp-sandbox3159/llm-ai/
-├── bge-m3-simple.yaml          # CPU-based BGE-M3 deployment
-├── bge-m3-external-model.yaml  # MaaS routing
+├── bge-m3-simple.yaml          # CPU-based BGE-M3 deployment (+ /metrics, /v1/models)
+├── bge-m3-external-model.yaml  # MaaS HTTPRoute (/llm/bge-m3/v1)
 ├── gpt-oss-20b.yaml            # GPU-based GPT-oss-20b
-└── llm-servicemonitors.yaml    # Prometheus monitoring
+└── llm-servicemonitors.yaml    # Prometheus ServiceMonitor (bge-m3-metrics)
 ```
 
 **Environment Variables:**
 ```bash
-# iso-api, rag-iso, doc-parse-rag
-LLM_EMBED_URL=https://bge-m3-llm.apps.ocp.7hrxw.sandbox880.opentlc.com
+# iso-api, rag-iso (via MaaS for authorized_hits monitoring)
+LLM_EMBED_URL=https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3
 LLM_MODEL_EMBED=bge-m3
+MAAS_BEARER_TOKEN_FILE=/var/run/secrets/maas/token
+```
 
 # doc-parse-rag
 EXTRACT_MODEL_URL=https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1

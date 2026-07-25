@@ -99,6 +99,11 @@ curl -sk https://playground-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com/s
 TOKEN=$(oc create token default -n iso-platform)
 curl -sk -H "Authorization: Bearer $TOKEN" \
   https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/whisper-small/v1/models
+
+# BGE-M3 embeddings via MaaS (authorized_hits / token metrics)
+TOKEN=$(oc create token default -n iso-platform --audience=maas-default-gateway-sa --duration=10m)
+curl -sk -H "Authorization: Bearer $TOKEN" \
+  https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/models
 ```
 
 ## Notes

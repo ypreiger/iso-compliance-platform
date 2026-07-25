@@ -27,7 +27,7 @@ spec:
             - -c
             - |
               export HOME=/tmp && \
-              pip install --no-cache-dir --user sentence-transformers flask && \
+              pip install --no-cache-dir --user sentence-transformers flask prometheus-client && \
               export PYTHONPATH=/tmp/.local/lib/python3.11/site-packages:$PYTHONPATH && \
               python3 /app/server.py
           ports:
@@ -39,8 +39,13 @@ spec:
           env:
             - name: MODEL_NAME
               value: "BAAI/bge-m3"
+            - name: MODEL_ID
+              value: "bge-m3"
             - name: PORT
               value: "8080"
+            # Bump to force rollout when ConfigMap server.py changes
+            - name: SERVER_CONFIG_VERSION
+              value: "maas-metrics-1"
           readinessProbe:
             httpGet:
               path: /health
@@ -73,56 +78,107 @@ metadata:
 data:
   server.py: |
     #!/usr/bin/env python3
-    """OpenAI-compatible embedding server for BGE-M3"""
+    """OpenAI-compatible embedding server for BGE-M3 (MaaS-routable)."""
     import os
-    from flask import Flask, request, jsonify
+    import time
+
+    from flask import Flask, Response, jsonify, request
+    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
     from sentence_transformers import SentenceTransformer
-    import numpy as np
 
     app = Flask(__name__)
     model = None
 
+    MODEL_NAME = os.getenv("MODEL_NAME", "BAAI/bge-m3")
+    MODEL_ID = os.getenv("MODEL_ID", "bge-m3")
+
+    REQUESTS = Counter(
+        "bge_m3_requests_total",
+        "Total embedding requests",
+        ["endpoint", "status"],
+    )
+    TOKENS = Counter(
+        "bge_m3_tokens_total",
+        "Approximate prompt tokens processed",
+        ["endpoint"],
+    )
+    LATENCY = Histogram(
+        "bge_m3_request_latency_seconds",
+        "Embedding request latency",
+        ["endpoint"],
+        buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60),
+    )
+
     def load_model():
         global model
-        model_name = os.getenv("MODEL_NAME", "BAAI/bge-m3")
-        print(f"Loading model: {model_name}")
-        model = SentenceTransformer(model_name, device="cpu")
+        print(f"Loading model: {MODEL_NAME} (id={MODEL_ID})")
+        model = SentenceTransformer(MODEL_NAME, device="cpu")
         print("Model loaded successfully")
+
+    def _token_estimate(texts):
+        return sum(max(1, len(t.split())) for t in texts)
 
     @app.route("/health", methods=["GET"])
     def health():
-        return jsonify({"status": "healthy", "model": os.getenv("MODEL_NAME")})
+        return jsonify({"status": "healthy", "model": MODEL_ID, "model_name": MODEL_NAME})
 
-    @app.route("/v1/embeddings", methods=["POST"])
-    def embeddings():
-        data = request.json
-        input_texts = data.get("input", [])
+    @app.route("/metrics", methods=["GET"])
+    def metrics():
+        return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
-        # Handle single string or list
-        if isinstance(input_texts, str):
-            input_texts = [input_texts]
-
-        # Generate embeddings
-        embeddings = model.encode(input_texts, normalize_embeddings=True)
-
-        # Format response (OpenAI-compatible)
-        response = {
+    @app.route("/v1/models", methods=["GET"])
+    def list_models():
+        return jsonify({
             "object": "list",
             "data": [
                 {
-                    "object": "embedding",
-                    "embedding": emb.tolist(),
-                    "index": idx
+                    "id": MODEL_ID,
+                    "object": "model",
+                    "owned_by": "llm",
                 }
-                for idx, emb in enumerate(embeddings)
             ],
-            "model": os.getenv("MODEL_NAME"),
-            "usage": {
-                "prompt_tokens": sum(len(t.split()) for t in input_texts),
-                "total_tokens": sum(len(t.split()) for t in input_texts)
+        })
+
+    @app.route("/v1/embeddings", methods=["POST"])
+    def embeddings():
+        started = time.perf_counter()
+        status = "ok"
+        try:
+            data = request.json or {}
+            input_texts = data.get("input", [])
+            if isinstance(input_texts, str):
+                input_texts = [input_texts]
+            if not input_texts:
+                status = "empty"
+                return jsonify({"error": "input is required"}), 400
+
+            vectors = model.encode(input_texts, normalize_embeddings=True)
+            prompt_tokens = _token_estimate(input_texts)
+            TOKENS.labels(endpoint="embeddings").inc(prompt_tokens)
+
+            response = {
+                "object": "list",
+                "data": [
+                    {
+                        "object": "embedding",
+                        "embedding": emb.tolist(),
+                        "index": idx,
+                    }
+                    for idx, emb in enumerate(vectors)
+                ],
+                "model": MODEL_ID,
+                "usage": {
+                    "prompt_tokens": prompt_tokens,
+                    "total_tokens": prompt_tokens,
+                },
             }
-        }
-        return jsonify(response)
+            return jsonify(response)
+        except Exception as exc:
+            status = "error"
+            return jsonify({"error": str(exc)[:300]}), 500
+        finally:
+            REQUESTS.labels(endpoint="embeddings", status=status).inc()
+            LATENCY.labels(endpoint="embeddings").observe(time.perf_counter() - started)
 
     if __name__ == "__main__":
         load_model()

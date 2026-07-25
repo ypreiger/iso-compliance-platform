@@ -31,12 +31,24 @@ spec:
                 secretKeyRef:
                   name: iso-secrets
                   key: DATABASE_PASSWORD
+            - name: MAAS_BEARER_TOKEN_FILE
+              value: /var/run/secrets/maas/token
             - name: RAG_ROOT
               value: /opt/rag
           volumeMounts:
             - name: rag-store
               mountPath: /data/rag
+            - name: maas-token
+              mountPath: /var/run/secrets/maas
+              readOnly: true
       volumes:
         - name: rag-store
           persistentVolumeClaim:
             claimName: iso-rag-data
+        - name: maas-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: maas-default-gateway-sa
+                  expirationSeconds: 3600
+                  path: token

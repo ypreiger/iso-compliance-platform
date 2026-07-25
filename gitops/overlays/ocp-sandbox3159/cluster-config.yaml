@@ -16,8 +16,9 @@ data:
   LLM_MODEL_MAPPING: "gpt-oss-20b"
   LLM_MODEL_REPORT: "gpt-oss-20b"
   LLM_MODEL_EMBED: "bge-m3"
-  # BGE-M3 embedding endpoint (multilingual EN/HE support)
-  LLM_EMBED_URL: "https://bge-m3-llm.apps.ocp.7hrxw.sandbox880.opentlc.com"
+  # BGE-M3 via MaaS gateway (Kuadrant authorized_hits + token metrics)
+  # Clients append /v1/embeddings; auth uses MAAS_BEARER_TOKEN_FILE / LLM_API_KEY
+  LLM_EMBED_URL: "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3"
   MAAS_BASE_URL: "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com"
   MAAS_MODEL_LOCAL: "gpt-oss-20b"
   # GPT-oss-20b direct KServe endpoint (no MaaS auth needed for cluster-internal calls)

@@ -64,3 +64,27 @@ oc apply -f gitops/overlays/ocp-sandbox3159/llm-ai/maas-token-metrics-dashboard.
 ## Related ServiceMonitors
 
 `gitops/overlays/ocp-sandbox3159/llm-ai/llm-servicemonitors.yaml` scrapes LLM inference services for latency/GPU metrics. Those series can be added to this dashboard later if needed; token + resource + network coverage is the current requirement.
+
+## BGE-M3 via MaaS
+
+BGE-M3 is exposed on the MaaS gateway (same pattern as Whisper):
+
+| Item | Value |
+|------|--------|
+| HTTPRoute | `llm/bge-m3-maas-route` |
+| Path | `/llm/bge-m3/v1` → Service `bge-m3:8080` |
+| App config | `LLM_EMBED_URL=…/llm/bge-m3` |
+| Token metrics | `authorized_hits{model="bge-m3", …}` (user-workload Prometheus) |
+| Pod metrics | `bge_m3_requests_total`, `bge_m3_tokens_total`, `bge_m3_request_latency_seconds` via ServiceMonitor `bge-m3-metrics` |
+
+Smoke test:
+
+```bash
+TOKEN=$(oc create token default -n iso-platform --audience=maas-default-gateway-sa --duration=10m)
+curl -sk -H "Authorization: Bearer $TOKEN" \
+  https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/models
+curl -sk -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"input":"hello","model":"bge-m3"}' \
+  https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/embeddings
+```

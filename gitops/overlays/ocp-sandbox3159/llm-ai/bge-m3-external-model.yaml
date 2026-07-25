@@ -1,0 +1,43 @@
+---
+# Expose BGE-M3 on the MaaS gateway so Kuadrant Auth/RateLimit/TokenRateLimit
+# policies apply and Limitador emits authorized_hits{model="bge-m3", user=...}.
+#
+# Path (OpenAI-compatible):
+#   https://maas.apps.<cluster>/llm/bge-m3/v1/embeddings
+#   https://maas.apps.<cluster>/llm/bge-m3/v1/models
+#
+# Auth: Bearer <SA token with audience maas-default-gateway-sa>
+# (same pattern as whisper-small / playground).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: bge-m3-maas-route
+  namespace: llm
+  labels:
+    app.kubernetes.io/name: bge-m3
+    app.kubernetes.io/component: model-routing
+    app.kubernetes.io/part-of: llm-platform
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: maas-default-gateway
+      namespace: openshift-ingress
+  rules:
+    - backendRefs:
+        - kind: Service
+          name: bge-m3
+          port: 8080
+      timeouts:
+        request: 120s
+        backendRequest: 120s
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /v1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /llm/bge-m3/v1

@@ -7,11 +7,38 @@ import httpx
 
 
 def get_embedding_url() -> str:
-    """Get BGE-M3 embedding endpoint URL."""
+    """Get BGE-M3 embedding endpoint URL (base without /v1/...)."""
     return os.getenv(
         "LLM_EMBED_URL",
         os.getenv("LLM_GATEWAY_URL", "").replace("/v1", "")  # Fallback
     )
+
+
+def _read_maas_token() -> str:
+    path = os.getenv("MAAS_BEARER_TOKEN_FILE", "").strip()
+    if not path:
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def _embedding_headers() -> dict[str, str]:
+    """Bearer auth for MaaS-routed BGE-M3.
+
+    Prefer the projected SA token (audience maas-default-gateway-sa).
+    Do not fall back to OpenAI LLM_API_KEY — Kuadrant rejects those.
+    """
+    key = (
+        _read_maas_token()
+        or os.getenv("MAAS_API_KEY", "").strip()
+        or os.getenv("EMBED_API_KEY", "").strip()
+    )
+    if not key:
+        return {}
+    return {"Authorization": f"Bearer {key}"}
 
 
 def generate_query_embedding(query: str) -> List[float]:
@@ -21,13 +48,15 @@ def generate_query_embedding(query: str) -> List[float]:
         # Return zero vector if not configured
         return [0.0] * 1024
 
-    endpoint = f"{url}/v1/embeddings"
+    endpoint = f"{url.rstrip('/')}/v1/embeddings"
+    model = os.getenv("LLM_MODEL_EMBED", "bge-m3")
 
     try:
         response = httpx.post(
             endpoint,
-            json={"input": query},
-            timeout=30.0
+            headers=_embedding_headers(),
+            json={"input": query, "model": model},
+            timeout=30.0,
         )
         response.raise_for_status()
         data = response.json()
