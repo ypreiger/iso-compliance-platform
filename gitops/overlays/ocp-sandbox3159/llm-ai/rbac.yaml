@@ -128,10 +128,11 @@ metadata:
   labels:
     app.kubernetes.io/part-of: iso-compliance
 # Must list SAs explicitly — empty group left everyone on free tier (5 req / 2m).
+# OpenShift Group usernames containing ":" require the b64: encoding prefix.
 users:
-  - system:serviceaccount:iso-platform:iso-platform
-  - system:serviceaccount:iso-platform:default
-  - system:serviceaccount:iso-platform:maas-client
+  - b64:c3lzdGVtOnNlcnZpY2VhY2NvdW50Omlzby1wbGF0Zm9ybTppc28tcGxhdGZvcm0=
+  - b64:c3lzdGVtOnNlcnZpY2VhY2NvdW50Omlzby1wbGF0Zm9ybTpkZWZhdWx0
+  - b64:c3lzdGVtOnNlcnZpY2VhY2NvdW50Omlzby1wbGF0Zm9ybTptYWFzLWNsaWVudA==
 ---
 # RHOAI dashboard visibility:
 # - system:authenticated can view llm and iso-platform projects/assets
