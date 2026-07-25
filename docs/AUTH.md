@@ -17,7 +17,7 @@ Project: `iso-compliance-platform` (or your own GCP project).
    ```
    https://<iso-web-route>
    ```
-   Example: `https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com`
+   Example: `https://iso-web-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com`
 4. Copy the **Client ID** (`*.apps.googleusercontent.com`).
 
 If the app is in **Testing** mode, add test user emails on the consent screen, or publish the app.

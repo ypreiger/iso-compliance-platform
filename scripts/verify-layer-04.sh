@@ -25,6 +25,8 @@ pg_count() {
   if [[ -n "${pod}" ]]; then
     oc exec "${pod}" -n "${NS}" -- psql -U iso -d iso -tAc "SELECT COUNT(*) FROM rag_documents;" 2>/dev/null || echo 0
   elif oc get deploy iso-postgres -n "${NS}" &>/dev/null; then
+    # Remote shell must expand pod env vars — keep single quotes for bash -c.
+    # shellcheck disable=SC2016
     oc exec deploy/iso-postgres -n "${NS}" -- bash -c \
       'PGPASSWORD="$POSTGRESQL_PASSWORD" psql -U "$POSTGRESQL_USER" -d "$POSTGRESQL_DATABASE" -tAc "SELECT COUNT(*) FROM rag_documents;"' 2>/dev/null || echo 0
   else

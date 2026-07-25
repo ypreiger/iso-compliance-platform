@@ -5,8 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 NS="${ISO_APP_NAMESPACE:-iso-platform}"
-GITOPS_NS="${ISO_GITOPS_NAMESPACE:-openshift-gitops}"
-CLUSTER_DOMAIN="${ISO_CLUSTER_DOMAIN:-ocp.8mkwb.sandbox3159.opentlc.com}"
+CLUSTER_DOMAIN="${ISO_CLUSTER_DOMAIN:-ocp.7hrxw.sandbox880.opentlc.com}"
 
 log() { printf '[bootstrap] %s\n' "$*"; }
 fail() { printf '[bootstrap] ERROR: %s\n' "$*" >&2; exit 1; }

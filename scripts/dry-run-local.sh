@@ -25,7 +25,7 @@ log "1/6 RAG local verify"
 log "2/6 Start Postgres (docker compose)"
 if command -v docker &>/dev/null; then
   docker compose up -d postgres
-  for i in $(seq 1 30); do
+  for _ in $(seq 1 30); do
     docker compose exec -T postgres pg_isready -U iso &>/dev/null && break
     sleep 1
   done

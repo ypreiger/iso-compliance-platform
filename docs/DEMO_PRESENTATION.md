@@ -16,7 +16,7 @@ Show the architecture diagram:
 
 ### Act 2 — RHOAI Dashboard (5 min)
 
-**URL**: `https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com`
+**URL**: `https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com`
 
 1. **Log in** with your OpenShift credentials.
 
@@ -38,7 +38,7 @@ Show the architecture diagram:
 
 ### Act 3 — AI Playground (10 min)
 
-**URL**: `https://playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com`
+**URL**: `https://playground-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com`
 
 #### 3.1 Architecture callout (sidebar)
 Point to the right sidebar:
@@ -81,7 +81,7 @@ Ask something off-topic:
 
 ### Act 4 — Document Upload & RAG (5 min)
 
-**URL**: `https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com/admin/knowledge/iso`
+**URL**: `https://iso-web-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com/admin/knowledge/iso`
 
 1. **Upload a PDF** (use one of `RAG/RAG-Standards/*.docx` as example)
    - Select standard: ISO9001
@@ -104,7 +104,7 @@ Ask something off-topic:
 
 ### Act 5 — ISO Viewer (5 min)
 
-**URL**: `https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com/iso`
+**URL**: `https://iso-web-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com/iso`
 
 1. Select **ISO9001** · Language **English**
 2. Click a clause (e.g., **4.1 Understanding the organization**)
@@ -132,7 +132,7 @@ Back in RHOAI Dashboard → Project llm → Trusty AI:
 
 ### Act 7 — GitOps & Configuration (3 min)
 
-Open ArgoCD: `https://openshift-gitops-server-openshift-gitops.apps.ocp.8mkwb.sandbox3159.opentlc.com`
+Open ArgoCD: `https://openshift-gitops-server-openshift-gitops.apps.ocp.7hrxw.sandbox880.opentlc.com`
 
 Show:
 - `iso-compliance-platform` + `llm-ai-platform`: **Synced · Healthy**
@@ -184,9 +184,9 @@ MODELS_CONFIG: |
 
 | Service | URL |
 |---------|-----|
-| AI Playground (unified) | https://playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| ISO Compliance Platform | https://iso-web-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| RHOAI Dashboard | https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| ArgoCD | https://openshift-gitops-server-openshift-gitops.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| MaaS API | https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com |
-| Qwen3 4B endpoint | https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1 |
+| AI Playground (unified) | https://playground-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| ISO Compliance Platform | https://iso-web-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| RHOAI Dashboard | https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| ArgoCD | https://openshift-gitops-server-openshift-gitops.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| MaaS API | https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| Qwen3 4B endpoint | https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/qwen3-4b-instruct/v1 |

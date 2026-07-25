@@ -41,7 +41,7 @@ Browser → Playground (iso-platform)
 - **Model**: `oci://quay.io/jharmison/models:qwen--qwen3-4b-instruct-2507-modelcar`
 - **Context**: 131 072 tokens
 - **GPU**: 1× NVIDIA L40 (gpu-memory-utilization=0.95)
-- **MaaS URL**: `https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1`
+- **MaaS URL**: `https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/qwen3-4b-instruct/v1`
 - **Auth**: Bearer token (any OpenShift SA token — `system:authenticated` = free tier)
 
 ### MaaS Gateway
@@ -128,7 +128,7 @@ oc get svc -n llm | grep guardrails
 
 ## RHOAI Dashboard
 
-URL: `https://rhods-dashboard-redhat-ods-applications.apps.ocp.8mkwb.sandbox3159.opentlc.com`
+URL: `https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com`
 
 After the `llm-ai-platform` ArgoCD app syncs:
 - **Projects**: `llm` namespace appears as a DataScienceProject
@@ -145,17 +145,17 @@ After the `llm-ai-platform` ArgoCD app syncs:
 TOKEN=$(oc create token default -n iso-platform)
 
 # Test Qwen3 via MaaS
-curl -sk https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1/models \
+curl -sk https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/qwen3-4b-instruct/v1/models \
   -H "Authorization: Bearer $TOKEN"
 
 # Test chat completion
-curl -sk https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1/chat/completions \
+curl -sk https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/qwen3-4b-instruct/v1/chat/completions \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"model":"qwen3-4b-instruct","messages":[{"role":"user","content":"What is ISO 9001?"}],"max_tokens":100}'
 
 # Test playground health
-curl -sk https://playground-iso-platform.apps.ocp.8mkwb.sandbox3159.opentlc.com/health
+curl -sk https://playground-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com/health
 ```
 
 ---
@@ -175,7 +175,7 @@ oc rollout restart deployment/playground -n iso-platform
 # Example: switch EXTRACT to Qwen3 (saves OpenAI cost)
 oc patch configmap iso-app-config -n iso-platform --type=merge -p '{
   "data": {
-    "EXTRACT_MODEL_URL": "https://maas.apps.ocp.8mkwb.sandbox3159.opentlc.com/llm/qwen3-4b-instruct/v1",
+    "EXTRACT_MODEL_URL": "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/qwen3-4b-instruct/v1",
     "EXTRACT_MODEL_NAME": "qwen3-4b-instruct"
   }
 }'

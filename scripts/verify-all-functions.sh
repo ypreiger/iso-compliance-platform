@@ -81,7 +81,7 @@ if [ -z "$PG_POD" ]; then
 fi
 
 echo "  Checking pgvector extension..."
-PGVECTOR_CHECK=$(oc exec -n iso-platform $PG_POD -- psql -U iso -d iso -tAc "SELECT extversion FROM pg_extension WHERE extname='vector';" 2>&1)
+PGVECTOR_CHECK=$(oc exec -n iso-platform "$PG_POD" -- psql -U iso -d iso -tAc "SELECT extversion FROM pg_extension WHERE extname='vector';" 2>&1)
 if [ -n "$PGVECTOR_CHECK" ]; then
     echo -e "${GREEN}✓ pgvector extension installed (version: $PGVECTOR_CHECK)${NC}"
 else
@@ -90,7 +90,7 @@ else
 fi
 
 echo "  Checking rag_documents table..."
-RAG_COUNT=$(oc exec -n iso-platform $PG_POD -- psql -U iso -d iso -tAc "SELECT COUNT(*) FROM rag_documents;" 2>&1)
+RAG_COUNT=$(oc exec -n iso-platform "$PG_POD" -- psql -U iso -d iso -tAc "SELECT COUNT(*) FROM rag_documents;" 2>&1)
 if [ "$RAG_COUNT" -gt 0 ]; then
     echo -e "${GREEN}✓ rag_documents table has $RAG_COUNT rows${NC}"
 else
@@ -98,7 +98,7 @@ else
 fi
 
 echo "  Checking IVFFlat index..."
-INDEX_CHECK=$(oc exec -n iso-platform $PG_POD -- psql -U iso -d iso -tAc "SELECT indexname FROM pg_indexes WHERE tablename='rag_documents' AND indexname LIKE '%ivfflat%';" 2>&1)
+INDEX_CHECK=$(oc exec -n iso-platform "$PG_POD" -- psql -U iso -d iso -tAc "SELECT indexname FROM pg_indexes WHERE tablename='rag_documents' AND indexname LIKE '%ivfflat%';" 2>&1)
 if [ -n "$INDEX_CHECK" ]; then
     echo -e "${GREEN}✓ IVFFlat index exists: $INDEX_CHECK${NC}"
 else
