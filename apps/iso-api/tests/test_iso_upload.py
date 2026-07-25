@@ -48,8 +48,10 @@ The organization shall determine interested parties.
 """
     std, clauses = parse_upload(raw, filename="iso.md", standard="ISO9001", language="en")
     assert std == "ISO9001"
-    assert len(clauses) == 2
-    assert clauses[0].clause_id == "4.1"
+    by_id = {c.clause_id: c for c in clauses}
+    # Parent "4" is synthesized so hierarchy / UI tree stays complete.
+    assert set(by_id) == {"4", "4.1", "4.2"}
+    assert "external and internal issues" in by_id["4.1"].body
 
 
 def test_import_replaces_language_rows():
@@ -132,8 +134,9 @@ def test_parse_docx_clauses():
     doc.save(buf)
     std, clauses = parse_upload(buf.getvalue(), filename="iso.docx", standard="ISO9001", language="en")
     assert std == "ISO9001"
-    assert len(clauses) == 2
-    assert clauses[0].clause_id == "4.1"
+    by_id = {c.clause_id: c for c in clauses}
+    assert set(by_id) == {"4", "4.1", "4.2"}
+    assert by_id["4.1"].title.startswith("Understanding")
 
 
 def test_parse_pdf_clauses():
@@ -149,8 +152,9 @@ The organization shall determine interested parties.
 """
     with patch("app.iso.document_extract.extract_text_from_pdf", return_value=sample):
         std, clauses = parse_upload(b"%PDF-1.4", filename="iso.pdf", standard="ISO9001", language="en")
-    assert len(clauses) == 2
-    assert clauses[0].clause_id == "4.1"
+    by_id = {c.clause_id: c for c in clauses}
+    assert set(by_id) == {"4", "4.1", "4.2"}
+    assert by_id["4.1"].clause_id == "4.1"
 
 
 def test_dedupe_duplicate_clause_ids_in_upload():
@@ -181,7 +185,10 @@ def test_dedupe_duplicate_clause_ids_in_upload():
         headers={"Authorization": f"Bearer {token}"},
     ).json()["clauses"]
     c1 = next(c for c in clauses if c["clause_id"] == "1")
-    assert "A" in c1["text"] and "B" in c1["text"]
+    # First occurrence wins (avoids annex correspondence overwriting titles/bodies).
+    assert "A" in c1["text"]
+    assert "B" not in c1["text"]
+    assert c1["title"] == "First"
 
 
 def test_filters_pdf_noise():
@@ -196,8 +203,10 @@ def test_filters_pdf_noise():
     ).encode()
     std, clauses = parse_upload(raw, filename="iso.txt", standard="ISO9001", language="en")
     assert std == "ISO9001"
-    assert len(clauses) == 2
-    assert clauses[0].clause_id == "4.1"
+    by_id = {c.clause_id: c for c in clauses}
+    assert "0" not in by_id
+    assert set(by_id) == {"4", "4.1", "4.2"}
+    assert "All rights reserved" not in by_id["4.1"].body
 
 
 def test_hebrew_view_uses_hebrew_rows():

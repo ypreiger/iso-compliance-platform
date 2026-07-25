@@ -80,7 +80,9 @@ http://bge-m3.llm.svc.cluster.local:8080/v1/embeddings
 https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/embeddings
 ```
 
-Monitor **application** use in Grafana dashboard `ISO App Model Calls` (`embed_index` / `embed_query` / `bge-m3`).
+Monitor **application** use in the single Grafana dashboard
+`MaaS Token Metrics Dashboard (with User/Model Filters)` (`maas-token-metrics`):
+filter **Model = bge-m3** and/or **User = iso-api** (`embed_index` / `embed_query`).
 
 **Why BGE-M3?**
 - Best multilingual performance for Hebrew/English

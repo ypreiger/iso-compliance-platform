@@ -5,16 +5,8 @@ import json
 import re
 from dataclasses import dataclass
 
-CLAUSE_HEAD = re.compile(
-    r"^(?:#{1,4}\s*)?"
-    r"(\d{1,2}(?:\.\d{1,2}){0,3})"
-    r"\s+"
-    r"(.+?)\s*$",
-    re.MULTILINE,
-)
-
 JUNK_RE = re.compile(
-    r"(©\s*ISO|All rights reserved|Licensed to|ANSI order|Downloaded \d|^\s*ISO\s*\d|\d\s+\d\s+\d\s+\d\s+\d)",
+    r"((?:©|\(c\))\s*ISO|All rights reserved|Licensed to|ANSI order|Downloaded \d|^\s*ISO\s*\d|\d\s+\d\s+\d\s+\d\s+\d)",
     re.IGNORECASE,
 )
 

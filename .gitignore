@@ -21,9 +21,11 @@ apps/iso-web/dist/
 .vscode/
 *.swp
 
-# OS
+# OS / Office autosave locks
 .DS_Store
 **/.DS_Store
+**/~$*
+**/.~lock.*
 
 # Generated exports (samples)
 *.docx

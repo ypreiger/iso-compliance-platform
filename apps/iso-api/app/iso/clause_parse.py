@@ -23,7 +23,7 @@ CLAUSE_ID_ONLY = re.compile(r"^\.?\d{1,2}(?:\.\d{1,2}){0,4}\.?$")
 _DOTS_ONLY = re.compile(r"^[.\s…·‧]+$")
 
 JUNK_LINE = re.compile(
-    r"(©\s*ISO|All rights reserved|Licensed to|ANSI order|Downloaded \d/"
+    r"((?:©|\(c\))\s*ISO|All rights reserved|Licensed to|ANSI order|Downloaded \d/"
     r"|^\s*ISO\s*9001:\d{4}|^\s*INTERNATIONAL\s+STANDARD\s*$|^\d+\s*$"
     r"|\.{10,}|…{3,})",  # Table of contents dotted leaders
     re.IGNORECASE,
@@ -60,13 +60,22 @@ def try_clause_header(line: str) -> tuple[str, str] | None:
     match = CLAUSE_LINE.match(stripped)
     if not match:
         return None
-    clause_id = normalize_clause_id(match.group(1))
+    raw_id = match.group(1)
+    # PDF chrome / page stamps often look like "000 Title" or "00 Title".
+    # Real ISO introduction uses bare "0" / "0.x", never zero-padded tops.
+    top_raw = raw_id.split(".", 1)[0]
+    if re.fullmatch(r"0\d+", top_raw):
+        return None
+    clause_id = normalize_clause_id(raw_id)
     title = match.group(2).strip()
 
     # Clean up any remaining TOC artifacts
     title = re.sub(r'\.{3,}.*$', '', title).strip()  # Remove trailing dots and everything after
     title = re.sub(r'…{2,}.*$', '', title).strip()   # Remove ellipsis
     title = re.sub(r'\s+\d+\s*$', '', title).strip()  # Remove trailing page numbers
+    # Leftover digit from over-long zero pads ("000 Title" → id "00", title "0 Title")
+    if re.match(r"^\d", title):
+        return None
 
     # Correspondence-table contamination: "Support 6 Resource management"
     # (ISO 9001 title + ISO 13485 id/title on the same extracted line).

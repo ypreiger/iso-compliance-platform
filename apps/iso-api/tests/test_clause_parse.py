@@ -66,6 +66,15 @@ Top management shall establish a quality policy.
     assert "© ISO" not in by_id["5.1.2"].body
 
 
+def test_zero_padded_page_chrome_is_not_a_clause():
+    from app.iso.clause_parse import try_clause_header
+
+    assert try_clause_header("000 Quality management systems") is None
+    assert try_clause_header("00 Quality management systems") is None
+    assert try_clause_header("0 Introduction") == ("0", "Introduction")
+    assert try_clause_header("0.1 General") == ("0.1", "General")
+
+
 def test_hebrew_pdf_dot_chrome_does_not_crash_reflow():
     from app.iso.clause_parse import parse_iso_document_text
 

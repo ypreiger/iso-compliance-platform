@@ -164,7 +164,7 @@ _CLAUSE_LINE = _re.compile(
     r"^(?:#{1,4}\s*)?\.?(\d{1,2}(?:\.\d{1,2}){0,4})(?:\s*[\.\)]?\s*)(\S(?:.*\S)?)\s*$"
 )
 _JUNK = _re.compile(
-    r"(©\s*ISO|All rights reserved|Licensed to|Downloaded|^\s*\d{1,3}\s*$)", _re.I
+    r"((?:©|\(c\))\s*ISO|All rights reserved|Licensed to|Downloaded|^\s*\d{1,3}\s*$)", _re.I
 )
 _TOC_LINE = _re.compile(r"\.{2,}\s*\d+\s*$")
 _CLAUSE_ID_ONLY = _re.compile(r"^\d{1,2}(?:\.\d{1,2}){0,4}$")
