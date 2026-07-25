@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.parse import router as parse_router
@@ -54,6 +54,15 @@ def health():
         "version": "1.0.0",
         "mode": _AGENT_MODE,
     }
+
+
+@app.get("/metrics")
+def metrics():
+    """Prometheus scrape endpoint for application model-call metrics."""
+    from app.model_metrics import metrics_payload
+
+    body, content_type = metrics_payload()
+    return Response(content=body, media_type=content_type)
 
 
 @app.get("/ready")

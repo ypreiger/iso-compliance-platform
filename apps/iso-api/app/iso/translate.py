@@ -111,31 +111,43 @@ async def _llm_json_translate(
     url = f"{settings.llm_gateway_url.rstrip('/')}/chat/completions"
     headers = {"Authorization": f"Bearer {settings.llm_api_key}"}
 
+    from app.observability.model_metrics import track_model_call, usage_from_response
+
     last_exc: Exception | None = None
     for attempt in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=180, verify=False) as client:
-                resp = await client.post(url, headers=headers, json=payload)
-                if resp.status_code == 429:
-                    await asyncio.sleep(5 * (attempt + 1))
-                    continue
-                resp.raise_for_status()
-                choice = resp.json()["choices"][0]
-                finish = choice.get("finish_reason") or choice.get("finishReason")
-                message = choice["message"]
-                content = (
-                    message.get("content")
-                    or message.get("reasoning_content")
-                    or message.get("reasoning")
-                    or ""
-                )
-            if finish == "length":
-                raise ValueError("LLM hit max_tokens mid-translation (finish_reason=length)")
-            return _parse_json_object(str(content))
-        except Exception as exc:
-            last_exc = exc
-            log.warning("translate LLM attempt %d failed: %s", attempt + 1, exc)
-            await asyncio.sleep(1.5 * (attempt + 1))
+        with track_model_call(task="translate", model=settings.llm_model_mapping) as mctx:
+            try:
+                async with httpx.AsyncClient(timeout=180, verify=False) as client:
+                    resp = await client.post(url, headers=headers, json=payload)
+                    if resp.status_code == 429:
+                        mctx["status"] = "rate_limited"
+                        await asyncio.sleep(5 * (attempt + 1))
+                        continue
+                    resp.raise_for_status()
+                    body = resp.json()
+                    prompt_t, completion_t, total_t = usage_from_response(body)
+                    mctx["prompt_tokens"] = prompt_t
+                    mctx["completion_tokens"] = completion_t
+                    mctx["total_tokens"] = total_t
+                    mctx["model"] = body.get("model") or settings.llm_model_mapping
+                    choice = body["choices"][0]
+                    finish = choice.get("finish_reason") or choice.get("finishReason")
+                    message = choice["message"]
+                    content = (
+                        message.get("content")
+                        or message.get("reasoning_content")
+                        or message.get("reasoning")
+                        or ""
+                    )
+                if finish == "length":
+                    mctx["status"] = "error"
+                    raise ValueError("LLM hit max_tokens mid-translation (finish_reason=length)")
+                return _parse_json_object(str(content))
+            except Exception as exc:
+                mctx["status"] = "error"
+                last_exc = exc
+                log.warning("translate LLM attempt %d failed: %s", attempt + 1, exc)
+                await asyncio.sleep(1.5 * (attempt + 1))
     raise RuntimeError(f"Translation failed: {last_exc}")
 
 

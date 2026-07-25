@@ -1,69 +1,14 @@
 """Vector similarity search for ISO clauses using BGE-M3 embeddings."""
 from __future__ import annotations
 
-import os
 from typing import List, Dict, Any, Optional
-import httpx
 
-
-def get_embedding_url() -> str:
-    """Get BGE-M3 embedding endpoint URL (base without /v1/...)."""
-    return os.getenv(
-        "LLM_EMBED_URL",
-        os.getenv("LLM_GATEWAY_URL", "").replace("/v1", "")  # Fallback
-    )
-
-
-def _read_maas_token() -> str:
-    path = os.getenv("MAAS_BEARER_TOKEN_FILE", "").strip()
-    if not path:
-        return ""
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    except OSError:
-        return ""
-
-
-def _embedding_headers() -> dict[str, str]:
-    """Bearer auth for MaaS-routed BGE-M3.
-
-    Prefer the projected SA token (audience maas-default-gateway-sa).
-    Do not fall back to OpenAI LLM_API_KEY — Kuadrant rejects those.
-    """
-    key = (
-        _read_maas_token()
-        or os.getenv("MAAS_API_KEY", "").strip()
-        or os.getenv("EMBED_API_KEY", "").strip()
-    )
-    if not key:
-        return {}
-    return {"Authorization": f"Bearer {key}"}
+from app.iso.embeddings import generate_embedding, is_zero_vector
 
 
 def generate_query_embedding(query: str) -> List[float]:
-    """Generate embedding for search query."""
-    url = get_embedding_url()
-    if not url or url == "https://REPLACE-maas-or-gateway":
-        # Return zero vector if not configured
-        return [0.0] * 1024
-
-    endpoint = f"{url.rstrip('/')}/v1/embeddings"
-    model = os.getenv("LLM_MODEL_EMBED", "bge-m3")
-
-    try:
-        response = httpx.post(
-            endpoint,
-            headers=_embedding_headers(),
-            json={"input": query, "model": model},
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data["data"][0]["embedding"]
-    except Exception as e:
-        print(f"Error generating query embedding: {e}")
-        return [0.0] * 1024
+    """Generate embedding for search query (instrumented)."""
+    return generate_embedding(query, task="embed_query")
 
 
 def search_similar_chunks(
@@ -86,14 +31,15 @@ def search_similar_chunks(
     std = normalize_standard_id(standard)
     coll = collection_id_for_standard(std)
 
-    # Generate query embedding
     query_embedding = generate_query_embedding(query)
+    if is_zero_vector(query_embedding):
+        return []
 
     filters = [
         "(collection_id = %s OR (collection_id = %s AND metadata->>'standard' = %s))",
         "metadata->>'standard' = %s",
+        "embedding IS NOT NULL",
     ]
-    # embedding appears twice in SQL; build params carefully
     filter_params: list = [coll, LEGACY_COLLECTION_ID, std, std]
 
     if language:
@@ -118,18 +64,33 @@ def search_similar_chunks(
     """
 
     params = [query_embedding, *filter_params, query_embedding, limit]
-    cursor = conn.execute(sql, params)
-    results = []
+    try:
+        cursor = conn.execute(sql, params)
+    except Exception as exc:
+        print(f"vector search unavailable: {exc}")
+        return []
 
+    results = []
     for row in cursor.fetchall():
-        results.append({
-            "id": row[0],
-            "collection_id": row[1],
-            "source_path": row[2],
-            "chunk_index": row[3],
-            "content": row[4],
-            "metadata": row[5],
-            "similarity": float(row[6]),
-        })
+        if isinstance(row, dict):
+            results.append({
+                "id": row["id"],
+                "collection_id": row["collection_id"],
+                "source_path": row["source_path"],
+                "chunk_index": row["chunk_index"],
+                "content": row["content"],
+                "metadata": row["metadata"],
+                "similarity": float(row["similarity"]),
+            })
+        else:
+            results.append({
+                "id": row[0],
+                "collection_id": row[1],
+                "source_path": row[2],
+                "chunk_index": row[3],
+                "content": row[4],
+                "metadata": row[5],
+                "similarity": float(row[6]),
+            })
 
     return results

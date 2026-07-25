@@ -64,12 +64,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: iso-doc-parse-rag
+  labels:
+    app.kubernetes.io/name: iso-doc-parse-rag
 spec:
   selector:
     app.kubernetes.io/name: iso-doc-parse-rag
   ports:
     - port: 8080
       targetPort: http
+      name: http
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -137,9 +140,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: iso-doc-gen
+  labels:
+    app.kubernetes.io/name: iso-doc-gen
 spec:
   selector:
     app.kubernetes.io/name: iso-doc-gen
   ports:
     - port: 8080
       targetPort: http
+      name: http

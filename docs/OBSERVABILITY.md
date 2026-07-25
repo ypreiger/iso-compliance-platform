@@ -61,9 +61,35 @@ oc -n openshift-gitops patch application llm-ai-platform \
 oc apply -f gitops/overlays/ocp-sandbox3159/llm-ai/maas-token-metrics-dashboard.yaml
 ```
 
+## Application model calls (every invocation)
+
+MaaS `authorized_hits` only sees traffic that goes through the gateway. The apps also call models **in-cluster** (BGE-M3, GPT-oss KServe). Those calls are counted by application metrics:
+
+| Series | Meaning |
+|--------|---------|
+| `iso_app_model_requests_total{service,task,model,status}` | Every chat/embed call |
+| `iso_app_model_tokens_total{service,task,model,token_type}` | prompt / completion / total |
+| `iso_app_model_latency_seconds_*` | Latency histogram |
+
+| Field | Value |
+|-------|--------|
+| **Dashboard** | `ISO App Model Calls (every invocation)` (UID `iso-app-model-metrics`) |
+| **GitOps** | `gitops/overlays/ocp-sandbox3159/llm-ai/iso-app-model-metrics-dashboard.yaml` |
+| **Scraped from** | `iso-api-orchestrator`, `iso-doc-parse-rag`, `iso-doc-gen` `/metrics` |
+| **ServiceMonitors** | `gitops/layers/03-application/iso-app-model-servicemonitors.yaml` |
+
+Tasks you will see after UI use:
+
+| UI / job | task label | typical model |
+|----------|------------|---------------|
+| Admin ISO upload (parse) | `parse` / docgen `extract` | `gpt-oss-20b` |
+| Translate EN↔HE | `translate` | `gpt-oss-20b` |
+| RAG index after upload | `embed_index` | `bge-m3` |
+| Auto mapping / vector RAG | `embed_query` | `bge-m3` |
+
 ## Related ServiceMonitors
 
-`gitops/overlays/ocp-sandbox3159/llm-ai/llm-servicemonitors.yaml` scrapes LLM inference services for latency/GPU metrics. Those series can be added to this dashboard later if needed; token + resource + network coverage is the current requirement.
+`gitops/overlays/ocp-sandbox3159/llm-ai/llm-servicemonitors.yaml` scrapes LLM inference services for latency/GPU metrics.
 
 ## BGE-M3 via MaaS
 

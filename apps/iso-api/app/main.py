@@ -3,12 +3,13 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.auth.deps import get_current_user
 from app.db import ensure_schema, get_document_count
+from app.observability.model_metrics import metrics_response
 from app.routes import auth, corpus, coverage, documents, exports, findings, instructions, iso_text, mapping, projects, users
 
 
@@ -44,6 +45,13 @@ app.include_router(exports.router)
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "iso-api-orchestrator", "version": "0.2.0"}
+
+
+@app.get("/metrics")
+def metrics():
+    """Prometheus scrape endpoint for application model-call metrics."""
+    body, content_type = metrics_response()
+    return Response(content=body, media_type=content_type)
 
 
 @app.get("/ready")

@@ -168,48 +168,61 @@ def _llm_parse_segment(
         "response_format": {"type": "json_object"},
     }
 
+    from app.observability.model_metrics import track_model_call, usage_from_response
+
     last_exc: Exception | None = None
     for attempt in range(retries):
-        try:
-            # Cluster MaaS endpoints often use private/self-signed TLS.
-            with httpx.Client(timeout=180, verify=False) as client:
-                resp = client.post(
-                    _openai_url(),
-                    headers={"Authorization": f"Bearer {key}"},
-                    json=payload,
-                )
-                if resp.status_code == 429:
-                    wait = 5 * (attempt + 1)
-                    log.warning("LLM rate-limited; sleeping %ds", wait)
-                    time.sleep(wait)
-                    continue
-                resp.raise_for_status()
-                message = resp.json()["choices"][0]["message"]
-                raw = (
-                    message.get("content")
-                    or message.get("reasoning_content")
-                    or message.get("reasoning")
-                    or ""
-                )
-                if not str(raw).strip():
-                    raise json.JSONDecodeError("empty LLM content", "", 0)
-                # The model may wrap array in {"clauses": [...]} due to json_object mode
-                parsed = json.loads(raw)
-                if isinstance(parsed, list):
-                    return parsed
-                # Try common wrapper keys
-                for key_name in ("clauses", "data", "result", "items"):
-                    if key_name in parsed and isinstance(parsed[key_name], list):
-                        return parsed[key_name]
-                # Return values if it's a dict of clause_id→obj
-                if parsed and all(isinstance(v, dict) for v in parsed.values()):
-                    return list(parsed.values())
-                log.warning("Unexpected LLM response shape: %s", str(parsed)[:200])
-                return []
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError) as exc:
-            last_exc = exc
-            log.warning("LLM call attempt %d failed: %s", attempt + 1, exc)
-            time.sleep(2 ** attempt)
+        with track_model_call(task="parse", model=_llm_model()) as mctx:
+            try:
+                # Cluster MaaS endpoints often use private/self-signed TLS.
+                with httpx.Client(timeout=180, verify=False) as client:
+                    resp = client.post(
+                        _openai_url(),
+                        headers={"Authorization": f"Bearer {key}"},
+                        json=payload,
+                    )
+                    if resp.status_code == 429:
+                        mctx["status"] = "rate_limited"
+                        wait = 5 * (attempt + 1)
+                        log.warning("LLM rate-limited; sleeping %ds", wait)
+                        time.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+                    body = resp.json()
+                    prompt_t, completion_t, total_t = usage_from_response(body)
+                    mctx["prompt_tokens"] = prompt_t
+                    mctx["completion_tokens"] = completion_t
+                    mctx["total_tokens"] = total_t
+                    mctx["model"] = body.get("model") or _llm_model()
+                    message = body["choices"][0]["message"]
+                    raw = (
+                        message.get("content")
+                        or message.get("reasoning_content")
+                        or message.get("reasoning")
+                        or ""
+                    )
+                    if not str(raw).strip():
+                        mctx["status"] = "empty"
+                        raise json.JSONDecodeError("empty LLM content", "", 0)
+                    # The model may wrap array in {"clauses": [...]} due to json_object mode
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list):
+                        return parsed
+                    # Try common wrapper keys
+                    for key_name in ("clauses", "data", "result", "items"):
+                        if key_name in parsed and isinstance(parsed[key_name], list):
+                            return parsed[key_name]
+                    # Return values if it's a dict of clause_id→obj
+                    if parsed and all(isinstance(v, dict) for v in parsed.values()):
+                        return list(parsed.values())
+                    log.warning("Unexpected LLM response shape: %s", str(parsed)[:200])
+                    mctx["status"] = "empty"
+                    return []
+            except (httpx.HTTPError, json.JSONDecodeError, KeyError) as exc:
+                mctx["status"] = "error"
+                last_exc = exc
+                log.warning("LLM call attempt %d failed: %s", attempt + 1, exc)
+                time.sleep(2 ** attempt)
 
     raise RuntimeError(f"LLM parsing failed after {retries} attempts: {last_exc}")
 

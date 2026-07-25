@@ -58,18 +58,29 @@ Document Upload (Hebrew/English ISO Standards)
 - **Deployment**: sentence-transformers on CPU (no GPU needed for embeddings)
 - **MaaS routing**: `HTTPRoute/bge-m3-maas-route` → Kuadrant Auth/RateLimit → Limitador `authorized_hits`
 
-**Endpoints:**
+### When BGE-M3 is needed
+
+BGE-M3 produces **1024-dim multilingual embeddings** so RAG can match Hebrew and English by meaning (not only keywords). It is required when:
+
+1. **Indexing** ISO uploads into `rag_documents.embedding` (Admin upload / translate re-index)
+2. **Querying** semantic RAG (project **Auto mapping**, and any future vector search UI)
+
+It is **not** used for chat/parse/translate — those use GPT-oss (or other chat models).
+
+### Why it looked unused before
+
+Until the wiring below, upload only stored text chunks (keyword RAG). `vector_search.py` existed but no route called it, so UI actions never hit BGE-M3 and MaaS token panels stayed empty for `bge-m3`.
+
+### Endpoints
 ```
-# App / RAG (in-cluster — no MaaS rate limit)
+# App / RAG (in-cluster — volume; app metrics iso_app_model_* + bge_m3_*)
 http://bge-m3.llm.svc.cluster.local:8080/v1/embeddings
 
-# MaaS (monitored — Kuadrant authorized_hits{model="bge-m3"})
+# MaaS (Kuadrant authorized_hits{model="bge-m3"}) — demos / gateway monitoring
 https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/embeddings
-https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/models
 ```
 
-MaaS auth: `Authorization: Bearer <token audience=maas-default-gateway-sa>`.  
-ServiceAccounts resolve to the **free** tier (5 req / 2m); use the in-cluster URL for ingest/search volume. Pod-level Prometheus series `bge_m3_*` cover all traffic.
+Monitor **application** use in Grafana dashboard `ISO App Model Calls` (`embed_index` / `embed_query` / `bge-m3`).
 
 **Why BGE-M3?**
 - Best multilingual performance for Hebrew/English

@@ -66,6 +66,10 @@ def generate_embeddings(texts: List[str]) -> List[List[float]]:
 
         # Extract embeddings from OpenAI-compatible response
         embeddings = [item["embedding"] for item in data["data"]]
+        print(
+            f"bge-m3 embed ok n={len(texts)} model={data.get('model', model)} "
+            f"usage={data.get('usage')}"
+        )
         return embeddings
 
     except Exception as e:

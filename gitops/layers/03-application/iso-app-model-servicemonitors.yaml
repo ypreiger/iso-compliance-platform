@@ -1,0 +1,59 @@
+---
+# Scrape application-level model metrics (every chat/embed call from the apps).
+# Series: iso_app_model_requests_total, iso_app_model_tokens_total, iso_app_model_latency_seconds
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: iso-api-model-metrics
+  labels:
+    app.kubernetes.io/name: iso-api-orchestrator
+    app.kubernetes.io/component: app-model-monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: iso-api-orchestrator
+  namespaceSelector:
+    matchNames:
+      - iso-platform
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: iso-doc-parse-model-metrics
+  labels:
+    app.kubernetes.io/name: iso-doc-parse-rag
+    app.kubernetes.io/component: app-model-monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: iso-doc-parse-rag
+  namespaceSelector:
+    matchNames:
+      - iso-platform
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: iso-doc-gen-model-metrics
+  labels:
+    app.kubernetes.io/name: iso-doc-gen
+    app.kubernetes.io/component: app-model-monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: iso-doc-gen
+  namespaceSelector:
+    matchNames:
+      - iso-platform
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s

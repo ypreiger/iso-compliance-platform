@@ -265,7 +265,12 @@ class SqliteConn:
 
     def execute(self, sql: str, params: tuple | list = ()):
         pg_sql = sql
-        pg_sql = pg_sql.replace("%s", "?").replace("::jsonb", "").replace("::json", "")
+        pg_sql = (
+            pg_sql.replace("%s", "?")
+            .replace("::jsonb", "")
+            .replace("::json", "")
+            .replace("::vector", "")
+        )
         pg_sql = pg_sql.replace("NOW()", "CURRENT_TIMESTAMP")
         pg_sql = pg_sql.replace(" ILIKE ", " LIKE ")
         pg_sql = pg_sql.replace(" excluded.", " excluded.")  # keep

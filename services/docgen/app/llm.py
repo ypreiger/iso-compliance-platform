@@ -65,46 +65,60 @@ async def llm_call(
     if response_format == "json":
         payload["response_format"] = {"type": "json_object"}
 
+    from app.model_metrics import track_model_call, usage_from_response
+
     last_exc: Exception | None = None
     for attempt in range(retries):
-        try:
-            # Disable SSL verification for internal cluster HTTPS (self-signed certs)
-            async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
-                resp = await client.post(
-                    url,
-                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                    json=payload,
-                )
-                if resp.status_code == 429:
-                    wait = 5 * (attempt + 1)
-                    log.warning("LLM rate-limited (task=%s); retry in %ds", task, wait)
-                    time.sleep(wait)
-                    continue
-                if resp.status_code >= 400:
-                    body = resp.text[:400]
-                    raise LLMError(f"LLM API {resp.status_code} (task={task}): {body}")
-                data = resp.json()
-                # Handle both standard and reasoning model responses (gpt-oss may
-                # return content=null when max_tokens is consumed by reasoning).
-                message = data["choices"][0]["message"]
-                content = (
-                    message.get("content")
-                    or message.get("reasoning_content")
-                    or message.get("reasoning")
-                    or ""
-                )
-                if not str(content).strip():
-                    raise LLMError(
-                        f"LLM returned empty content (task={task}, "
-                        f"finish={data['choices'][0].get('finish_reason')})"
+        with track_model_call(task=task, model=model) as mctx:
+            try:
+                # Disable SSL verification for internal cluster HTTPS (self-signed certs)
+                async with httpx.AsyncClient(timeout=timeout, verify=False) as client:
+                    resp = await client.post(
+                        url,
+                        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                        json=payload,
                     )
-                return content
-        except LLMError:
-            raise
-        except (httpx.HTTPError, KeyError) as exc:
-            last_exc = exc
-            log.warning("LLM attempt %d/%d failed (task=%s): %s", attempt + 1, retries, task, exc)
-            time.sleep(2 ** attempt)
+                    if resp.status_code == 429:
+                        mctx["status"] = "rate_limited"
+                        wait = 5 * (attempt + 1)
+                        log.warning("LLM rate-limited (task=%s); retry in %ds", task, wait)
+                        time.sleep(wait)
+                        continue
+                    if resp.status_code >= 400:
+                        mctx["status"] = "error"
+                        body = resp.text[:400]
+                        raise LLMError(f"LLM API {resp.status_code} (task={task}): {body}")
+                    data = resp.json()
+                    prompt_t, completion_t, total_t = usage_from_response(data)
+                    mctx["prompt_tokens"] = prompt_t
+                    mctx["completion_tokens"] = completion_t
+                    mctx["total_tokens"] = total_t
+                    mctx["model"] = data.get("model") or model
+                    # Handle both standard and reasoning model responses (gpt-oss may
+                    # return content=null when max_tokens is consumed by reasoning).
+                    message = data["choices"][0]["message"]
+                    content = (
+                        message.get("content")
+                        or message.get("reasoning_content")
+                        or message.get("reasoning")
+                        or ""
+                    )
+                    if not str(content).strip():
+                        mctx["status"] = "empty"
+                        raise LLMError(
+                            f"LLM returned empty content (task={task}, "
+                            f"finish={data['choices'][0].get('finish_reason')})"
+                        )
+                    return content
+            except LLMError:
+                if mctx.get("status") == "ok":
+                    mctx["status"] = "error"
+                raise
+            except (httpx.HTTPError, KeyError) as exc:
+                mctx["status"] = "error"
+                last_exc = exc
+                log.warning("LLM attempt %d/%d failed (task=%s): %s", attempt + 1, retries, task, exc)
+                time.sleep(2 ** attempt)
 
     raise LLMError(f"LLM call failed after {retries} attempts (task={task}): {last_exc}")
 

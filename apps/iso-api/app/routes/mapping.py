@@ -113,7 +113,7 @@ def approve_mapping(project_id: str, user: Annotated[CurrentUser, Depends(requir
 
 @router.post("/run-auto")
 def run_auto_mapping(project_id: str, user: Annotated[CurrentUser, Depends(require_project_access)]):
-    """Stub: propose mappings from keyword match (LLM in phase 2)."""
+    """Propose finding→clause mappings via BGE-M3 vector RAG (keyword fallback)."""
     created = 0
     with get_conn() as conn:
         project = conn.execute(
@@ -136,6 +136,10 @@ def run_auto_mapping(project_id: str, user: Annotated[CurrentUser, Depends(requi
             if not hits:
                 continue
             hit = hits[0]
+            if "similarity" in hit:
+                relevance = min(95, max(50, int(round(float(hit["similarity"]) * 100))))
+            else:
+                relevance = min(95, 50 + int(hit["score"]) * 8)
             mid = str(uuid4())
             conn.execute(
                 """
@@ -150,7 +154,7 @@ def run_auto_mapping(project_id: str, user: Annotated[CurrentUser, Depends(requi
                     standard,
                     hit["clause_id"],
                     hit["title"],
-                    min(95, 50 + hit["score"] * 8),
+                    relevance,
                 ),
             )
             created += 1

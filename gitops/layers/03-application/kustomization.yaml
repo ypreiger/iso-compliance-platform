@@ -8,6 +8,7 @@ resources:
   - playground.yaml
   - playground-stt.yaml
   - playground-servicemonitor.yaml
+  - iso-app-model-servicemonitors.yaml
   - maas-openai-proxy.yaml
 
 images:
