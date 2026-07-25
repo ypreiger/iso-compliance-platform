@@ -127,7 +127,11 @@ metadata:
   name: admin-group
   labels:
     app.kubernetes.io/part-of: iso-compliance
-users: []
+# Must list SAs explicitly — empty group left everyone on free tier (5 req / 2m).
+users:
+  - system:serviceaccount:iso-platform:iso-platform
+  - system:serviceaccount:iso-platform:default
+  - system:serviceaccount:iso-platform:maas-client
 ---
 # RHOAI dashboard visibility:
 # - system:authenticated can view llm and iso-platform projects/assets
