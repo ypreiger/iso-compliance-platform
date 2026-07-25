@@ -73,18 +73,23 @@ BGE-M3 is exposed on the MaaS gateway (same pattern as Whisper):
 |------|--------|
 | HTTPRoute | `llm/bge-m3-maas-route` |
 | Path | `/llm/bge-m3/v1` → Service `bge-m3:8080` |
-| App config | `LLM_EMBED_URL=…/llm/bge-m3` |
-| Token metrics | `authorized_hits{model="bge-m3", …}` (user-workload Prometheus) |
-| Pod metrics | `bge_m3_requests_total`, `bge_m3_tokens_total`, `bge_m3_request_latency_seconds` via ServiceMonitor `bge-m3-metrics` |
+| App config | `LLM_EMBED_URL=http://bge-m3.llm.svc.cluster.local:8080` (volume) |
+| Gateway metrics | `authorized_hits{model="bge-m3", …}` when traffic uses the MaaS URL |
+| Pod metrics | `bge_m3_requests_total`, `bge_m3_tokens_total`, `bge_m3_request_latency_seconds` via ServiceMonitor `bge-m3-metrics` (all traffic) |
 
-Smoke test:
+Filter the ops dashboard model variable for `bge-m3` after generating gateway traffic.
+
+Smoke test (from a cluster pod; laptop egress to the MaaS route can be slow):
 
 ```bash
 TOKEN=$(oc create token default -n iso-platform --audience=maas-default-gateway-sa --duration=10m)
-curl -sk -H "Authorization: Bearer $TOKEN" \
-  https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/models
-curl -sk -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"input":"hello","model":"bge-m3"}' \
-  https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/embeddings
+oc exec -n iso-platform deploy/iso-api-orchestrator -- python3 -c "
+import json,urllib.request,ssl
+tok=open('/var/run/secrets/maas/token').read().strip()
+ctx=ssl._create_unverified_context()
+url='https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/embeddings'
+req=urllib.request.Request(url, data=json.dumps({'input':'hello','model':'bge-m3'}).encode(),
+  headers={'Authorization':'Bearer '+tok,'Content-Type':'application/json'}, method='POST')
+print(urllib.request.urlopen(req, context=ctx, timeout=30).read()[:200])
+"
 ```

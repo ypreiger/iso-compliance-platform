@@ -58,19 +58,18 @@ Document Upload (Hebrew/English ISO Standards)
 - **Deployment**: sentence-transformers on CPU (no GPU needed for embeddings)
 - **MaaS routing**: `HTTPRoute/bge-m3-maas-route` → Kuadrant Auth/RateLimit → Limitador `authorized_hits`
 
-**Endpoint (via MaaS — monitored):**
+**Endpoints:**
 ```
+# App / RAG (in-cluster — no MaaS rate limit)
+http://bge-m3.llm.svc.cluster.local:8080/v1/embeddings
+
+# MaaS (monitored — Kuadrant authorized_hits{model="bge-m3"})
 https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/embeddings
 https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3/v1/models
 ```
 
-Auth: `Authorization: Bearer <SA token audience=maas-default-gateway-sa>`
-(`MAAS_BEARER_TOKEN_FILE` in iso-api / rag-iso jobs).
-
-Direct OpenShift Route (bypass MaaS, no token metrics):
-```
-https://bge-m3-llm.apps.ocp.7hrxw.sandbox880.opentlc.com/v1/embeddings
-```
+MaaS auth: `Authorization: Bearer <token audience=maas-default-gateway-sa>`.  
+ServiceAccounts resolve to the **free** tier (5 req / 2m); use the in-cluster URL for ingest/search volume. Pod-level Prometheus series `bge_m3_*` cover all traffic.
 
 **Why BGE-M3?**
 - Best multilingual performance for Hebrew/English
@@ -268,10 +267,9 @@ gitops/overlays/ocp-sandbox3159/llm-ai/
 
 **Environment Variables:**
 ```bash
-# iso-api, rag-iso (via MaaS for authorized_hits monitoring)
-LLM_EMBED_URL=https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3
+# iso-api, rag-iso — in-cluster for volume; MaaS path for monitored demos
+LLM_EMBED_URL=http://bge-m3.llm.svc.cluster.local:8080
 LLM_MODEL_EMBED=bge-m3
-MAAS_BEARER_TOKEN_FILE=/var/run/secrets/maas/token
 ```
 
 # doc-parse-rag

@@ -117,22 +117,19 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 
 ---
-# OpenShift Group: iso-platform service accounts get enterprise MaaS tier
-# Enterprise tier = 50 requests per 2 minutes (vs 5 for free tier)
-# This ensures the playground is never rate-limited during demos.
-# The admin-group is referenced in tier-to-group-mapping as enterprise tier.
+# OpenShift Group mapped to MaaS enterprise tier (see maas-api/tier-to-group-mapping).
+# NOTE: Kubernetes TokenReview for ServiceAccounts only returns
+#   system:serviceaccounts / system:serviceaccounts:<ns> / system:authenticated
+# It does NOT include OpenShift Group membership, so SAs always resolve to free
+# tier via MaaS. Prefer in-cluster BGE-M3 for high-volume RAG; use the MaaS
+# HTTPRoute (/llm/bge-m3/v1) for monitored/demo traffic and human tokens.
 apiVersion: user.openshift.io/v1
 kind: Group
 metadata:
   name: admin-group
   labels:
     app.kubernetes.io/part-of: iso-compliance
-# Must list SAs explicitly — empty group left everyone on free tier (5 req / 2m).
-# OpenShift Group usernames containing ":" require the b64: encoding prefix.
-users:
-  - b64:c3lzdGVtOnNlcnZpY2VhY2NvdW50Omlzby1wbGF0Zm9ybTppc28tcGxhdGZvcm0=
-  - b64:c3lzdGVtOnNlcnZpY2VhY2NvdW50Omlzby1wbGF0Zm9ybTpkZWZhdWx0
-  - b64:c3lzdGVtOnNlcnZpY2VhY2NvdW50Omlzby1wbGF0Zm9ybTptYWFzLWNsaWVudA==
+users: []
 ---
 # RHOAI dashboard visibility:
 # - system:authenticated can view llm and iso-platform projects/assets

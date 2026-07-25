@@ -10,7 +10,7 @@ def get_embedding_url() -> str:
     """Get BGE-M3 embedding endpoint URL (base without /v1/...)."""
     return os.getenv(
         "LLM_EMBED_URL",
-        "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3",
+        "http://bge-m3.llm.svc.cluster.local:8080",
     )
 
 

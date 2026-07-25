@@ -16,9 +16,10 @@ data:
   LLM_MODEL_MAPPING: "gpt-oss-20b"
   LLM_MODEL_REPORT: "gpt-oss-20b"
   LLM_MODEL_EMBED: "bge-m3"
-  # BGE-M3 via MaaS gateway (Kuadrant authorized_hits + token metrics)
-  # Clients append /v1/embeddings; auth uses MAAS_BEARER_TOKEN_FILE / LLM_API_KEY
-  LLM_EMBED_URL: "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/bge-m3"
+  # BGE-M3 in-cluster (no MaaS free-tier rate limit for RAG volume).
+  # Monitored MaaS path (authorized_hits): https://maas.apps.../llm/bge-m3/v1
+  # Pod metrics (all traffic): ServiceMonitor bge-m3-metrics → bge_m3_*
+  LLM_EMBED_URL: "http://bge-m3.llm.svc.cluster.local:8080"
   MAAS_BASE_URL: "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com"
   MAAS_MODEL_LOCAL: "gpt-oss-20b"
   # GPT-oss-20b direct KServe endpoint (no MaaS auth needed for cluster-internal calls)
