@@ -1299,6 +1299,76 @@ spec:
               "range": true
             }
           ]
+        },
+        {
+          "id": 2000,
+          "type": "row",
+          "title": "Application model calls (in-cluster — BGE-M3 embed_index, GPT-oss parse/translate)",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 90},
+          "collapsed": false,
+          "panels": []
+        },
+        {
+          "id": 2001,
+          "type": "stat",
+          "title": "BGE-M3 embed_index tokens (range)",
+          "description": "iso_app_model_tokens_total — counted on upload/translate RAG index (not MaaS authorized_hits)",
+          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 91},
+          "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none"},
+          "targets": [
+            {
+              "expr": "sum(increase(iso_app_model_tokens_total{model=\"bge-m3\",task=\"embed_index\",token_type=\"total\"}[$__range]))",
+              "refId": "A",
+              "instant": true
+            }
+          ]
+        },
+        {
+          "id": 2002,
+          "type": "stat",
+          "title": "BGE-M3 embed_index calls (range)",
+          "gridPos": {"h": 5, "w": 6, "x": 6, "y": 91},
+          "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none"},
+          "targets": [
+            {
+              "expr": "sum(increase(iso_app_model_requests_total{model=\"bge-m3\",task=\"embed_index\"}[$__range]))",
+              "refId": "A",
+              "instant": true
+            }
+          ]
+        },
+        {
+          "id": 2003,
+          "type": "timeseries",
+          "title": "App token rate by model (all tasks)",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 91},
+          "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
+          "fieldConfig": {"defaults": {"unit": "cps"}},
+          "targets": [
+            {
+              "expr": "sum by (model) (rate(iso_app_model_tokens_total{token_type=\"total\"}[$__rate_interval]))",
+              "refId": "A",
+              "legendFormat": "{{model}}",
+              "range": true
+            }
+          ]
+        },
+        {
+          "id": 2004,
+          "type": "timeseries",
+          "title": "App requests by task (bge-m3 / parse / translate)",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 99},
+          "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
+          "targets": [
+            {
+              "expr": "sum by (task, model) (rate(iso_app_model_requests_total[$__rate_interval]))",
+              "refId": "A",
+              "legendFormat": "{{task}} / {{model}}",
+              "range": true
+            }
+          ]
         }
       ],
       "refresh": "30s",
@@ -1308,7 +1378,8 @@ spec:
         "maas",
         "tokens",
         "resources",
-        "network"
+        "network",
+        "bge-m3"
       ],
       "templating": {
         "list": [

@@ -63,6 +63,8 @@ oc apply -f gitops/overlays/ocp-sandbox3159/llm-ai/maas-token-metrics-dashboard.
 
 ## Application model calls (every invocation)
 
+**Important:** Admin ISO upload uses **in-cluster** BGE-M3. That does **not** increase the top MaaS panels (`authorized_hits` / model filter). Look for the row **“Application model calls”** on `maas-token-metrics`, or open dashboard **ISO App Model Calls**.
+
 MaaS `authorized_hits` only sees traffic that goes through the gateway. The apps also call models **in-cluster** (BGE-M3, GPT-oss KServe). Those calls are counted by application metrics:
 
 | Series | Meaning |

@@ -3,14 +3,20 @@
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
 metadata:
-  name: iso-app-model-metrics
+  # Renamed CR: instanceSelector is immutable on GrafanaDashboard.
+  name: iso-app-model-calls
   namespace: grafana
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "3"
   labels:
-    app.kubernetes.io/part-of: iso-compliance
+    app.kubernetes.io/part-of: iso-compliance-platform
+    app.kubernetes.io/component: observability
 spec:
+  # Must match Grafana CR labels (same as maas-token-metrics)
   instanceSelector:
     matchLabels:
-      dashboards: "grafana"
+      app.kubernetes.io/instance: grafana
   json: |
     {
       "uid": "iso-app-model-metrics",
@@ -60,7 +66,7 @@ spec:
           "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
           "targets": [
             {
-              "expr": "sum by (model) (rate(iso_app_model_requests_total{service=~\"$service\",model=~\"$model\",task=~\"$task\"}[$__rate_interval]))",
+              "expr": "sum by (model) (rate(iso_app_model_requests_total{model=~\"$model\",task=~\"$task\"}[$__rate_interval]))",
               "legendFormat": "{{model}}"
             }
           ]
@@ -73,7 +79,7 @@ spec:
           "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
           "targets": [
             {
-              "expr": "sum by (model) (rate(iso_app_model_tokens_total{service=~\"$service\",model=~\"$model\",task=~\"$task\",token_type=\"total\"}[$__rate_interval]))",
+              "expr": "sum by (model) (rate(iso_app_model_tokens_total{model=~\"$model\",task=~\"$task\",token_type=\"total\"}[$__rate_interval]))",
               "legendFormat": "{{model}}"
             }
           ]
@@ -86,7 +92,7 @@ spec:
           "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
           "targets": [
             {
-              "expr": "sum by (task) (rate(iso_app_model_requests_total{service=~\"$service\",model=~\"$model\",task=~\"$task\"}[$__rate_interval]))",
+              "expr": "sum by (task) (rate(iso_app_model_requests_total{model=~\"$model\",task=~\"$task\"}[$__rate_interval]))",
               "legendFormat": "{{task}}"
             }
           ]
@@ -99,7 +105,7 @@ spec:
           "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (le, model) (rate(iso_app_model_latency_seconds_bucket{service=~\"$service\",model=~\"$model\",task=~\"$task\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (le, model) (rate(iso_app_model_latency_seconds_bucket{model=~\"$model\",task=~\"$task\"}[$__rate_interval])))",
               "legendFormat": "{{model}}"
             }
           ]
@@ -112,7 +118,7 @@ spec:
           "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
           "targets": [
             {
-              "expr": "sum by (service, task, model, status) (increase(iso_app_model_requests_total{service=~\"$service\",model=~\"$model\",task=~\"$task\"}[$__range]))",
+              "expr": "sum by (service, task, model, status) (increase(iso_app_model_requests_total{model=~\"$model\",task=~\"$task\"}[$__range]))",
               "format": "table",
               "instant": true
             }
