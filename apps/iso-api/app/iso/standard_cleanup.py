@@ -3,11 +3,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.iso.rag_index import COLLECTION_ID, purge_standard_language
+from app.iso.rag_index import (
+    LEGACY_COLLECTION_ID,
+    collection_id_for_standard,
+    normalize_standard_id,
+    purge_standard_language,
+)
 
 
 def purge_standard_rag(conn: Any, *, standard: str, language: str | None = None) -> int:
+    std = normalize_standard_id(standard)
+    coll = collection_id_for_standard(std)
     if language:
+        conn.execute(
+            """
+            DELETE FROM rag_documents
+            WHERE collection_id = %s AND metadata->>'language' = %s
+            """,
+            (coll, language),
+        )
         conn.execute(
             """
             DELETE FROM rag_documents
@@ -15,15 +29,19 @@ def purge_standard_rag(conn: Any, *, standard: str, language: str | None = None)
               AND metadata->>'standard' = %s
               AND metadata->>'language' = %s
             """,
-            (COLLECTION_ID, standard, language),
+            (LEGACY_COLLECTION_ID, std, language),
         )
     else:
+        conn.execute(
+            "DELETE FROM rag_documents WHERE collection_id = %s",
+            (coll,),
+        )
         conn.execute(
             """
             DELETE FROM rag_documents
             WHERE collection_id = %s AND metadata->>'standard' = %s
             """,
-            (COLLECTION_ID, standard),
+            (LEGACY_COLLECTION_ID, std),
         )
     return 1
 

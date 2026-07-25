@@ -8,6 +8,7 @@ The LLM extractor (extractor.py) handles semantic structuring.
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 import subprocess
@@ -15,9 +16,18 @@ import tempfile
 from io import BytesIO
 from pathlib import Path
 
+log = logging.getLogger(__name__)
+
 HEBREW_CHAR_RE = re.compile(r"[\u0590-\u05FF]")
 CLAUSE_ID_TOKEN_RE = re.compile(r"^\d{1,2}(?:\.\d{1,2}){0,4}[\.\)]?$")
 HEBREW_PREFIX_LETTERS = {"ו", "ב", "כ", "ל", "מ", "ש", "ה"}
+
+_SPARSE_AFTER_HEADING = re.compile(
+    r"(?m)^(\d{1,2}(?:\.\d{1,2}){1,4})\b[^\n]{0,160}\n"
+    r"(?:shall\b|must\b|maintained\b|c\)|procedures shall\b|other relevant\b|"
+    r"documentation,|authorizing its use)",
+    re.I,
+)
 
 
 def _normalize(text: str) -> str:
@@ -165,12 +175,54 @@ def _extract_hebrew_page_text(page) -> str:
     return "\n\n".join(rendered_blocks)
 
 
+# ── PDF OCR (sparse text-layer recovery) ───────────────────────────────────
+
+def _ocr_enabled() -> bool:
+    return os.getenv("ISO_PDF_OCR", "auto").strip().lower() not in {"0", "false", "off", "no"}
+
+
+def page_text_looks_sparse(text: str) -> bool:
+    raw = text or ""
+    compact = re.sub(r"\s+", "", raw)
+    has_clause = bool(re.search(r"(?m)^\d{1,2}(?:\.\d{1,2}){1,4}\b", raw))
+    if has_clause and len(compact) < 1200:
+        return True
+    return bool(_SPARSE_AFTER_HEADING.search(raw))
+
+
+def _ocr_pdf_page(page) -> str:
+    try:
+        tp = page.get_textpage_ocr(language="eng", dpi=250, full=True)
+        text = (page.get_text("text", textpage=tp) or "").strip()
+        if text and len(re.sub(r"\s+", "", text)) > 200:
+            return text
+    except Exception as exc:
+        log.debug("tesseract OCR failed: %s", exc)
+    try:
+        import numpy as np
+        import easyocr  # type: ignore
+
+        pix = page.get_pixmap(dpi=250)
+        img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+        if pix.n >= 4:
+            img = img[:, :, :3]
+        reader = getattr(_ocr_pdf_page, "_reader", None)
+        if reader is None:
+            reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+            _ocr_pdf_page._reader = reader  # type: ignore[attr-defined]
+        return "\n".join(reader.readtext(img, detail=0, paragraph=True)).strip()
+    except Exception as exc:
+        log.warning("PDF OCR unavailable: %s", exc)
+        return ""
+
+
 # ── PDF ────────────────────────────────────────────────────────────────────
 
 def extract_pdf(data: bytes) -> str:
     """Extract text from PDF in reading order using PyMuPDF (fitz).
 
     For Hebrew PDFs, uses word-based extraction for better quality.
+    For sparse English Print-to-PDF layers, OCR recovers missing clause bodies.
     """
     is_hebrew = False
     try:
@@ -193,16 +245,17 @@ def extract_pdf(data: bytes) -> str:
                 if text.strip():
                     pages.append(text)
         else:
-            # Standard text extraction
             for page in doc:
-                text = page.get_text("text", sort=True)
+                text = page.get_text("text", sort=True) or ""
+                if not text.strip():
+                    blocks = page.get_text("blocks", sort=True)
+                    text = "\n".join(str(b[4]) for b in blocks if b[6] == 0)
+                if _ocr_enabled() and page_text_looks_sparse(text):
+                    ocr_text = _ocr_pdf_page(page)
+                    if ocr_text and len(re.sub(r"\s+", "", ocr_text)) > len(re.sub(r"\s+", "", text)) * 1.2:
+                        text = ocr_text
                 if text.strip():
                     pages.append(text)
-                    continue
-                blocks = page.get_text("blocks", sort=True)
-                for b in blocks:
-                    if b[6] == 0:
-                        pages.append(b[4])
 
         doc.close()
         text = "\n".join(pages)

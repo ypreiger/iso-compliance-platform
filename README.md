@@ -9,7 +9,7 @@ AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 | **AI Playground** | https://playground-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com |
 | **ISO Compliance App** | https://iso-web-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com |
 | **RHOAI Dashboard** | https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com |
-| **Grafana** | https://grafana-route-grafana.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| **Grafana** (single ops dashboard) | https://grafana-route-grafana.apps.ocp.7hrxw.sandbox880.opentlc.com — search **MaaS Token Metrics Dashboard (with User/Model Filters)** |
 | **ArgoCD** | https://openshift-gitops-server-openshift-gitops.apps.ocp.7hrxw.sandbox880.opentlc.com |
 | **MaaS Gateway** | https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com |
 
@@ -22,6 +22,7 @@ AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 | [RHOAI_MAAS_GUARDRAILS.md](docs/RHOAI_MAAS_GUARDRAILS.md) | Qwen3 + MaaS + TrustyAI setup |
 | [DEMO_PRESENTATION.md](docs/DEMO_PRESENTATION.md) | **Customer presentation flow** (start here for demos) |
 | [AUTH.md](docs/AUTH.md) | Google OAuth, user roles |
+| [OBSERVABILITY.md](docs/OBSERVABILITY.md) | Single Grafana dashboard: tokens, CPU/RAM, network |
 
 ## Services
 

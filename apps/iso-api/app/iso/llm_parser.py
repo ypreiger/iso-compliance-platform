@@ -34,26 +34,34 @@ log = logging.getLogger(__name__)
 # Approximate token count: 1 token ≈ 4 chars.
 # GPT-4o supports 128k context; we keep segments to ≤ 12 000 chars so the
 # full prompt + large JSON response fits within typical 16k-output limits.
-MAX_SEGMENT_CHARS = 12_000
-SEGMENT_OVERLAP_CHARS = 400
+MAX_SEGMENT_CHARS = 8_000
+SEGMENT_OVERLAP_CHARS = 300
 
 SYSTEM_PROMPT = """You are an expert ISO standards document parser.
-Your job is to extract every clause from the provided ISO standard text.
+Extract every clause heading and its body from the provided ISO standard text.
 
 Rules:
-- clause_id: ISO numbering like "4", "4.1", "4.1.1". Never include sub-section headings in clause_id.
-- title: the clause heading text only (no clause_id prefix, no trailing period).
-- body: ALL body text that belongs to this clause, verbatim, up to the next clause heading.
-  Preserve paragraph breaks with \\n\\n. Do not truncate.
-- Skip: table of contents, foreword, copyright notices, page numbers, bibliography.
-- If you cannot determine a clause boundary, include the text in the parent clause body.
+- clause_id: ISO numbering like "0.1", "4", "4.1", "4.1.1", "5.1.2" (up to 5 levels).
+- Include Introduction as 0 / 0.1 / 0.2 / 0.3 (and children). Use the document's own title for 0.
+- CRITICAL: every level-3 / level-4 heading MUST be its own object.
+  Never merge 5.1.1 into 5.1. Store 5.1.1 and 5.1.2 separately.
+- Parent clauses only contain text before the first child heading.
+- title: VERBATIM heading text from THIS document only (no clause_id prefix, no trailing period).
+  Do NOT invent High Level Structure titles. Do NOT use titles from a different ISO standard.
+  Do NOT use correspondence/comparison annex mappings (e.g. ISO 13485 Annex B ↔ ISO 9001).
+- body: verbatim text until the next clause heading. Preserve \\n\\n paragraph breaks.
+- Skip: table of contents, copyright notices, page numbers, bibliography,
+  and any informative correspondence/comparison annex tables between standards.
+- Keep Foreword only if clearly headed; prefer Introduction 0.x and normative clauses.
 
-Return ONLY a JSON array, no markdown, no extra text:
-[
-  {"clause_id": "4", "title": "Context of the organization", "body": "..."},
-  {"clause_id": "4.1", "title": "Understanding the organization and its context", "body": "..."},
-  ...
-]"""
+Return ONLY a JSON object:
+{"clauses": [
+  {"clause_id": "0", "title": "<verbatim from document>", "body": "..."},
+  {"clause_id": "0.1", "title": "<verbatim from document>", "body": "..."},
+  {"clause_id": "4", "title": "<verbatim from document>", "body": "..."},
+  {"clause_id": "4.1", "title": "<verbatim from document>", "body": "..."},
+  {"clause_id": "4.1.1", "title": "<verbatim from document>", "body": "..."}
+]}"""
 
 
 def _openai_url() -> str:
@@ -141,7 +149,9 @@ def _llm_parse_segment(
         raise RuntimeError("No LLM API key configured (OPENAI_API_KEY / LLM_API_KEY)")
 
     user_prompt = (
-        f"Standard: {standard}  Language: {language}\n\n"
+        f"Standard: {standard}  Language: {language}\n"
+        f"Extract clauses for {standard} only. Titles must be exact indexes from this "
+        f"standard's chapters/clauses — never titles from another ISO standard.\n\n"
         f"Extract all ISO clauses from the following text:\n\n{segment}"
     )
 
@@ -152,13 +162,17 @@ def _llm_parse_segment(
             {"role": "user", "content": user_prompt},
         ],
         "temperature": 0,
+        "max_tokens": 4096,
+        # gpt-oss: low reasoning effort is ~4x faster and keeps level-3 IDs
+        "reasoning_effort": "low",
         "response_format": {"type": "json_object"},
     }
 
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
-            with httpx.Client(timeout=180) as client:
+            # Cluster MaaS endpoints often use private/self-signed TLS.
+            with httpx.Client(timeout=180, verify=False) as client:
                 resp = client.post(
                     _openai_url(),
                     headers={"Authorization": f"Bearer {key}"},
@@ -170,7 +184,15 @@ def _llm_parse_segment(
                     time.sleep(wait)
                     continue
                 resp.raise_for_status()
-                raw = resp.json()["choices"][0]["message"]["content"]
+                message = resp.json()["choices"][0]["message"]
+                raw = (
+                    message.get("content")
+                    or message.get("reasoning_content")
+                    or message.get("reasoning")
+                    or ""
+                )
+                if not str(raw).strip():
+                    raise json.JSONDecodeError("empty LLM content", "", 0)
                 # The model may wrap array in {"clauses": [...]} due to json_object mode
                 parsed = json.loads(raw)
                 if isinstance(parsed, list):

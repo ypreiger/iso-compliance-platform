@@ -5,11 +5,9 @@ resources:
   - trustyai-service.yaml
   - guardrails-orchestrator.yaml
   - rbac.yaml
-  - model-aliases.yaml
   - whisper-maas.yaml
-  - maas-lab-whisper-dashboard.yaml
   - bge-m3-simple.yaml
-  - bge-m3-external-model.yaml
   - gpt-oss-20b.yaml
   - llm-servicemonitors.yaml
-  - llm-grafana-dashboard.yaml
+  # Single platform observability dashboard (tokens + CPU/RAM + network)
+  - maas-token-metrics-dashboard.yaml

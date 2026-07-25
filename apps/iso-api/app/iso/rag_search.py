@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.iso.rag_index import LEGACY_COLLECTION_ID, collection_id_for_standard, normalize_standard_id
+
 
 def _query_terms(text: str, *, max_terms: int = 6) -> list[str]:
     stop = {
@@ -30,10 +32,16 @@ def search_iso_rag(
     query: str,
     limit: int = 1,
 ) -> list[dict]:
-    """Return best-matching RAG chunks for a standard+language."""
+    """Return best-matching RAG chunks for a standard+language.
+
+    Always scoped to one standard — never mixes clause indexes across standards.
+    """
     terms = _query_terms(query)
     if not terms:
         return []
+
+    std = normalize_standard_id(standard)
+    coll = collection_id_for_standard(std)
 
     score_parts = ["CASE"]
     params: list[Any] = []
@@ -42,14 +50,18 @@ def search_iso_rag(
         params.append(f"%{term}%")
     score_parts.append(" ELSE 0 END")
     score_sql = "".join(score_parts)
-    params.extend([standard, language, limit])
+    # Per-standard collection first; also accept legacy shared rows for this standard only.
+    params.extend([coll, LEGACY_COLLECTION_ID, std, std, language, limit])
 
     rows = conn.execute(
         f"""
         SELECT metadata, content,
                ({score_sql}) AS score
         FROM rag_documents
-        WHERE collection_id = 'iso-standards'
+        WHERE (
+                collection_id = %s
+             OR (collection_id = %s AND metadata->>'standard' = %s)
+              )
           AND metadata->>'standard' = %s
           AND metadata->>'language' = %s
           AND metadata->>'clause_id' IS NOT NULL

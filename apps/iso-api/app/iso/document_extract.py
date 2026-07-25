@@ -4,11 +4,13 @@ VENDORED MODULE: This code is duplicated in services/docgen/app/agents/parser.py
 for service isolation. Bug fixes must be applied to BOTH locations.
 
 PDF  → PyMuPDF (fitz) — better reading order than pypdf
+       + OCR fallback for sparse "Print to PDF" text layers
 DOCX → python-docx — heading styles + paragraph walk
 DOC  → antiword (compiled into image) → plain text
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 import subprocess
@@ -16,9 +18,20 @@ import tempfile
 from io import BytesIO
 from pathlib import Path
 
+log = logging.getLogger(__name__)
+
 HEBREW_CHAR_RE = re.compile(r"[\u0590-\u05FF]")
 CLAUSE_ID_TOKEN_RE = re.compile(r"^\d{1,2}(?:\.\d{1,2}){0,4}[\.\)]?$")
 HEBREW_PREFIX_LETTERS = {"ו", "ב", "כ", "ל", "מ", "ש", "ה"}
+
+# Body that starts mid-sentence right after a clause heading — classic symptom of
+# a sparse text layer where drawings cover the real words (ISO 13485 Print-to-PDF).
+_SPARSE_AFTER_HEADING = re.compile(
+    r"(?m)^(\d{1,2}(?:\.\d{1,2}){1,4})\b[^\n]{0,160}\n"
+    r"(?:shall\b|must\b|maintained\b|c\)|procedures shall\b|other relevant\b|"
+    r"documentation,|authorizing its use)",
+    re.I,
+)
 
 
 # ── normalisation ──────────────────────────────────────────────────────────
@@ -201,6 +214,78 @@ def _extract_hebrew_page_text(page) -> str:
     return "\n\n".join(rendered_blocks)
 
 
+# ── PDF OCR (sparse text-layer recovery) ───────────────────────────────────
+
+def _ocr_enabled() -> bool:
+    """ISO_PDF_OCR=0 disables; default auto-enables when a page looks sparse."""
+    return os.getenv("ISO_PDF_OCR", "auto").strip().lower() not in {"0", "false", "off", "no"}
+
+
+def page_text_looks_sparse(text: str) -> bool:
+    """True when extractable text is missing large normative passages."""
+    raw = text or ""
+    compact = re.sub(r"\s+", "", raw)
+    has_clause = bool(re.search(r"(?m)^\d{1,2}(?:\.\d{1,2}){1,4}\b", raw))
+    if has_clause and len(compact) < 1200:
+        return True
+    if _SPARSE_AFTER_HEADING.search(raw):
+        return True
+    return False
+
+
+def _ocr_page_tesseract(page) -> str:
+    """PyMuPDF + system tesseract (when installed)."""
+    tp = page.get_textpage_ocr(language="eng", dpi=250, full=True)
+    return (page.get_text("text", textpage=tp) or "").strip()
+
+
+def _ocr_page_easyocr(page) -> str:
+    """Optional EasyOCR fallback (pip install easyocr)."""
+    import numpy as np
+
+    import easyocr  # type: ignore
+
+    pix = page.get_pixmap(dpi=250)
+    img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+    if pix.n >= 4:
+        img = img[:, :, :3]
+    # Cache reader on function attribute
+    reader = getattr(_ocr_page_easyocr, "_reader", None)
+    if reader is None:
+        reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+        _ocr_page_easyocr._reader = reader  # type: ignore[attr-defined]
+    lines = reader.readtext(img, detail=0, paragraph=True)
+    return "\n".join(str(x) for x in lines).strip()
+
+
+def ocr_pdf_page(page) -> str:
+    """OCR one PDF page. Tries tesseract first, then easyocr."""
+    errors: list[str] = []
+    for name, fn in (("tesseract", _ocr_page_tesseract), ("easyocr", _ocr_page_easyocr)):
+        try:
+            text = fn(page)
+            if text and len(re.sub(r"\s+", "", text)) > 200:
+                log.info("PDF OCR via %s recovered %d chars", name, len(text))
+                return text
+            errors.append(f"{name}: empty/short")
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+    log.warning("PDF OCR unavailable/failed (%s)", "; ".join(errors))
+    return ""
+
+
+def _extract_page_text_en(page) -> str:
+    text = page.get_text("text", sort=True) or ""
+    if not text.strip():
+        blocks = page.get_text("blocks", sort=True)
+        text = "\n".join(str(b[4]) for b in blocks if b[6] == 0)
+    if _ocr_enabled() and page_text_looks_sparse(text):
+        ocr_text = ocr_pdf_page(page)
+        if ocr_text and len(re.sub(r"\s+", "", ocr_text)) > len(re.sub(r"\s+", "", text)) * 1.2:
+            return ocr_text
+    return text
+
+
 # ── PDF ────────────────────────────────────────────────────────────────────
 
 def extract_text_from_pdf(content: bytes) -> str:
@@ -210,6 +295,7 @@ def extract_text_from_pdf(content: bytes) -> str:
     and header/footer zones, which is essential for multi-column ISO PDFs.
 
     For Hebrew text, uses 'words' mode to get better word boundaries.
+    For sparse English "Print to PDF" layers, OCR fills missing clause bodies.
     """
     try:
         import fitz  # PyMuPDF
@@ -237,16 +323,10 @@ def extract_text_from_pdf(content: bytes) -> str:
             if text.strip():
                 pages.append(text)
     else:
-        # For non-Hebrew PDFs, use standard text extraction
         for page in doc:
-            text = page.get_text("text", sort=True)
+            text = _extract_page_text_en(page)
             if text.strip():
                 pages.append(text)
-                continue
-            blocks = page.get_text("blocks", sort=True)
-            for block in blocks:
-                if block[6] == 0:  # type 0 = text block
-                    pages.append(block[4])
 
     doc.close()
 

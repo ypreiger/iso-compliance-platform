@@ -29,7 +29,7 @@ def test_rag_search_finds_matching_clause():
             VALUES (%s, %s, %s, %s, %s)
             """,
             (
-                "iso-standards",
+                "iso-standards-ISO9001",
                 "test#4.1",
                 0,
                 "4.1 Understanding the organization shall determine external and internal issues.",
@@ -49,16 +49,16 @@ def test_rag_search_finds_matching_clause():
             VALUES (%s, %s, %s, %s, %s)
             """,
             (
-                "iso-standards",
+                "iso-standards-ISO13485",
                 "test#7.1",
                 0,
-                "7.1 Resources monitoring calibration equipment.",
+                "7.1 Planning of product realization organization shall plan processes.",
                 json.dumps(
                     {
-                        "standard": "ISO9001",
+                        "standard": "ISO13485",
                         "language": "en",
                         "clause_id": "7.1",
-                        "title": "Resources",
+                        "title": "Planning of product realization",
                     }
                 ),
             ),
@@ -71,5 +71,16 @@ def test_rag_search_finds_matching_clause():
             query="organization shall determine external issues",
             limit=1,
         )
+        # Must not return ISO13485 chunks when searching ISO9001
+        cross = search_iso_rag(
+            conn,
+            standard="ISO9001",
+            language="en",
+            query="product realization plan processes",
+            limit=5,
+        )
     assert hits
     assert hits[0]["clause_id"] == "4.1"
+    assert all(h.get("clause_id") != "7.1" or "product realization" not in (h.get("content") or "").lower() for h in (cross or []))
+    # Stronger: no 13485 hit when standard filter is ISO9001
+    assert not any("product realization" in (h.get("content") or "").lower() for h in (cross or []))

@@ -47,34 +47,32 @@ def search_similar_chunks(
     """
     Search for similar document chunks using vector similarity.
 
-    Args:
-        conn: Database connection
-        query: Search query text
-        limit: Number of results to return
-        standard: Filter by ISO standard (e.g., "ISO9001")
-        language: Filter by language (e.g., "en", "he")
-
-    Returns:
-        List of matching chunks with similarity scores
+    ``standard`` is required so clause indexes never mix across ISO standards.
     """
+    if not standard:
+        raise ValueError("standard is required — vector search must be scoped to one ISO standard")
+
+    from app.iso.rag_index import LEGACY_COLLECTION_ID, collection_id_for_standard, normalize_standard_id
+
+    std = normalize_standard_id(standard)
+    coll = collection_id_for_standard(std)
+
     # Generate query embedding
     query_embedding = generate_query_embedding(query)
 
-    # Build WHERE clause for filters
-    filters = []
-    params = [query_embedding, limit]
-
-    if standard:
-        filters.append("metadata->>'standard' = %s")
-        params.insert(-1, standard.upper())
+    filters = [
+        "(collection_id = %s OR (collection_id = %s AND metadata->>'standard' = %s))",
+        "metadata->>'standard' = %s",
+    ]
+    # embedding appears twice in SQL; build params carefully
+    filter_params: list = [coll, LEGACY_COLLECTION_ID, std, std]
 
     if language:
         filters.append("metadata->>'language' = %s")
-        params.insert(-1, language)
+        filter_params.append(language)
 
-    where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+    where_clause = "WHERE " + " AND ".join(filters)
 
-    # Search using cosine similarity
     sql = f"""
         SELECT
             id,
@@ -90,7 +88,7 @@ def search_similar_chunks(
         LIMIT %s
     """
 
-    # Execute search
+    params = [query_embedding, *filter_params, query_embedding, limit]
     cursor = conn.execute(sql, params)
     results = []
 

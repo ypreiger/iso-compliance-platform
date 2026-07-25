@@ -117,26 +117,35 @@ def ensure_schema(conn: psycopg.Connection) -> None:
     )
 
 
+def _collection_id_for_file(collection: Collection, standard: str) -> str:
+    """Standards are indexed per-ISO-standard; other kinds keep the manifest id."""
+    if collection.kind == "standards" and standard:
+        return f"iso-standards-{standard.upper().replace(' ', '').replace('-', '')}"
+    return collection.id
+
+
 def ingest_collection(conn: psycopg.Connection, collection: Collection) -> int:
     inserted = 0
     chunk_size = int(collection.ingest.get("chunk_size", 1000))
     overlap = int(collection.ingest.get("chunk_overlap", 100))
     batch_size = 32  # Process embeddings in batches
 
-    # Collect all chunks first
+    # Collect all chunks first — each standard file goes to its own collection.
     chunks_to_insert = []
     for file_path in iter_seed_files(collection):
         rel = str(file_path.relative_to(collection.path.parent))
         text = _read_text(file_path)
+        std = _infer_standard(file_path, collection)
+        coll_id = _collection_id_for_file(collection, std)
         for idx, piece in enumerate(_chunk(text, chunk_size, overlap)):
             meta = {
                 "kind": collection.kind,
                 "sha256": hashlib.sha256(file_path.read_bytes()).hexdigest(),
                 "language": _infer_language(file_path, collection),
-                "standard": _infer_standard(file_path, collection),
+                "standard": std,
                 "edition": _infer_edition(file_path),
             }
-            chunks_to_insert.append((collection.id, rel, idx, piece, meta))
+            chunks_to_insert.append((coll_id, rel, idx, piece, meta))
 
     # Process in batches to generate embeddings
     for i in range(0, len(chunks_to_insert), batch_size):

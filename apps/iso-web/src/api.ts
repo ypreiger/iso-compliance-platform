@@ -156,14 +156,66 @@ export const api = {
     },
     uploadStatus: (t: string, corpusId: string) =>
       req<UploadResult>(`/admin/corpus/iso/upload/${corpusId}`, t),
-    translateIso: (t: string, body: {
+    translateIso: async (t: string, body: {
       standard: string;
       edition?: string;
       source_language?: string;
       target_language?: string;
-    }) =>
-      req<{ translated_clauses: number; source_language: string; target_language: string }>(
-        '/admin/corpus/iso/translate', t, { method: 'POST', body: JSON.stringify(body) }),
+    }) => {
+      const started = await fetch(`${API_BASE}/admin/corpus/iso/translate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${t}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }).then(async (res) => {
+        if (!res.ok && res.status !== 202) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || res.statusText);
+        }
+        return res.json() as Promise<{
+          corpus_id?: string;
+          status?: string;
+          translated_clauses?: number;
+          source_language: string;
+          target_language: string;
+          rag_chunks?: number;
+          message?: string;
+        }>;
+      });
+
+      if (started.status === 'processing' && started.corpus_id) {
+        const deadline = Date.now() + 45 * 60 * 1000;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const st = await req<UploadResult & {
+            translated_clauses?: number;
+            source_language?: string;
+            target_language?: string;
+            job_type?: string;
+          }>(`/admin/corpus/iso/upload/${started.corpus_id}`, t);
+          if (st.status === 'ready') {
+            return {
+              translated_clauses: st.translated_clauses ?? st.clauses_imported ?? 0,
+              source_language: st.source_language || body.source_language || 'en',
+              target_language: st.target_language || body.target_language || 'he',
+              rag_chunks: st.rag_chunks,
+            };
+          }
+          if (st.status === 'failed') {
+            throw new Error(st.error || 'ISO translate processing failed');
+          }
+        }
+        throw new Error('Timed out waiting for ISO translate processing');
+      }
+      return {
+        translated_clauses: started.translated_clauses ?? 0,
+        source_language: started.source_language,
+        target_language: started.target_language,
+        rag_chunks: started.rag_chunks,
+      };
+    },
     deleteStandard: (t: string, body: { standard: string; languages?: string[] }) =>
       req<{ standard: string; clauses_removed: number; languages: string[] }>(
         '/admin/corpus/iso/delete-standard', t, { method: 'POST', body: JSON.stringify(body) }),

@@ -7,6 +7,8 @@ description: >
   samples teach Hebrew finding phrasing; templates are report shells (added later).
 
 collections:
+  # Logical seed group. Ingest writes each file into a per-standard collection
+  # (iso-standards-ISO9001, iso-standards-ISO13485, …) so clause indexes never mix.
   - id: iso-standards
     path: RAG-Standards
     kind: standards
@@ -16,6 +18,7 @@ collections:
       chunk_size: 1200
       chunk_overlap: 200
       embed_model: iso-embed
+      per_standard_collections: true
 
   - id: iso-samples
     path: RAG-Samples

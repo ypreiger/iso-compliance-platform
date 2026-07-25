@@ -18,6 +18,12 @@ def clear_standard_language(conn: Any, *, std: str, language: str) -> None:
     purge_standard_language(conn, standard=std, language=language)
 
 
+def _clause_meta(clause_id: str) -> tuple[str, int]:
+    parts = [p for p in clause_id.split(".") if p]
+    parent = ".".join(parts[:-1]) if len(parts) > 1 else ""
+    return parent, len(parts)
+
+
 def _upsert_clause(
     conn: Any,
     *,
@@ -25,19 +31,29 @@ def _upsert_clause(
     language: str,
     edition: str,
     clause,
+    corpus_id: str = "",
 ) -> None:
+    parent, depth = _clause_meta(clause.clause_id)
     conn.execute(
         """
-        INSERT INTO iso_clause_text (standard, clause_id, title, language, body, sort_order, edition, source)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, 'upload')
+        INSERT INTO iso_clause_text
+          (standard, clause_id, title, language, body, sort_order, edition, source,
+           parent_clause_id, depth, corpus_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, 'upload', %s, %s, %s)
         ON CONFLICT (standard, clause_id, language) DO UPDATE SET
             title = EXCLUDED.title,
             body = EXCLUDED.body,
             sort_order = EXCLUDED.sort_order,
             edition = EXCLUDED.edition,
-            source = EXCLUDED.source
+            source = EXCLUDED.source,
+            parent_clause_id = EXCLUDED.parent_clause_id,
+            depth = EXCLUDED.depth,
+            corpus_id = EXCLUDED.corpus_id
         """,
-        (std, clause.clause_id, clause.title, language, clause.body, clause.sort_order, edition),
+        (
+            std, clause.clause_id, clause.title, language, clause.body,
+            clause.sort_order, edition, parent, depth, corpus_id,
+        ),
     )
 
 
@@ -60,16 +76,29 @@ def _import_language_clauses(
     if replace_previous:
         clear_standard_language(conn, std=std, language=language)
         for clause in clauses:
+            parent, depth = _clause_meta(clause.clause_id)
             conn.execute(
                 """
-                INSERT INTO iso_clause_text (standard, clause_id, title, language, body, sort_order, edition, source)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'upload')
+                INSERT INTO iso_clause_text
+                  (standard, clause_id, title, language, body, sort_order, edition, source,
+                   parent_clause_id, depth, corpus_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'upload', %s, %s, %s)
                 """,
-                (std, clause.clause_id, clause.title, language, clause.body, clause.sort_order, edition),
+                (
+                    std, clause.clause_id, clause.title, language, clause.body,
+                    clause.sort_order, edition, parent, depth, corpus_id,
+                ),
             )
     else:
         for clause in clauses:
-            _upsert_clause(conn, std=std, language=language, edition=edition, clause=clause)
+            _upsert_clause(
+                conn,
+                std=std,
+                language=language,
+                edition=edition,
+                clause=clause,
+                corpus_id=corpus_id,
+            )
 
     return index_clauses(
         conn,
@@ -259,18 +288,71 @@ def import_translated_clauses(
     clauses: list[tuple[str, str, str, int]],
     target_language: str,
     admin_id: str | None,
+    corpus_id: str = "",
+    replace_all: bool = True,
 ) -> int:
-    """Insert or replace clauses in target language from translation."""
-    clear_standard_language(conn, std=standard, language=target_language)
+    """Write translated clauses into target language.
+
+    When replace_all=True (default full-standard translate), clears all existing
+    target-language clauses + RAG first. When False, upserts only the provided
+    clause IDs (partial translate).
+    """
+    if replace_all:
+        clear_standard_language(conn, std=standard, language=target_language)
     count = 0
     for clause_id, title, body, sort_order in clauses:
-        conn.execute(
-            """
-            INSERT INTO iso_clause_text (standard, clause_id, title, language, body, sort_order, edition, source)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'translated')
-            """,
-            (standard, clause_id, title, target_language, body, sort_order, edition),
-        )
+        parent, depth = _clause_meta(clause_id)
+        if replace_all:
+            conn.execute(
+                """
+                INSERT INTO iso_clause_text
+                  (standard, clause_id, title, language, body, sort_order, edition, source,
+                   parent_clause_id, depth, corpus_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'translated', %s, %s, %s)
+                """,
+                (
+                    standard,
+                    clause_id,
+                    title,
+                    target_language,
+                    body,
+                    sort_order,
+                    edition,
+                    parent,
+                    depth,
+                    corpus_id,
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO iso_clause_text
+                  (standard, clause_id, title, language, body, sort_order, edition, source,
+                   parent_clause_id, depth, corpus_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'translated', %s, %s, %s)
+                ON CONFLICT (standard, clause_id, language) DO UPDATE SET
+                    title = EXCLUDED.title,
+                    body = EXCLUDED.body,
+                    sort_order = EXCLUDED.sort_order,
+                    edition = EXCLUDED.edition,
+                    source = EXCLUDED.source,
+                    parent_clause_id = EXCLUDED.parent_clause_id,
+                    depth = EXCLUDED.depth,
+                    corpus_id = EXCLUDED.corpus_id
+                """,
+                (
+                    standard,
+                    clause_id,
+                    title,
+                    target_language,
+                    body,
+                    sort_order,
+                    edition,
+                    parent,
+                    depth,
+                    corpus_id,
+                ),
+            )
         count += 1
     from app.db import audit
 
@@ -280,6 +362,11 @@ def import_translated_clauses(
         "corpus.iso.translated",
         "standard",
         standard,
-        after={"clauses": count, "target_language": target_language},
+        after={
+            "clauses": count,
+            "target_language": target_language,
+            "corpus_id": corpus_id,
+            "replace_all": replace_all,
+        },
     )
     return count

@@ -145,7 +145,7 @@ GuardrailsOrchestrator (qwen3-guardrails in llm namespace)
 
 **Observability:**
 - Prometheus ServiceMonitors for all LLM endpoints
-- Grafana dashboard: "LLM Observability - ISO Platform"
+- Grafana dashboard: "MaaS Token Metrics Dashboard (with User/Model Filters)" (tokens + CPU/RAM + network; see `docs/OBSERVABILITY.md`)
 - Metrics: request rate, P95/P99 latency, GPU cache usage, model health
 - URL: https://grafana-route-grafana.apps.ocp.7hrxw.sandbox880.opentlc.com
 

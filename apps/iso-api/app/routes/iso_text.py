@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.auth.deps import CurrentUser, get_current_user
 from app.db import get_conn, rows_to_list
-from app.iso.parser import _sort_key
+from app.iso.parser import _sort_key, normalize_hebrew_body
 
 router = APIRouter(prefix="/v1/iso", tags=["iso-text"])
 
@@ -19,24 +19,34 @@ def _norm_standard(standard: str) -> str:
 
 
 def _row_to_clause(row: dict, language: str, *, fallback: bool = False) -> dict:
+    cid = row["clause_id"]
+    parts = [p for p in cid.split(".") if p]
+    body = row["body"] or ""
+    if language == "he":
+        body = normalize_hebrew_body(body)
     return {
         "id": row.get("id"),
-        "clause_id": row["clause_id"],
+        "clause_id": cid,
         "title": row["title"],
         "language": language,
-        "text": row["body"],
+        "text": body,
         "standard": row["standard"],
         "direction": "rtl" if language == "he" else "ltr",
         "fallback": fallback,
         "source": row.get("source", "seed"),
         "edition": row.get("edition", ""),
+        "parent_clause_id": row.get("parent_clause_id")
+        or (".".join(parts[:-1]) if len(parts) > 1 else ""),
+        "depth": row.get("depth") or len(parts),
+        "corpus_id": row.get("corpus_id") or "",
     }
 
 
 def _load_language_map(conn, std: str, language: str) -> dict[str, dict]:
     rows = conn.execute(
         """
-        SELECT id, standard, clause_id, title, body, sort_order, edition, source
+        SELECT id, standard, clause_id, title, body, sort_order, edition, source,
+               parent_clause_id, depth, corpus_id
         FROM iso_clause_text
         WHERE standard = %s AND language = %s
         ORDER BY sort_order, clause_id
@@ -52,11 +62,18 @@ def _build_clause_list(
     primary: dict[str, dict],
     secondary: dict[str, dict],
 ) -> list[dict]:
-    """Build viewer list from uploaded rows for the requested language."""
+    """Build viewer list from uploaded rows for the requested language.
+
+    Cross-language fallback is only used when the requested language has no
+    uploaded rows at all. Mixing HE into EN (or vice versa) for empty bodies
+    looks like data corruption in the UI.
+    """
     if primary:
         clause_ids = sorted(primary.keys(), key=lambda cid: (_sort_key(cid), cid))
+        allow_fallback = False
     else:
         clause_ids = sorted(secondary.keys(), key=lambda cid: (_sort_key(cid), cid))
+        allow_fallback = True
 
     clauses: list[dict] = []
     for clause_id in clause_ids:
@@ -64,10 +81,11 @@ def _build_clause_list(
         if row and row.get("body", "").strip():
             clauses.append(_row_to_clause(row, language, fallback=False))
             continue
-        alt = secondary.get(clause_id)
-        if alt and alt.get("body", "").strip():
-            clauses.append(_row_to_clause(alt, language, fallback=True))
-            continue
+        if allow_fallback:
+            alt = secondary.get(clause_id)
+            if alt and alt.get("body", "").strip():
+                clauses.append(_row_to_clause(alt, language, fallback=True))
+                continue
         if row:
             clauses.append(_row_to_clause(row, language, fallback=False))
     return clauses
@@ -128,7 +146,8 @@ def get_clause(
     with get_conn() as conn:
         row = conn.execute(
             """
-            SELECT id, standard, clause_id, title, body, edition, source
+            SELECT id, standard, clause_id, title, body, edition, source,
+                   parent_clause_id, depth, corpus_id
             FROM iso_clause_text
             WHERE standard = %s AND clause_id = %s AND language = %s
             """,
@@ -138,7 +157,8 @@ def get_clause(
         if (not row or not row["body"].strip()) and language == "he":
             row = conn.execute(
                 """
-                SELECT id, standard, clause_id, title, body, edition, source
+                SELECT id, standard, clause_id, title, body, edition, source,
+                       parent_clause_id, depth, corpus_id
                 FROM iso_clause_text
                 WHERE standard = %s AND clause_id = %s AND language = 'en'
                 """,
@@ -148,7 +168,8 @@ def get_clause(
         elif (not row or not row["body"].strip()) and language == "en":
             row = conn.execute(
                 """
-                SELECT id, standard, clause_id, title, body, edition, source
+                SELECT id, standard, clause_id, title, body, edition, source,
+                       parent_clause_id, depth, corpus_id
                 FROM iso_clause_text
                 WHERE standard = %s AND clause_id = %s AND language = 'he'
                 """,

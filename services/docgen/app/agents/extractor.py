@@ -8,35 +8,48 @@ Merges partial clauses that span segment boundaries.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 import re
 
 from app.llm import LLMError, llm_call, parse_json_response
 
 log = logging.getLogger(__name__)
 
-MAX_SEGMENT_CHARS = 12_000
-OVERLAP_CHARS = 400
+# Bound concurrent segment calls; gpt-oss is slow if fully serial.
+_SEGMENT_CONCURRENCY = max(1, int(os.getenv("EXTRACT_SEGMENT_CONCURRENCY", "3")))
+
+MAX_SEGMENT_CHARS = 6_000
+OVERLAP_CHARS = 250
 
 _TOP_SECTION = re.compile(r"^(\d{1,2})\s+[A-Z\u0590-\u05FF]", re.MULTILINE)
 _CLAUSE_ID_RE = re.compile(r"^\d{1,2}(?:\.\d{1,2}){0,4}$")
 
 SYSTEM_PROMPT = """\
 You are an ISO standards document expert.
-Extract every normative clause from the text. Skip: table of contents, foreword, \
-bibliography, copyright notices, page numbers, annex headers.
+Extract every clause heading and its body from the text, including Introduction.
+Skip: table of contents, bibliography, copyright notices, page numbers,
+and informative correspondence/comparison annexes between ISO standards.
 
-Return ONLY a JSON array — no markdown, no extra text:
-[
-  {"clause_id": "4",   "title": "Context of the organization", "body": "Full body text…"},
-  {"clause_id": "4.1", "title": "Understanding the organization", "body": "…"},
-  …
-]
+Return ONLY a JSON object:
+{"clauses": [
+  {"clause_id": "0", "title": "<verbatim from document>", "body": "…"},
+  {"clause_id": "0.1", "title": "<verbatim from document>", "body": "…"},
+  {"clause_id": "4", "title": "<verbatim from document>", "body": "…"},
+  {"clause_id": "4.1", "title": "<verbatim from document>", "body": "…"},
+  {"clause_id": "4.1.1", "title": "<verbatim from document>", "body": "…"}
+]}
 
 Rules:
-- clause_id uses ISO numbering: "4", "4.1", "4.1.1" etc.
-- title is the heading text only, no clause_id prefix.
-- body contains ALL text belonging to that clause verbatim; keep \\n\\n paragraph breaks.
+- clause_id uses ISO numbering: "0.1", "4", "4.1", "4.1.1", "5.1.2" (up to 5 levels).
+- Introduction is 0 / 0.1 / 0.2 / 0.3 using the document's own title.
+- CRITICAL: every level-3 / level-4 heading MUST be its own object.
+  Never merge 5.1.1 into 5.1. Store 5.1.1 and 5.1.2 separately.
+- Parent clauses (e.g. 5.1) only contain text before the first child heading.
+- title is VERBATIM heading text from THIS standard only — never invent HLS titles
+  and never copy titles from a different ISO standard or correspondence table.
+- body is the verbatim clause text until the next heading; keep \\n\\n paragraph breaks.
 - If a clause body is empty in the source, set body to "".
 """
 
@@ -104,6 +117,26 @@ def _iter_clause_items(payload: object) -> list[dict]:
     return []
 
 
+def _merge_item(merged: dict[str, dict], order: list[str], item: dict) -> None:
+    cid = _normalize_id(str(item.get("clause_id", "")))
+    if not cid or not _CLAUSE_ID_RE.match(cid):
+        return
+    top = int(cid.split(".")[0])
+    if top < 0 or top > 10:
+        return
+    title = str(item.get("title", "")).strip()
+    body = str(item.get("body", "")).strip()
+    if cid not in merged:
+        merged[cid] = {"clause_id": cid, "title": title, "body": body}
+        order.append(cid)
+        return
+    if not merged[cid]["title"] and title:
+        merged[cid]["title"] = title
+    if body and body not in merged[cid]["body"]:
+        sep = "\n\n" if merged[cid]["body"] else ""
+        merged[cid]["body"] = merged[cid]["body"] + sep + body
+
+
 async def extract_clauses(
     text: str,
     *,
@@ -112,40 +145,52 @@ async def extract_clauses(
 ) -> tuple[list[dict], str]:
     """Return (clauses_list, model_used). clauses_list items: {clause_id, title, body}."""
     segments = _segment(text)
-    log.info("extract_clauses: %s/%s %d chars %d segments", standard, language, len(text), len(segments))
+    log.info(
+        "extract_clauses: %s/%s %d chars %d segments concurrency=%d",
+        standard, language, len(text), len(segments), _SEGMENT_CONCURRENCY,
+    )
+
+    sem = asyncio.Semaphore(_SEGMENT_CONCURRENCY)
+
+    async def _one(idx: int, seg: str) -> list[dict]:
+        async with sem:
+            log.info("  segment %d/%d (%d chars)", idx + 1, len(segments), len(seg))
+            msgs = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": (
+                    f"Standard: {standard}  Language: {language}\n"
+                    f"Extract clauses for {standard} only. Titles must be exact indexes "
+                    f"from this standard — never titles from another ISO standard.\n\n"
+                    f"Extract ISO clauses from this text. "
+                    f"Keep every N.N.N heading as its own clause:\n\n{seg}"
+                )},
+            ]
+            raw = await llm_call(
+                "extract",
+                msgs,
+                temperature=0,
+                response_format="json",
+                max_tokens=4096,
+                reasoning_effort="low",
+            )
+            return _iter_clause_items(parse_json_response(raw))
+
+    results = await asyncio.gather(
+        *[_one(i, seg) for i, seg in enumerate(segments)],
+        return_exceptions=True,
+    )
 
     merged: dict[str, dict] = {}
     order: list[str] = []
+    for idx, res in enumerate(results):
+        if isinstance(res, Exception):
+            log.warning("segment %d failed: %s", idx + 1, res)
+            continue
+        for item in res:
+            _merge_item(merged, order, item)
 
-    for idx, seg in enumerate(segments):
-        log.info("  segment %d/%d (%d chars)", idx + 1, len(segments), len(seg))
-        msgs = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": (
-                f"Standard: {standard}  Language: {language}\n\n"
-                f"Extract ISO clauses from this text:\n\n{seg}"
-            )},
-        ]
-        raw = await llm_call("extract", msgs, temperature=0, response_format="json")
-        items = _iter_clause_items(parse_json_response(raw))
-        for item in items:
-            cid = _normalize_id(str(item.get("clause_id", "")))
-            if not cid or not _CLAUSE_ID_RE.match(cid):
-                continue
-            top = int(cid.split(".")[0])
-            if top < 1 or top > 10:
-                continue
-            title = str(item.get("title", "")).strip()
-            body = str(item.get("body", "")).strip()
-            if cid not in merged:
-                merged[cid] = {"clause_id": cid, "title": title, "body": body}
-                order.append(cid)
-            else:
-                if not merged[cid]["title"] and title:
-                    merged[cid]["title"] = title
-                if body and body not in merged[cid]["body"]:
-                    sep = "\n\n" if merged[cid]["body"] else ""
-                    merged[cid]["body"] = merged[cid]["body"] + sep + body
+    if not merged:
+        raise LLMError("extract_clauses produced 0 clauses from all segments")
 
     from app.config import get_model_config
     model_used = get_model_config()["extract"]["model"]

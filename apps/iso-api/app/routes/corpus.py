@@ -18,7 +18,7 @@ from app.iso.import_service import import_translated_clauses
 from app.iso.parser import _sort_key
 from app.iso.pipeline import store_file
 from app.iso.standard_cleanup import delete_iso_standard
-from app.iso.translate import translate_clause_text
+from app.iso.translate import translate_clause_rows
 
 router = APIRouter(prefix="/admin/corpus", tags=["corpus"])
 log = logging.getLogger(__name__)
@@ -68,10 +68,20 @@ def list_corpus(doc_type: str, admin: Annotated[CurrentUser, Depends(require_adm
             """,
             (type_map[doc_type],),
         ).fetchall()
-        rag_count = conn.execute(
-            "SELECT COUNT(*) AS c FROM rag_documents WHERE collection_id = %s",
-            ("iso-standards" if doc_type == "iso" else f"iso-{doc_type}",),
-        ).fetchone()
+        if doc_type == "iso":
+            # Per-standard collections (iso-standards-ISO9001, …) plus legacy shared id.
+            rag_count = conn.execute(
+                """
+                SELECT COUNT(*) AS c FROM rag_documents
+                WHERE collection_id = 'iso-standards'
+                   OR collection_id LIKE 'iso-standards-%%'
+                """
+            ).fetchone()
+        else:
+            rag_count = conn.execute(
+                "SELECT COUNT(*) AS c FROM rag_documents WHERE collection_id = %s",
+                (f"iso-{doc_type}",),
+            ).fetchone()
         clause_counts = conn.execute(
             """
             SELECT standard, language, COUNT(*) AS c, MAX(edition) AS edition
@@ -218,10 +228,14 @@ def get_iso_upload_status(
         "edition": row.get("edition"),
         "filename": row.get("name"),
         "created_at": row.get("created_at"),
-        "clauses_imported": meta.get("clauses_imported"),
+        "clauses_imported": meta.get("clauses_imported") or meta.get("translated_clauses"),
+        "translated_clauses": meta.get("translated_clauses"),
         "rag_chunks": meta.get("rag_chunks"),
         "parse_method": meta.get("parse_method"),
-        "warnings": meta.get("warnings") or [],
+        "source_language": meta.get("source_language"),
+        "target_language": meta.get("target_language"),
+        "job_type": meta.get("job_type") or "upload",
+        "warnings": meta.get("warnings") or meta.get("errors") or [],
         "validation": meta.get("validation"),
         "file_id": meta.get("file_id"),
         "error": meta.get("error"),
@@ -378,11 +392,144 @@ def _mark_failed(corpus_id: str, error: str) -> None:
 
 # ── translate ──────────────────────────────────────────────────────────────
 
+async def _async_translate_job(
+    *,
+    corpus_id: str,
+    standard: str,
+    edition: str,
+    source_language: str,
+    target_language: str,
+    clause_ids: list[str] | None,
+    admin_id: str,
+) -> None:
+    """Background worker: translate source→target and replace target RAG."""
+    try:
+        with get_conn() as conn:
+            sql = """
+                SELECT clause_id, title, body, sort_order
+                FROM iso_clause_text
+                WHERE standard = %s AND language = %s
+            """
+            params: list = [standard, source_language]
+            if clause_ids:
+                placeholders = ", ".join(["%s"] * len(clause_ids))
+                sql += f" AND clause_id IN ({placeholders})"
+                params.extend(clause_ids)
+            sql += " ORDER BY sort_order, clause_id"
+            rows = rows_to_list(conn.execute(sql, params).fetchall())
+
+        ordered_rows = sorted(
+            rows,
+            key=lambda r: (_sort_key(str(r["clause_id"])), str(r["clause_id"])),
+        )
+        if not ordered_rows:
+            raise ValueError(f"No {source_language} clauses found for {standard}")
+
+        with get_conn() as conn:
+            conn.execute(
+                """
+                UPDATE corpus_documents
+                SET metadata = metadata || %s::jsonb
+                WHERE id = %s
+                """,
+                (
+                    json.dumps(
+                        {
+                            "progress": f"0/{len(ordered_rows)}",
+                            "total_source": len(ordered_rows),
+                        }
+                    ),
+                    corpus_id,
+                ),
+            )
+            conn.commit()
+
+        translated, errors = await translate_clause_rows(
+            ordered_rows,
+            source_language=source_language,
+            target_language=target_language,
+            concurrency=4,
+        )
+        if not translated:
+            raise ValueError(f"Translation failed: {'; '.join(errors[:3])}")
+
+        from app.iso.parser import ParsedClause
+        from app.iso.rag_index import file_sha256, index_clauses
+
+        parsed = [
+            ParsedClause(cid, title, body_text, sort_order)
+            for cid, title, body_text, sort_order in translated
+        ]
+        replace_all = not bool(clause_ids)
+        with get_conn() as conn:
+            count = import_translated_clauses(
+                conn,
+                standard=standard,
+                edition=edition,
+                clauses=translated,
+                target_language=target_language,
+                admin_id=admin_id,
+                corpus_id=corpus_id,
+                replace_all=replace_all,
+            )
+            rag_chunks = index_clauses(
+                conn,
+                standard=standard,
+                language=target_language,
+                edition=edition,
+                corpus_id=corpus_id,
+                source_name=f"{standard}-{target_language}-translated",
+                clauses=parsed,
+                content_sha256=file_sha256(
+                    f"translated:{standard}:{target_language}:{corpus_id}".encode()
+                ),
+                replace_all=replace_all,
+                source="translated",
+            )
+            result = {
+                "job_type": "translate",
+                "standard": standard,
+                "source_language": source_language,
+                "target_language": target_language,
+                "translated_clauses": count,
+                "clauses_imported": count,
+                "rag_chunks": rag_chunks,
+                "errors": errors,
+                "replace_rag": True,
+            }
+            conn.execute(
+                """
+                UPDATE corpus_documents
+                SET status = 'ready',
+                    language = %s,
+                    metadata = metadata || %s::jsonb
+                WHERE id = %s
+                """,
+                (target_language, json.dumps(result), corpus_id),
+            )
+            conn.commit()
+        log.info(
+            "async translate ready corpus_id=%s %s→%s clauses=%s rag=%s",
+            corpus_id,
+            source_language,
+            target_language,
+            count,
+            rag_chunks,
+        )
+    except Exception as exc:
+        log.exception("async translate failed corpus_id=%s", corpus_id)
+        _mark_failed(corpus_id, str(exc))
+
+
 @router.post("/iso/translate")
 async def translate_iso_clauses(
     body: TranslateRequest,
     admin: Annotated[CurrentUser, Depends(require_admin)],
 ):
+    """Translate clauses EN↔HE and replace target-language clauses + RAG.
+
+    Returns HTTP 202 quickly; poll GET /admin/corpus/iso/upload/{corpus_id}.
+    """
     if body.source_language not in ("en", "he") or body.target_language not in ("en", "he"):
         raise HTTPException(status_code=400, detail="source_language and target_language must be en or he")
     if body.source_language == body.target_language:
@@ -391,7 +538,7 @@ async def translate_iso_clauses(
     std = body.standard.upper().replace(" ", "")
     with get_conn() as conn:
         sql = """
-            SELECT clause_id, title, body, sort_order
+            SELECT COUNT(*) AS c
             FROM iso_clause_text
             WHERE standard = %s AND language = %s
         """
@@ -400,79 +547,75 @@ async def translate_iso_clauses(
             placeholders = ", ".join(["%s"] * len(body.clause_ids))
             sql += f" AND clause_id IN ({placeholders})"
             params.extend(body.clause_ids)
-        sql += " ORDER BY sort_order, clause_id"
-        rows = conn.execute(sql, params).fetchall()
+        count_row = conn.execute(sql, params).fetchone()
+        source_count = int(count_row["c"] if isinstance(count_row, dict) else count_row[0])
 
-    ordered_rows = sorted(
-        rows_to_list(rows),
-        key=lambda r: (_sort_key(str(r["clause_id"])), str(r["clause_id"])),
-    )
-
-    if not ordered_rows:
+    if source_count == 0:
         raise HTTPException(
             status_code=404,
             detail=f"No {body.source_language} clauses found for standard",
         )
 
-    translated: list[tuple[str, str, str, int]] = []
-    errors: list[str] = []
-    for row in ordered_rows:
-        try:
-            title_out, body_out = await translate_clause_text(
-                row["title"],
-                row["body"],
-                source_language=body.source_language,
-                target_language=body.target_language,
-            )
-            translated.append(
+    corpus_id = str(uuid4())
+
+    def _prepare() -> None:
+        with get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO corpus_documents
+                  (id, doc_type, name, standards, language, edition, status, metadata)
+                VALUES (%s, 'iso_standard', %s, %s, %s, %s, 'processing', %s::jsonb)
+                """,
                 (
-                    row["clause_id"],
-                    title_out,
-                    body_out,
-                    _sort_key(str(row["clause_id"])),
-                )
+                    corpus_id,
+                    f"translate-{std}-{body.source_language}-{body.target_language}",
+                    [std],
+                    body.target_language,
+                    body.edition,
+                    json.dumps(
+                        {
+                            "job_type": "translate",
+                            "source": "translate",
+                            "source_language": body.source_language,
+                            "target_language": body.target_language,
+                            "total_source": source_count,
+                            "replace_rag": True,
+                        }
+                    ),
+                ),
             )
-        except Exception as exc:
-            errors.append(f"{row['clause_id']}: {exc}")
+            conn.commit()
 
-    if not translated:
-        raise HTTPException(status_code=502, detail=f"Translation failed: {'; '.join(errors[:3])}")
-
-    with get_conn() as conn:
-        count = import_translated_clauses(
-            conn,
+    await asyncio.to_thread(_prepare)
+    asyncio.create_task(
+        _async_translate_job(
+            corpus_id=corpus_id,
             standard=std,
             edition=body.edition,
-            clauses=translated,
+            source_language=body.source_language,
             target_language=body.target_language,
+            clause_ids=body.clause_ids,
             admin_id=admin.id,
         )
-        from app.iso.parser import ParsedClause
-        from app.iso.rag_index import file_sha256, index_clauses
-
-        parsed = [
-            ParsedClause(cid, title, body_text, sort_order)
-            for cid, title, body_text, sort_order in translated
-        ]
-        index_clauses(
-            conn,
-            standard=std,
-            language=body.target_language,
-            edition=body.edition,
-            corpus_id=f"translate-{std}",
-            source_name=f"{std}-{body.target_language}-translated",
-            clauses=parsed,
-            content_sha256=file_sha256(b"translated"),
-        )
-        conn.commit()
-
-    return {
-        "standard": std,
-        "source_language": body.source_language,
-        "target_language": body.target_language,
-        "translated_clauses": count,
-        "errors": errors,
-    }
+    )
+    return JSONResponse(
+        status_code=202,
+        content={
+            "corpus_id": corpus_id,
+            "status": "processing",
+            "standard": std,
+            "source_language": body.source_language,
+            "target_language": body.target_language,
+            "edition": body.edition,
+            "total_source": source_count,
+            "replace_rag": True,
+            "message": (
+                f"Translating {source_count} clauses "
+                f"{body.source_language}→{body.target_language}; "
+                "target language clauses and RAG will be replaced."
+            ),
+        },
+    )
 
 
 # ── delete standard ────────────────────────────────────────────────────────

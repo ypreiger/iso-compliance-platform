@@ -3,6 +3,7 @@ FROM registry.access.redhat.com/ubi9/python-311:latest
 USER root
 # antiword for legacy .doc files
 RUN dnf install -y gcc make \
+    && (dnf install -y tesseract tesseract-langpack-eng || true) \
     && dnf clean all
 COPY vendor/antiword-0.37 /tmp/antiword-0.37
 RUN make -C /tmp/antiword-0.37 \

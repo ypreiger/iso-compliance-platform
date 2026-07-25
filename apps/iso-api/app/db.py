@@ -117,6 +117,9 @@ CREATE TABLE IF NOT EXISTS iso_clause_text (
     sort_order INTEGER NOT NULL DEFAULT 0,
     edition TEXT NOT NULL DEFAULT '',
     source TEXT NOT NULL DEFAULT 'seed',
+    parent_clause_id TEXT NOT NULL DEFAULT '',
+    depth INTEGER NOT NULL DEFAULT 0,
+    corpus_id TEXT NOT NULL DEFAULT '',
     UNIQUE (standard, clause_id, language)
 );
 CREATE TABLE IF NOT EXISTS corpus_files (
@@ -234,6 +237,9 @@ CREATE TABLE IF NOT EXISTS iso_clause_text (
     sort_order INT NOT NULL DEFAULT 0,
     edition TEXT NOT NULL DEFAULT '',
     source TEXT NOT NULL DEFAULT 'seed',
+    parent_clause_id TEXT NOT NULL DEFAULT '',
+    depth INT NOT NULL DEFAULT 0,
+    corpus_id TEXT NOT NULL DEFAULT '',
     UNIQUE (standard, clause_id, language)
 );
 CREATE INDEX IF NOT EXISTS idx_findings_project ON findings(project_id);
@@ -364,7 +370,13 @@ def ensure_schema() -> None:
 
 
 def _migrate_iso_clause_columns(conn: Any) -> None:
-    for col, typedef in (("edition", "TEXT NOT NULL DEFAULT ''"), ("source", "TEXT NOT NULL DEFAULT 'seed'")):
+    for col, typedef in (
+        ("edition", "TEXT NOT NULL DEFAULT ''"),
+        ("source", "TEXT NOT NULL DEFAULT 'seed'"),
+        ("parent_clause_id", "TEXT NOT NULL DEFAULT ''"),
+        ("depth", "INTEGER NOT NULL DEFAULT 0"),
+        ("corpus_id", "TEXT NOT NULL DEFAULT ''"),
+    ):
         try:
             conn.execute(f"ALTER TABLE iso_clause_text ADD COLUMN {col} {typedef}")
             if hasattr(conn, "commit"):
@@ -376,6 +388,9 @@ def _migrate_iso_clause_columns(conn: Any) -> None:
 def _migrate_iso_clause_columns_pg(conn: Any) -> None:
     conn.execute("ALTER TABLE iso_clause_text ADD COLUMN IF NOT EXISTS edition TEXT NOT NULL DEFAULT ''")
     conn.execute("ALTER TABLE iso_clause_text ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'seed'")
+    conn.execute("ALTER TABLE iso_clause_text ADD COLUMN IF NOT EXISTS parent_clause_id TEXT NOT NULL DEFAULT ''")
+    conn.execute("ALTER TABLE iso_clause_text ADD COLUMN IF NOT EXISTS depth INT NOT NULL DEFAULT 0")
+    conn.execute("ALTER TABLE iso_clause_text ADD COLUMN IF NOT EXISTS corpus_id TEXT NOT NULL DEFAULT ''")
 
 
 def _seed_all(conn: Any) -> None:
@@ -462,12 +477,20 @@ def get_document_count() -> int:
 
 def audit(conn: Any, user_id: str | None, action: str, entity_type: str, entity_id: str,
           before: Any = None, after: Any = None) -> None:
+    uid = user_id
+    # Postgres audit_log.user_id is UUID; ignore non-UUID values (tests / system jobs).
+    if uid and USE_SQLITE is False:
+        try:
+            import uuid as _uuid
+            _uuid.UUID(str(uid))
+        except (ValueError, TypeError, AttributeError):
+            uid = None
     conn.execute(
         """
         INSERT INTO audit_log (user_id, action, entity_type, entity_id, before_json, after_json)
         VALUES (%s, %s, %s, %s, %s, %s)
         """,
-        (user_id, action, entity_type, entity_id,
+        (uid, action, entity_type, entity_id,
          json.dumps(before) if before is not None else None,
          json.dumps(after) if after is not None else None),
     )

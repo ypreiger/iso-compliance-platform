@@ -67,16 +67,23 @@ def _key_phrases(body: str, n: int = 4) -> list[str]:
 
 def _rag_content_for_clause(conn: Any, *, standard: str, language: str, clause_id: str) -> str:
     """Fetch all RAG chunks for a specific clause and join them."""
+    from app.iso.rag_index import LEGACY_COLLECTION_ID, collection_id_for_standard, normalize_standard_id
+
+    std = normalize_standard_id(standard)
+    coll = collection_id_for_standard(std)
     rows = conn.execute(
         """
         SELECT content FROM rag_documents
-        WHERE collection_id = 'iso-standards'
+        WHERE (
+                collection_id = %s
+             OR (collection_id = %s AND metadata->>'standard' = %s)
+              )
           AND metadata->>'standard' = %s
           AND metadata->>'language' = %s
           AND metadata->>'clause_id' = %s
         ORDER BY chunk_index
         """,
-        (standard, language, clause_id),
+        (coll, LEGACY_COLLECTION_ID, std, std, language, clause_id),
     ).fetchall()
     return " ".join(r["content"] for r in rows).lower()
 

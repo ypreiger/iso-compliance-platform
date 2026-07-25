@@ -39,7 +39,9 @@ async def llm_call(
     temperature: float = 0,
     response_format: str = "json",  # "json" | "text"
     retries: int = 3,
-    timeout: float = 300.0,  # Increased for large Hebrew documents
+    timeout: float = 180.0,
+    max_tokens: int = 4096,
+    reasoning_effort: str = "low",
 ) -> str:
     """Call the LLM for a given task; return the content string."""
     cfg = get_model_config()[task]
@@ -54,7 +56,11 @@ async def llm_call(
         "model": model,
         "messages": messages,
         "temperature": temperature,
+        "max_tokens": max_tokens,
     }
+    # gpt-oss / reasoning models: low effort cuts wall time dramatically
+    if reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
     # json_object mode is supported by OpenAI and most vLLM builds
     if response_format == "json":
         payload["response_format"] = {"type": "json_object"}
@@ -78,9 +84,20 @@ async def llm_call(
                     body = resp.text[:400]
                     raise LLMError(f"LLM API {resp.status_code} (task={task}): {body}")
                 data = resp.json()
-                # Handle both standard and reasoning model responses
+                # Handle both standard and reasoning model responses (gpt-oss may
+                # return content=null when max_tokens is consumed by reasoning).
                 message = data["choices"][0]["message"]
-                content = message.get("content") or message.get("reasoning_content") or ""
+                content = (
+                    message.get("content")
+                    or message.get("reasoning_content")
+                    or message.get("reasoning")
+                    or ""
+                )
+                if not str(content).strip():
+                    raise LLMError(
+                        f"LLM returned empty content (task={task}, "
+                        f"finish={data['choices'][0].get('finish_reason')})"
+                    )
                 return content
         except LLMError:
             raise
@@ -98,4 +115,26 @@ def parse_json_response(raw: str) -> list | dict:
     if raw.startswith("```"):
         lines = raw.split("\n")
         raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        # gpt-oss often truncates long Hebrew JSON; salvage a clauses array if present.
+        start = raw.find("[")
+        if start < 0:
+            start = raw.find("{")
+        if start >= 0:
+            snippet = raw[start:]
+            # Close truncated structures conservatively.
+            if snippet.lstrip().startswith("["):
+                snippet = snippet + "]"
+            else:
+                # Truncated object/array under {"clauses":[...
+                if '"clauses"' in snippet and "[" in snippet:
+                    snippet = snippet.rstrip().rstrip(",") + "]}"
+                else:
+                    snippet = snippet.rstrip().rstrip(",") + "}"
+            try:
+                return json.loads(snippet)
+            except json.JSONDecodeError:
+                pass
+        raise

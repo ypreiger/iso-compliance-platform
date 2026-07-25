@@ -52,6 +52,7 @@ function CorpusPage({ type, titleKey }: { type: string; titleKey: string }) {
   const [replaceExisting, setReplaceExisting] = useState(true);
   const [translateDir, setTranslateDir] = useState<'en-he' | 'he-en'>('en-he');
   const [uploading, setUploading] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const [lastUpload, setLastUpload] = useState<UploadResult | null>(null);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -70,6 +71,15 @@ function CorpusPage({ type, titleKey }: { type: string; titleKey: string }) {
     });
   };
   useEffect(() => { load(); }, [token, type]);
+
+  // Prefer the direction that fills the missing language for the selected standard.
+  useEffect(() => {
+    const rows = clauseCounts.filter((r) => String(r.standard) === standard);
+    const en = Number(rows.find((r) => r.language === 'en')?.c ?? 0);
+    const he = Number(rows.find((r) => r.language === 'he')?.c ?? 0);
+    if (he > 10 && en < 10) setTranslateDir('he-en');
+    else if (en > 10 && he < 10) setTranslateDir('en-he');
+  }, [standard, clauseCounts]);
 
   const upload = () => {
     if (!token || !fileRef.current?.files?.[0]) return;
@@ -101,10 +111,13 @@ function CorpusPage({ type, titleKey }: { type: string; titleKey: string }) {
   };
 
   const translate = () => {
-    if (!token) return;
+    if (!token || translating) return;
     setErr('');
+    setMsg('');
     const [source_language, target_language] =
       translateDir === 'en-he' ? (['en', 'he'] as const) : (['he', 'en'] as const);
+    setTranslating(true);
+    setMsg(t('admin.translating', { from: source_language.toUpperCase(), to: target_language.toUpperCase() }));
     api.corpus.translateIso(token, { standard, edition, source_language, target_language })
       .then((r) => {
         setMsg(
@@ -116,7 +129,8 @@ function CorpusPage({ type, titleKey }: { type: string; titleKey: string }) {
         );
         load();
       })
-      .catch((e: Error) => setErr(e.message));
+      .catch((e: Error) => setErr(e.message))
+      .finally(() => setTranslating(false));
   };
 
   const deleteStandard = () => {
@@ -193,17 +207,24 @@ function CorpusPage({ type, titleKey }: { type: string; titleKey: string }) {
         </p>
         <label>
           {t('admin.translateDirection')}
-          <select value={translateDir} onChange={(e) => setTranslateDir(e.target.value as 'en-he' | 'he-en')}>
+          <select
+            value={translateDir}
+            onChange={(e) => setTranslateDir(e.target.value as 'en-he' | 'he-en')}
+            disabled={translating}
+          >
             <option value="en-he">{t('admin.translateEnHe')}</option>
             <option value="he-en">{t('admin.translateHeEn')}</option>
           </select>
         </label>
+        <p className="form-hint">{t('admin.translateReplaceHelp')}</p>
         <div className="button-row">
-          <button type="button" className="btn" onClick={upload} disabled={uploading}>
+          <button type="button" className="btn" onClick={upload} disabled={uploading || translating}>
             {uploading ? t('admin.uploading') : t('admin.uploadIso')}
           </button>
-          <button type="button" className="btn" onClick={translate}>{t('admin.translateRun')}</button>
-          <button type="button" className="btn btn-danger" onClick={deleteStandard}>
+          <button type="button" className="btn" onClick={translate} disabled={uploading || translating}>
+            {translating ? t('admin.translatingShort') : t('admin.translateRun')}
+          </button>
+          <button type="button" className="btn btn-danger" onClick={deleteStandard} disabled={uploading || translating}>
             {t('admin.deleteStandard')}
           </button>
         </div>

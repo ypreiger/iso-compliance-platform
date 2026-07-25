@@ -2,6 +2,7 @@ FROM registry.access.redhat.com/ubi9/python-311:latest
 
 USER root
 RUN dnf install -y xmlsec1 xmlsec1-openssl gcc make \
+    && (dnf install -y tesseract tesseract-langpack-eng || true) \
     && dnf clean all
 COPY vendor/antiword-0.37 /tmp/antiword-0.37
 RUN make -C /tmp/antiword-0.37 && make -C /tmp/antiword-0.37 global_install \
