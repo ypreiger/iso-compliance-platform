@@ -10,7 +10,5 @@ resources:
   - bge-m3-external-model.yaml
   - gpt-oss-20b.yaml
   - llm-servicemonitors.yaml
-  # Single platform observability dashboard (tokens + CPU/RAM + network)
+  # Single platform observability dashboard (MaaS + app model tokens, CPU/RAM, network)
   - maas-token-metrics-dashboard.yaml
-  # Application-side model calls (iso-api / docgen) — covers in-cluster BGE + chat
-  - iso-app-model-metrics-dashboard.yaml

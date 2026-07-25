@@ -30,6 +30,7 @@ def test_metrics_endpoint_exposes_model_series():
     assert "iso_app_model_requests_total" in body
     assert 'model="bge-m3"' in body
     assert 'task="embed_index"' in body
+    assert 'user="iso-api"' in body
 
 
 def test_embeddings_disabled_under_sqlite():

@@ -86,7 +86,7 @@ spec:
                 "type": "prometheus",
                 "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
               },
-              "expr": "sum(increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]))",
+              "expr": "(sum(increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range])) or vector(0)) + (sum(increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range])) or vector(0))",
               "refId": "A",
               "instant": true
             }
@@ -196,7 +196,7 @@ spec:
                 "type": "prometheus",
                 "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
               },
-              "expr": "count(count by (model) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]) > 0))",
+              "expr": "count(count by (model) ((increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]) > 0) or (increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]) > 0)))",
               "refId": "A",
               "instant": true
             }
@@ -251,7 +251,7 @@ spec:
                 "type": "prometheus",
                 "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
               },
-              "expr": "sum(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"})",
+              "expr": "(sum(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}) or vector(0)) + (sum(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}) or vector(0))",
               "refId": "A",
               "instant": true
             }
@@ -374,7 +374,7 @@ spec:
                 "type": "prometheus",
                 "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
               },
-              "expr": "sum by (model) (rate(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__rate_interval]))",
+              "expr": "(sum by (model) (rate(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__rate_interval])) or sum by (model) (rate(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__rate_interval]) * 0)) + (sum by (model) (rate(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__rate_interval])) or sum by (model) (rate(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__rate_interval]) * 0))",
               "refId": "A",
               "legendFormat": "{{model}}",
               "range": true
@@ -431,7 +431,7 @@ spec:
                 "type": "prometheus",
                 "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
               },
-              "expr": "topk(10, sum by (user) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range])))",
+              "expr": "topk(10, (sum by (user) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range])) or sum by (user) (label_replace(increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]), \"user\", \"iso-api\", \"\", \"\") * 0)) + (sum by (user) (label_replace(increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]), \"user\", \"iso-api\", \"\", \"\")) or sum by (user) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]) * 0)))",
               "refId": "A",
               "legendFormat": "{{user}}",
               "instant": true
@@ -488,7 +488,7 @@ spec:
                 "type": "prometheus",
                 "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
               },
-              "expr": "topk(10, sum by (model) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range])))",
+              "expr": "topk(10, (sum by (model) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range])) or sum by (model) (increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]) * 0)) + (sum by (model) (increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range])) or sum by (model) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]) * 0)))",
               "refId": "A",
               "legendFormat": "{{model}}",
               "instant": true
@@ -591,7 +591,7 @@ spec:
                 "type": "prometheus",
                 "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
               },
-              "expr": "sum by (user, model, tier) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]))",
+              "expr": "(sum by (user, model, tier) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]))) or (sum by (user, model, tier) (label_replace(label_replace(increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]), \"user\", \"iso-api\", \"\", \"\"), \"tier\", \"application\", \"\", \"\")))",
               "refId": "A",
               "instant": true,
               "format": "table"
@@ -1299,78 +1299,7 @@ spec:
               "range": true
             }
           ]
-        },
-        {
-          "id": 2000,
-          "type": "row",
-          "title": "Application model calls (in-cluster — BGE-M3 embed_index, GPT-oss parse/translate)",
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 90},
-          "collapsed": false,
-          "panels": []
-        },
-        {
-          "id": 2001,
-          "type": "stat",
-          "title": "BGE-M3 embed_index tokens (range)",
-          "description": "iso_app_model_tokens_total — counted on upload/translate RAG index (not MaaS authorized_hits)",
-          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 91},
-          "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
-          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none"},
-          "targets": [
-            {
-              "expr": "sum(increase(iso_app_model_tokens_total{model=\"bge-m3\",task=\"embed_index\",token_type=\"total\"}[$__range]))",
-              "refId": "A",
-              "instant": true
-            }
-          ]
-        },
-        {
-          "id": 2002,
-          "type": "stat",
-          "title": "BGE-M3 embed_index calls (range)",
-          "gridPos": {"h": 5, "w": 6, "x": 6, "y": 91},
-          "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
-          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none"},
-          "targets": [
-            {
-              "expr": "sum(increase(iso_app_model_requests_total{model=\"bge-m3\",task=\"embed_index\"}[$__range]))",
-              "refId": "A",
-              "instant": true
-            }
-          ]
-        },
-        {
-          "id": 2003,
-          "type": "timeseries",
-          "title": "App token rate by model (all tasks)",
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 91},
-          "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
-          "fieldConfig": {"defaults": {"unit": "cps"}},
-          "targets": [
-            {
-              "expr": "sum by (model) (rate(iso_app_model_tokens_total{token_type=\"total\"}[$__rate_interval]))",
-              "refId": "A",
-              "legendFormat": "{{model}}",
-              "range": true
-            }
-          ]
-        },
-        {
-          "id": 2004,
-          "type": "timeseries",
-          "title": "App requests by task (bge-m3 / parse / translate)",
-          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 99},
-          "datasource": {"type": "prometheus", "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"},
-          "targets": [
-            {
-              "expr": "sum by (task, model) (rate(iso_app_model_requests_total[$__rate_interval]))",
-              "refId": "A",
-              "legendFormat": "{{task}} / {{model}}",
-              "range": true
-            }
-          ]
-        }
-      ],
+        }],
       "refresh": "30s",
       "schemaVersion": 39,
       "tags": [
@@ -1391,9 +1320,9 @@ spec:
               "type": "prometheus",
               "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
             },
-            "definition": "label_values(authorized_hits, user)",
+            "definition": "label_values({__name__=~\"authorized_hits|iso_app_model_tokens_total\"}, user)",
             "query": {
-              "query": "label_values(authorized_hits, user)",
+              "query": "label_values({__name__=~\"authorized_hits|iso_app_model_tokens_total\"}, user)",
               "refId": "A"
             },
             "includeAll": true,
@@ -1415,9 +1344,9 @@ spec:
               "type": "prometheus",
               "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
             },
-            "definition": "label_values(authorized_hits{model!=\"\"}, model)",
+            "definition": "label_values({__name__=~\"authorized_hits|iso_app_model_tokens_total\",model!=\"\"}, model)",
             "query": {
-              "query": "label_values(authorized_hits{model!=\"\"}, model)",
+              "query": "label_values({__name__=~\"authorized_hits|iso_app_model_tokens_total\",model!=\"\"}, model)",
               "refId": "A"
             },
             "includeAll": true,
