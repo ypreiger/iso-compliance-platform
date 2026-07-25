@@ -30,6 +30,9 @@ apps/iso-web/dist/
 *.xlsx
 !docs/samples/**
 !RAG/**/*.docx
+# Accidental local working copies — never commit
+RAG/**/*HEaaa*
+RAG/**/*.rtf
 
 # Kubernetes secrets (never commit real values)
 **/secrets/*.yaml
