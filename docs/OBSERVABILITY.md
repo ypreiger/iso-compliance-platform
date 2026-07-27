@@ -15,13 +15,23 @@ The platform maintains **one** Grafana dashboard for day-to-day operations:
 ### What it shows
 
 1. **Tokens by user / model** (selected Grafana time range)
-   - **MaaS gateway**: Kuadrant/Limitador `authorized_hits`
+   - **MaaS gateway** (external-model HTTPRoutes): Kuadrant/Limitador `authorized_hits` — tokens per **user** + **model** when traffic goes through `https://maas.../llm/<model>/v1`
    - **Application calls** (in-cluster): `iso_app_model_tokens_total` — includes **BGE-M3** on ISO upload / translate / auto-mapping (`user=iso-api`)
    - Filters: **User**, **Model**
    - Panels **Top models by tokens** and **Detailed metrics** merge both sources so `bge-m3` appears alongside MaaS models
 
-2. **CPU & memory** for selected namespaces  
-3. **Network** rx/tx by namespace and pod  
+2. **External / MaaS model tokens & cache (vLLM)** — for in-cluster models behind MaaS (`gpt-oss-20b`, etc.)
+   - Prompt / generation tokens: `vllm:prompt_tokens_total`, `vllm:generation_tokens_total`
+   - **Prefix cache hit rate**: `vllm:prefix_cache_hits_total / vllm:prefix_cache_queries_total`
+   - **KV cache usage %**: `vllm:kv_cache_usage_perc`
+   - Filter with the same **Model** variable (`model_name=~"$model"`)
+
+3. **CPU & memory** for selected namespaces  
+4. **Network** rx/tx by namespace and pod  
+
+**Limits**
+- Gateway token counts (`authorized_hits`) cover **all** MaaS routes, including SaaS externals (e.g. `gpt-4o`).
+- Prefix/KV **cache** panels apply to **vLLM-backed** models only. Hosted SaaS APIs do not publish those metrics into this cluster.
 
 ### How BGE-M3 shows up
 

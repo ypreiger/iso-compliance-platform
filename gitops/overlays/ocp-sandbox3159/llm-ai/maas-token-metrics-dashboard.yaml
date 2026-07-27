@@ -609,6 +609,479 @@ spec:
           ]
         },
         {
+          "id": 1020,
+          "type": "row",
+          "title": "External / MaaS model tokens & cache (vLLM)",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 30
+          },
+          "collapsed": false,
+          "panels": []
+        },
+        {
+          "id": 60,
+          "title": "Prompt tokens (range)",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 31
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+              },
+              "expr": "sum(increase(vllm:prompt_tokens_total{model_name=~\"$model\"}[$__range])) or sum(increase(kserve_vllm:prompt_tokens_total{model_name=~\"$model\"}[$__range]))",
+              "refId": "A",
+              "legendFormat": "Prompt tokens (range)",
+              "instant": true
+            }
+          ]
+        },
+        {
+          "id": 61,
+          "title": "Generation tokens (range)",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 6,
+            "y": 31
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+              },
+              "expr": "sum(increase(vllm:generation_tokens_total{model_name=~\"$model\"}[$__range])) or sum(increase(kserve_vllm:generation_tokens_total{model_name=~\"$model\"}[$__range]))",
+              "refId": "A",
+              "legendFormat": "Generation tokens (range)",
+              "instant": true
+            }
+          ]
+        },
+        {
+          "id": 62,
+          "title": "Prefix cache hit rate (range)",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 12,
+            "y": 31
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+              },
+              "expr": "clamp_max(\n          (\n            (sum(increase(vllm:prefix_cache_hits_total{model_name=~\"$model\"}[$__range])) or sum(increase(kserve_vllm:prefix_cache_hits_total{model_name=~\"$model\"}[$__range])) or vector(0))\n            /\n            clamp_min(\n              (sum(increase(vllm:prefix_cache_queries_total{model_name=~\"$model\"}[$__range])) or sum(increase(kserve_vllm:prefix_cache_queries_total{model_name=~\"$model\"}[$__range])) or vector(0)),\n              1\n            )\n          ),\n          1\n        )",
+              "refId": "A",
+              "legendFormat": "Prefix cache hit rate (range)",
+              "instant": true
+            }
+          ]
+        },
+        {
+          "id": 63,
+          "title": "KV cache usage (now)",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 18,
+            "y": 31
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+              },
+              "expr": "max(vllm:kv_cache_usage_perc{model_name=~\"$model\"}) or max(kserve_vllm:kv_cache_usage_perc{model_name=~\"$model\"}) or vector(0)",
+              "refId": "A",
+              "legendFormat": "KV cache usage (now)",
+              "instant": true
+            }
+          ]
+        },
+        {
+          "id": 70,
+          "title": "Prefix cache hit rate by model",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 35
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+              },
+              "expr": "(\n          (sum by (model_name) (rate(vllm:prefix_cache_hits_total{model_name=~\"$model\"}[$__rate_interval])) or sum by (model_name) (rate(kserve_vllm:prefix_cache_hits_total{model_name=~\"$model\"}[$__rate_interval])))\n          /\n          clamp_min(\n            (sum by (model_name) (rate(vllm:prefix_cache_queries_total{model_name=~\"$model\"}[$__rate_interval])) or sum by (model_name) (rate(kserve_vllm:prefix_cache_queries_total{model_name=~\"$model\"}[$__rate_interval]))),\n            1e-9\n          )\n        )",
+              "refId": "A",
+              "legendFormat": "{{model_name}}",
+              "range": true
+            }
+          ]
+        },
+        {
+          "id": 71,
+          "title": "KV cache usage % by model",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 35
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+              },
+              "expr": "max by (model_name) (vllm:kv_cache_usage_perc{model_name=~\"$model\"}) or max by (model_name) (kserve_vllm:kv_cache_usage_perc{model_name=~\"$model\"})",
+              "refId": "A",
+              "legendFormat": "{{model_name}}",
+              "range": true
+            }
+          ]
+        },
+        {
+          "id": 72,
+          "title": "Prompt token rate by model",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 43
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+              },
+              "expr": "sum by (model_name) (rate(vllm:prompt_tokens_total{model_name=~\"$model\"}[$__rate_interval])) or sum by (model_name) (rate(kserve_vllm:prompt_tokens_total{model_name=~\"$model\"}[$__rate_interval]))",
+              "refId": "A",
+              "legendFormat": "{{model_name}}",
+              "range": true
+            }
+          ]
+        },
+        {
+          "id": 73,
+          "title": "Generation token rate by model",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": true
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+              },
+              "expr": "sum by (model_name) (rate(vllm:generation_tokens_total{model_name=~\"$model\"}[$__rate_interval])) or sum by (model_name) (rate(kserve_vllm:generation_tokens_total{model_name=~\"$model\"}[$__rate_interval]))",
+              "refId": "A",
+              "legendFormat": "{{model_name}}",
+              "range": true
+            }
+          ]
+        },
+        {
           "id": 1030,
           "type": "row",
           "title": "Namespace CPU & memory",
@@ -616,7 +1089,7 @@ spec:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 30
+            "y": 48
           },
           "collapsed": false,
           "panels": []
@@ -633,7 +1106,7 @@ spec:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 49
           },
           "fieldConfig": {
             "defaults": {
@@ -695,7 +1168,7 @@ spec:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 49
           },
           "fieldConfig": {
             "defaults": {
@@ -757,7 +1230,7 @@ spec:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 57
           },
           "fieldConfig": {
             "defaults": {
@@ -819,7 +1292,7 @@ spec:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 57
           },
           "fieldConfig": {
             "defaults": {
@@ -881,7 +1354,7 @@ spec:
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 65
           },
           "fieldConfig": {
             "defaults": {
@@ -964,7 +1437,7 @@ spec:
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 65
           },
           "fieldConfig": {
             "defaults": {
@@ -1047,7 +1520,7 @@ spec:
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 54
+            "y": 72
           },
           "collapsed": false,
           "panels": []
@@ -1064,7 +1537,7 @@ spec:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 55
+            "y": 73
           },
           "fieldConfig": {
             "defaults": {
@@ -1126,7 +1599,7 @@ spec:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 73
           },
           "fieldConfig": {
             "defaults": {
@@ -1188,7 +1661,7 @@ spec:
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 63
+            "y": 81
           },
           "fieldConfig": {
             "defaults": {
@@ -1250,7 +1723,7 @@ spec:
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 63
+            "y": 81
           },
           "fieldConfig": {
             "defaults": {
@@ -1299,16 +1772,20 @@ spec:
               "range": true
             }
           ]
-        }],
+        }
+      ],
       "refresh": "30s",
       "schemaVersion": 39,
       "tags": [
+        "bge-m3",
+        "cache",
         "iso-platform",
         "maas",
-        "tokens",
-        "resources",
         "network",
-        "bge-m3"
+        "prefix-cache",
+        "resources",
+        "tokens",
+        "vllm"
       ],
       "templating": {
         "list": [
@@ -1417,5 +1894,5 @@ spec:
       "timezone": "browser",
       "title": "MaaS Token Metrics Dashboard (with User/Model Filters)",
       "uid": "maas-token-metrics",
-      "version": 2
+      "version": 3
     }
