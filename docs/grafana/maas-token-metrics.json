@@ -1,0 +1,1882 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 1000,
+      "type": "row",
+      "title": "MaaS tokens (user / model / time range)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "Total tokens (range)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "(sum(increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range])) or vector(0)) + (sum(increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range])) or vector(0))",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Active users (range)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "count(count by (user) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]) > 0))",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Active models (range)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "count(count by (model) ((increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]) > 0) or (increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]) > 0)))",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Lifetime counter (now)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "(sum(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}) or vector(0)) + (sum(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}) or vector(0))",
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Token rate by user",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (user) (rate(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{user}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Token rate by model",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "(sum by (model) (rate(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__rate_interval])) or sum by (model) (rate(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__rate_interval]) * 0)) + (sum by (model) (rate(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__rate_interval])) or sum by (model) (rate(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__rate_interval]) * 0))",
+          "refId": "A",
+          "legendFormat": "{{model}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Top users by tokens (range)",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "topk(10, (sum by (user) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range])) or sum by (user) (label_replace(increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]), \"user\", \"iso-api\", \"\", \"\") * 0)) + (sum by (user) (label_replace(increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]), \"user\", \"iso-api\", \"\", \"\")) or sum by (user) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]) * 0)))",
+          "refId": "A",
+          "legendFormat": "{{user}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "Top models by tokens (range)",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "topk(10, (sum by (model) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range])) or sum by (model) (increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]) * 0)) + (sum by (model) (increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range])) or sum by (model) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]) * 0)))",
+          "refId": "A",
+          "legendFormat": "{{model}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "title": "Detailed metrics: tokens per user / model (selected time range)",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "inspect": false
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "user"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "User"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "model"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Model"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "tier"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Tier"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Tokens (range)"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "(sum by (user, model, tier) (increase(authorized_hits{user=~\"$user\",model=~\"$model\",model!=\"\"}[$__range]))) or (sum by (user, model, tier) (label_replace(label_replace(increase(iso_app_model_tokens_total{model=~\"$model\",token_type=\"total\"}[$__range]), \"user\", \"iso-api\", \"\", \"\"), \"tier\", \"application\", \"\", \"\")))",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 1020,
+      "type": "row",
+      "title": "External / MaaS model tokens & cache (vLLM)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 60,
+      "title": "Prompt tokens (range)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum(increase(vllm:prompt_tokens_total{model_name=~\"$model\"}[$__range])) or sum(increase(kserve_vllm:prompt_tokens_total{model_name=~\"$model\"}[$__range]))",
+          "refId": "A",
+          "legendFormat": "Prompt tokens (range)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 61,
+      "title": "Generation tokens (range)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum(increase(vllm:generation_tokens_total{model_name=~\"$model\"}[$__range])) or sum(increase(kserve_vllm:generation_tokens_total{model_name=~\"$model\"}[$__range]))",
+          "refId": "A",
+          "legendFormat": "Generation tokens (range)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "title": "Prefix cache hit rate (range)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "clamp_max(\n          (\n            (sum(increase(vllm:prefix_cache_hits_total{model_name=~\"$model\"}[$__range])) or sum(increase(kserve_vllm:prefix_cache_hits_total{model_name=~\"$model\"}[$__range])) or vector(0))\n            /\n            clamp_min(\n              (sum(increase(vllm:prefix_cache_queries_total{model_name=~\"$model\"}[$__range])) or sum(increase(kserve_vllm:prefix_cache_queries_total{model_name=~\"$model\"}[$__range])) or vector(0)),\n              1\n            )\n          ),\n          1\n        )",
+          "refId": "A",
+          "legendFormat": "Prefix cache hit rate (range)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "title": "KV cache usage (now)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "max(vllm:kv_cache_usage_perc{model_name=~\"$model\"}) or max(kserve_vllm:kv_cache_usage_perc{model_name=~\"$model\"}) or vector(0)",
+          "refId": "A",
+          "legendFormat": "KV cache usage (now)",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 70,
+      "title": "Prefix cache hit rate by model",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "(\n          (sum by (model_name) (rate(vllm:prefix_cache_hits_total{model_name=~\"$model\"}[$__rate_interval])) or sum by (model_name) (rate(kserve_vllm:prefix_cache_hits_total{model_name=~\"$model\"}[$__rate_interval])))\n          /\n          clamp_min(\n            (sum by (model_name) (rate(vllm:prefix_cache_queries_total{model_name=~\"$model\"}[$__rate_interval])) or sum by (model_name) (rate(kserve_vllm:prefix_cache_queries_total{model_name=~\"$model\"}[$__rate_interval]))),\n            1e-9\n          )\n        )",
+          "refId": "A",
+          "legendFormat": "{{model_name}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "title": "KV cache usage % by model",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "max by (model_name) (vllm:kv_cache_usage_perc{model_name=~\"$model\"}) or max by (model_name) (kserve_vllm:kv_cache_usage_perc{model_name=~\"$model\"})",
+          "refId": "A",
+          "legendFormat": "{{model_name}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "title": "Prompt token rate by model",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 43
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (model_name) (rate(vllm:prompt_tokens_total{model_name=~\"$model\"}[$__rate_interval])) or sum by (model_name) (rate(kserve_vllm:prompt_tokens_total{model_name=~\"$model\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{model_name}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "title": "Generation token rate by model",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 43
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (model_name) (rate(vllm:generation_tokens_total{model_name=~\"$model\"}[$__rate_interval])) or sum by (model_name) (rate(kserve_vllm:generation_tokens_total{model_name=~\"$model\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{model_name}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 1030,
+      "type": "row",
+      "title": "Namespace CPU & memory",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 40,
+      "title": "CPU usage by namespace (cores)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 49
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{namespace}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "title": "Memory working set by namespace",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 49
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\"})",
+          "refId": "A",
+          "legendFormat": "{{namespace}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "title": "CPU usage by pod (top namespaces)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 57
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{namespace}}/{{pod}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "title": "Memory by pod",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 57
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\"})",
+          "refId": "A",
+          "legendFormat": "{{namespace}}/{{pod}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "title": "CPU / memory snapshot by namespace",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 65
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "inspect": false
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "namespace"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Namespace"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "CPU cores"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\"}[$__rate_interval]))",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "title": "Memory snapshot by namespace",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 65
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "inspect": false
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "namespace"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Namespace"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Memory"
+              },
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\"})",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 1054,
+      "type": "row",
+      "title": "Network",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 72
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 50,
+      "title": "Network receive by namespace",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 73
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace) (rate(container_network_receive_bytes_total{namespace=~\"$namespace\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{namespace}} rx",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "title": "Network transmit by namespace",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 73
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace) (rate(container_network_transmit_bytes_total{namespace=~\"$namespace\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{namespace}} tx",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "title": "Network receive by pod",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 81
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace, pod) (rate(container_network_receive_bytes_total{namespace=~\"$namespace\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{namespace}}/{{pod}}",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "title": "Network transmit by pod",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 81
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+          },
+          "expr": "sum by (namespace, pod) (rate(container_network_transmit_bytes_total{namespace=~\"$namespace\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{namespace}}/{{pod}}",
+          "range": true
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "bge-m3",
+    "cache",
+    "iso-platform",
+    "maas",
+    "network",
+    "prefix-cache",
+    "resources",
+    "tokens",
+    "vllm"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "user",
+        "label": "User",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+        },
+        "definition": "label_values({__name__=~\"authorized_hits|iso_app_model_tokens_total\"}, user)",
+        "query": {
+          "query": "label_values({__name__=~\"authorized_hits|iso_app_model_tokens_total\"}, user)",
+          "refId": "A"
+        },
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "model",
+        "label": "Model",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "5b4d84cc-548e-4c40-b6b1-fe98a25ede58"
+        },
+        "definition": "label_values({__name__=~\"authorized_hits|iso_app_model_tokens_total\",model!=\"\"}, model)",
+        "query": {
+          "query": "label_values({__name__=~\"authorized_hits|iso_app_model_tokens_total\",model!=\"\"}, model)",
+          "refId": "A"
+        },
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "custom",
+        "query": "iso-platform,llm,kuadrant-system,maas-api,grafana",
+        "includeAll": true,
+        "multi": true,
+        "allValue": "iso-platform|llm|kuadrant-system|maas-api|grafana",
+        "current": {
+          "selected": true,
+          "text": [
+            "iso-platform",
+            "llm"
+          ],
+          "value": [
+            "iso-platform",
+            "llm"
+          ]
+        },
+        "options": [
+          {
+            "text": "iso-platform",
+            "value": "iso-platform",
+            "selected": true
+          },
+          {
+            "text": "llm",
+            "value": "llm",
+            "selected": true
+          },
+          {
+            "text": "kuadrant-system",
+            "value": "kuadrant-system",
+            "selected": false
+          },
+          {
+            "text": "maas-api",
+            "value": "maas-api",
+            "selected": false
+          },
+          {
+            "text": "grafana",
+            "value": "grafana",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "MaaS Token Metrics Dashboard (with User/Model Filters)",
+  "uid": "maas-token-metrics",
+  "version": 3
+}

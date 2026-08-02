@@ -255,6 +255,8 @@ Migrations run automatically via GitOps PostSync hooks in layer 02-app-infra.
 - `docs/GITOPS.md` — Four-layer GitOps model, verification matrix
 - `docs/AUTH.md` — Google Sign-In setup, SAML option, bootstrap admins
 - `docs/UI.md` — Screen flows, corpus uploads, supervisor mapping UI
+- `docs/GRAFANA_DASHBOARD.md` — Grafana tokens/user/model, cache, Prometheus scrape, JSON/YAML
+- `docs/grafana/maas-token-metrics.json` — Portable Grafana dashboard export
 - `RAG/README.md` — Seed corpus structure, Git LFS, manifest
 
 ## Notes for contributors

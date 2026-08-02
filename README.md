@@ -22,7 +22,8 @@ AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 | [RHOAI_MAAS_GUARDRAILS.md](docs/RHOAI_MAAS_GUARDRAILS.md) | Qwen3 + MaaS + TrustyAI setup |
 | [DEMO_PRESENTATION.md](docs/DEMO_PRESENTATION.md) | **Customer presentation flow** (start here for demos) |
 | [AUTH.md](docs/AUTH.md) | Google OAuth, user roles |
-| [OBSERVABILITY.md](docs/OBSERVABILITY.md) | Single Grafana dashboard: tokens, CPU/RAM, network |
+| [GRAFANA_DASHBOARD.md](docs/GRAFANA_DASHBOARD.md) | **Grafana dashboard**: tokens/user/model, cache, Prometheus scrape, JSON/YAML links |
+| [OBSERVABILITY.md](docs/OBSERVABILITY.md) | Short observability pointer → Grafana guide |
 
 ## Services
 
