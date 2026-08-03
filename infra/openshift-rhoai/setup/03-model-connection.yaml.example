@@ -1,0 +1,28 @@
+# Example only — copy to a local path outside git and fill with real values,
+# or create the Secret with `oc create secret ... --from-file=GCP_CREDENTIALS=...`.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: anthropic-vertex-credentials
+  namespace: iso-platform
+type: Opaque
+stringData:
+  VERTEX_AI_PROJECT_ID: "your-gcp-project-id"
+  VERTEX_AI_REGION: "us-east5"
+  VERTEX_AI_ENDPOINT: "us-east5-aiplatform.googleapis.com"
+  MODEL_NAME: "claude-3-5-sonnet@20240620"
+  PROVIDER: "anthropic-vertex"
+  GCP_CREDENTIALS: |
+    {
+      "type": "service_account",
+      "project_id": "your-gcp-project-id",
+      "private_key_id": "...",
+      "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+      "client_email": "your-sa@your-gcp-project-id.iam.gserviceaccount.com",
+      "client_id": "...",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/...",
+      "universe_domain": "googleapis.com"
+    }

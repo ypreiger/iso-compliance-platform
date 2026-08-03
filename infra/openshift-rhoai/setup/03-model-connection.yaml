@@ -1,3 +1,15 @@
+# Vertex AI connection secrets for the Claude playground (RHOAI).
+# NEVER commit a real GCP service account JSON here.
+# Create the Secret from a local key file instead, e.g.:
+#   oc -n iso-platform create secret generic anthropic-vertex-credentials \
+#     --from-literal=VERTEX_AI_PROJECT_ID='YOUR_GCP_PROJECT' \
+#     --from-literal=VERTEX_AI_REGION='us-east5' \
+#     --from-literal=VERTEX_AI_ENDPOINT='us-east5-aiplatform.googleapis.com' \
+#     --from-literal=MODEL_NAME='claude-3-5-sonnet@20240620' \
+#     --from-literal=PROVIDER='anthropic-vertex' \
+#     --from-file=GCP_CREDENTIALS=./gcp-sa.json
+#
+# See also: 03-model-connection.yaml.example
 apiVersion: v1
 kind: Secret
 metadata:
@@ -30,16 +42,16 @@ metadata:
     openshift.io/display-name: "Anthropic Claude Credentials"
 type: Opaque
 stringData:
-  VERTEX_AI_PROJECT_ID: "itpc-gcp-global-revenue-claude"
+  VERTEX_AI_PROJECT_ID: "REPLACE_WITH_GCP_PROJECT_ID"
   VERTEX_AI_REGION: "us-east5"
   VERTEX_AI_ENDPOINT: "us-east5-aiplatform.googleapis.com"
   MODEL_NAME: "claude-3-5-sonnet@20240620"
   PROVIDER: "anthropic-vertex"
-  # Replace with your actual GCP service account JSON
+  # Placeholder only — replace via `oc create secret` from a local SA JSON (never commit).
   GCP_CREDENTIALS: |
     {
       "type": "service_account",
-      "project_id": "itpc-gcp-global-revenue-claude",
+      "project_id": "REPLACE_WITH_GCP_PROJECT_ID",
       "private_key_id": "REPLACE_WITH_KEY_ID",
       "private_key": "-----BEGIN PRIVATE KEY-----\nREPLACE_WITH_PRIVATE_KEY\n-----END PRIVATE KEY-----\n",
       "client_email": "REPLACE_WITH_SA@PROJECT.iam.gserviceaccount.com",
