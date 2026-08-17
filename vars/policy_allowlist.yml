@@ -1,0 +1,15 @@
+---
+# Closed list of ACS policies that may receive a tagged exclusion (UC-12).
+# IDs discovered on this cluster in Phase 0 — see docs/environment.md.
+allowed_policies:
+  - name: "Kubernetes Actions: Exec into Pod"
+    id: "8ab0f199-4904-4808-9461-3501da1d1b77"
+  - name: "Privileged Container"
+    id: "fe9de18b-86db-44d5-a7c4-74173ccffe2e"
+
+allowed_duration_minutes:
+  - 5
+  - 10
+  - 15
+  - 30
+  - 60

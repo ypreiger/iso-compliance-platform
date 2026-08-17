@@ -1,0 +1,21 @@
+---
+- name: Load discovered cluster vars
+  ansible.builtin.include_vars: "{{ playbook_dir }}/../vars/discovered.yml"
+
+- name: Load policy allowlist
+  ansible.builtin.include_vars: "{{ playbook_dir }}/../vars/policy_allowlist.yml"
+
+- name: Load admin roles
+  ansible.builtin.include_vars: "{{ playbook_dir }}/../vars/admin_roles.yml"
+
+- name: Resolve ACS connection from env
+  ansible.builtin.set_fact:
+    acs_url: "{{ lookup('env', 'ACS_URL') | default(acs_url, true) }}"
+    acs_token: "{{ lookup('env', 'ACS_TOKEN') }}"
+    acs_validate_certs: "{{ lookup('env', 'ACS_VALIDATE_CERTS') | default('false') }}"
+    aap_url: "{{ lookup('env', 'AAP_URL') | default(aap_url, true) }}"
+    aap_api_base: "{{ lookup('env', 'AAP_API_BASE') | default(aap_api_base, true) }}"
+    aap_token: "{{ lookup('env', 'AAP_TOKEN') }}"
+    controller_user: "{{ lookup('env', 'CONTROLLER_USERNAME') | default('admin') }}"
+    controller_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+  no_log: true

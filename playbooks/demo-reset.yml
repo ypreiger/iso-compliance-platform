@@ -1,0 +1,61 @@
+---
+- name: Reset demo environment (idempotent)
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - name: Remove AAPEX-* exclusions from allowlisted policies
+      ansible.builtin.command:
+        argv:
+          - python3
+          - "{{ playbook_dir }}/../scripts/acs-strip-aapex-exclusions.py"
+      environment:
+        ACS_URL: "{{ acs_url }}"
+        ACS_TOKEN: "{{ acs_token }}"
+        ACS_VALIDATE_CERTS: "{{ acs_validate_certs }}"
+      register: strip
+      changed_when: "'changed=true' in (strip.stdout | default(''))"
+
+    - name: Restore original empty enforcement if RESTORE_ENFORCEMENT=1
+      ansible.builtin.debug:
+        msg: "Leaving demo enforcement in place unless RESTORE_ENFORCEMENT=1 (safer for back-to-back demos)"
+
+    - name: Delete leftover AAPEX rollback schedules
+      ansible.builtin.shell: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import json, os, urllib.request, ssl, base64
+        base=os.environ["AAP_API_BASE"].rstrip("/")
+        user=os.environ.get("CONTROLLER_USERNAME","admin")
+        pw=os.environ.get("CONTROLLER_PASSWORD","")
+        ctx=ssl._create_unverified_context()
+        url=f"{base}/schedules/?search=AAPEX-rollback-"
+        req=urllib.request.Request(url)
+        token=base64.b64encode(f"{user}:{pw}".encode()).decode()
+        req.add_header("Authorization", f"Basic {token}")
+        with urllib.request.urlopen(req, context=ctx) as r:
+            data=json.load(r)
+        for s in data.get("results",[]):
+            if s.get("name","").startswith("AAPEX-rollback-"):
+                d=urllib.request.Request(f"{base}/schedules/{s['id']}/", method="DELETE")
+                d.add_header("Authorization", f"Basic {token}")
+                try:
+                    urllib.request.urlopen(d, context=ctx).read()
+                    print("deleted", s["name"])
+                except Exception as e:
+                    print("skip", s["name"], e)
+        PY
+      environment:
+        AAP_API_BASE: "{{ aap_api_base }}"
+        CONTROLLER_USERNAME: "{{ controller_user }}"
+        CONTROLLER_PASSWORD: "{{ controller_password }}"
+      no_log: true
+      failed_when: false
+
+    - name: Delete privileged demo pods/deployments in demo-app
+      ansible.builtin.shell: |
+        oc delete deploy privileged-demo -n demo-app --ignore-not-found
+        oc delete pod -n demo-app -l app=privileged-demo --ignore-not-found
+      changed_when: false

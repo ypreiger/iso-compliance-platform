@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+*.token
+**/*.token
 **/gcp-sa.json
 **/gcp-credentials.json
 **/*-sa-key.json
@@ -9,8 +11,8 @@
 !**/*.example
 !**/*.example.*
 
-# Python
-__pycache__/
+# Ansible Galaxy installs (keep requirements.yml)
+collections/ansible_collections/
 *.py[cod]
 .venv/
 venv/

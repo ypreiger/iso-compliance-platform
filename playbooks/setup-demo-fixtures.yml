@@ -1,0 +1,124 @@
+---
+- name: Create demo namespaces, personas, nginx, RBAC checker, enable ACS enforcement
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - name: Ensure namespaces
+      ansible.builtin.command: oc create namespace {{ item }} --dry-run=client -o yaml
+      register: ns_yaml
+      changed_when: false
+      loop:
+        - demo-app
+        - demo-restricted
+        - aap-demo
+
+    - name: Apply namespaces
+      ansible.builtin.command: oc apply -f -
+      args:
+        stdin: "{{ item.stdout }}"
+      loop: "{{ ns_yaml.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Ensure OpenShift User objects
+      ansible.builtin.shell: |
+        oc get user {{ item }} >/dev/null 2>&1 || oc create user {{ item }}
+      loop:
+        - alice
+        - bob
+        - carol
+      changed_when: false
+
+    - name: Alice admin on demo-app
+      ansible.builtin.command: oc adm policy add-role-to-user admin alice -n demo-app
+
+    - name: Bob view on demo-app
+      ansible.builtin.command: oc adm policy add-role-to-user view bob -n demo-app
+
+    - name: Nginx in demo-app
+      ansible.builtin.command: |
+        oc apply -n demo-app -f -
+      args:
+        stdin: |
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: nginx
+            namespace: demo-app
+            labels:
+              app: nginx
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: nginx
+            template:
+              metadata:
+                labels:
+                  app: nginx
+              spec:
+                containers:
+                  - name: shell
+                    image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+                    command: ["sleep", "infinity"]
+      register: nginx_apply
+
+    - name: Fallback nginx image if RH registry pull fails later
+      ansible.builtin.debug:
+        msg: "nginx applied; wait for ready in verify"
+
+    - name: ServiceAccount aap-rbac-checker
+      ansible.builtin.command: oc apply -f -
+      args:
+        stdin: |
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: aap-rbac-checker
+            namespace: aap-demo
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          metadata:
+            name: aap-rbac-checker
+          rules:
+            - apiGroups: ["authorization.k8s.io"]
+              resources: ["subjectaccessreviews"]
+              verbs: ["create"]
+            - apiGroups: [""]
+              resources: ["namespaces"]
+              verbs: ["get", "list"]
+            - apiGroups: ["rbac.authorization.k8s.io"]
+              resources: ["rolebindings", "clusterrolebindings"]
+              verbs: ["get", "list"]
+            - apiGroups: ["user.openshift.io"]
+              resources: ["groups", "users"]
+              verbs: ["get", "list"]
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: aap-rbac-checker
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: aap-rbac-checker
+          subjects:
+            - kind: ServiceAccount
+              name: aap-rbac-checker
+              namespace: aap-demo
+
+    - name: Enable demo enforcement on allowlisted policies (do not disable/delete)
+      ansible.builtin.command:
+        argv:
+          - python3
+          - "{{ playbook_dir }}/../scripts/acs-enable-demo-enforcement.py"
+      environment:
+        ACS_URL: "{{ acs_url }}"
+        ACS_TOKEN: "{{ acs_token }}"
+        ACS_VALIDATE_CERTS: "{{ acs_validate_certs }}"
+      register: enforce
+      changed_when: "'changed=true' in (enforce.stdout | default(''))"

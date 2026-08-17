@@ -1,0 +1,17 @@
+---
+openshift_api: "https://api.ocp.7hrxw.sandbox880.opentlc.com:6443"
+openshift_version: "4.20.0"
+aap_url: "https://demo-aap-aap.apps.ocp.7hrxw.sandbox880.opentlc.com"
+aap_api_base: "https://demo-aap-aap.apps.ocp.7hrxw.sandbox880.opentlc.com/api/controller/v2"
+aap_controller_version: "4.7.15"
+acs_url: "https://central-acs.apps.ocp.7hrxw.sandbox880.opentlc.com"
+acs_version: "4.11.2"
+acs_cluster_name: "ocp-sandbox880"
+acs_cluster_id: "51f83691-a189-449d-aa81-9e3ffc9abded"
+acs_expiration_field_supported: true
+acs_validate_certs: false
+identity_note: "Cluster IdP is OpenID (rhbk). Demo personas are OpenShift User objects plus AAP local users; oc --as impersonation is used for RBAC proofs."
+demo_namespaces:
+  - demo-app
+  - demo-restricted
+audit_git_path: audit
