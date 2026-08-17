@@ -2,32 +2,6 @@
 
 AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 
-## Temporary ACS policy exceptions (AAP demo)
-
-Self-service, time-bounded **ACS policy exclusions** via Ansible Automation Platform. Policies are never disabled or deleted.
-
-| | |
-|---|---|
-| Runbook | [docs/demo-runbook.md](docs/demo-runbook.md) |
-| Architecture | [docs/acs-exception-architecture.md](docs/acs-exception-architecture.md) |
-| Environment | [docs/environment.md](docs/environment.md) |
-| Verification | [docs/verification-report.md](docs/verification-report.md) |
-| Manual fallbacks | [docs/manual-steps.md](docs/manual-steps.md) |
-
-**Prerequisites:** `oc` logged into a cluster that already has AAP + ACS; copy `.env.example` → `.env` (gitignored).
-
-```bash
-cp .env.example .env   # fill ACS_TOKEN / CONTROLLER_PASSWORD locally
-./scripts/00-discovery.sh
-python3 -m pip install ansible-core kubernetes pyyaml
-ansible-galaxy collection install -r collections/requirements.yml
-ansible-playbook playbooks/setup-demo-fixtures.yml
-python3 scripts/aap-config-apply.py
-# Then follow docs/demo-runbook.md
-```
-
----
-
 ## Quick Links
 
 | | URL |
