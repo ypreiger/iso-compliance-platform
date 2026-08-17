@@ -1,0 +1,91 @@
+---
+controller_workflows:
+  - name: WF-Temporary-ACS-Policy-Exception
+    description: Request → validate → SRE approval → ACS exclusion → rollback schedule → audit
+    organization: Default
+    inventory: Demo Inventory
+    survey_enabled: true
+    ask_variables_on_launch: true
+    extra_vars:
+      duration_minutes: 5
+    survey:
+      name: ACS exception request
+      description: "The form is convenience; the workflow is the control. JT-01 re-validates everything server-side."
+      spec:
+        - question_name: Namespace
+          required: true
+          type: multiplechoice
+          variable: namespace
+          choices:
+            - demo-app
+            - demo-restricted
+        - question_name: Policy
+          required: true
+          type: multiplechoice
+          variable: policy_name
+          choices:
+            - "Kubernetes Actions: Exec into Pod"
+            - "Privileged Container"
+        - question_name: Duration (minutes)
+          required: true
+          type: multiplechoice
+          variable: duration_minutes
+          choices:
+            - "5"
+            - "10"
+            - "15"
+            - "30"
+            - "60"
+        - question_name: Justification
+          required: true
+          type: textarea
+          variable: justification
+          min: 10
+        - question_name: Ticket ID
+          required: false
+          type: text
+          variable: ticket_id
+    simplified_workflow_nodes:
+      - identifier: jt01
+        unified_job_template: JT-01-Validate-Namespace-RBAC
+        success_nodes: [approval]
+        failure_nodes: [jt05-fail]
+      - identifier: approval
+        approval_node:
+          name: Approval-Node-SRE
+          description: "Approve temporary ACS exception (requester/namespace/policy/duration/justification/ticket in extra vars)"
+          timeout: 3600
+        success_nodes: [jt02]
+        failure_nodes: [jt05-deny]
+      - identifier: jt02
+        unified_job_template: JT-02-Apply-ACS-Exception
+        success_nodes: [jt04]
+        failure_nodes: [jt05-acs-fail]
+      - identifier: jt04
+        unified_job_template: JT-04-Create-Rollback-Schedule
+        success_nodes: [jt05-active]
+        failure_nodes: [jt03-compensate]
+      - identifier: jt03-compensate
+        unified_job_template: JT-03-Rollback-ACS-Exception
+        success_nodes: [jt05-acs-fail]
+        failure_nodes: [jt05-acs-fail]
+      - identifier: jt05-active
+        unified_job_template: JT-05-Write-Audit-Record
+        extra_data:
+          audit_status: active
+          audit_event: applied
+      - identifier: jt05-fail
+        unified_job_template: JT-05-Write-Audit-Record
+        extra_data:
+          audit_status: rejected_rbac
+          audit_event: validation_failed
+      - identifier: jt05-deny
+        unified_job_template: JT-05-Write-Audit-Record
+        extra_data:
+          audit_status: rejected_approval
+          audit_event: approval_denied_or_timeout
+      - identifier: jt05-acs-fail
+        unified_job_template: JT-05-Write-Audit-Record
+        extra_data:
+          audit_status: failed_acs_unreachable
+          audit_event: acs_or_schedule_failed

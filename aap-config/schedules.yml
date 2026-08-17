@@ -1,0 +1,10 @@
+---
+controller_schedules:
+  - name: JT-06-reconcile-every-5-min
+    unified_job_template: JT-06-Reconcile-Expired-Exceptions
+    rrule: "DTSTART:20260101T000000Z RRULE:FREQ=MINUTELY;INTERVAL=5"
+    enabled: true
+  - name: JT-00-refresh-survey-hourly
+    unified_job_template: JT-00-Refresh-Survey
+    rrule: "DTSTART:20260101T000000Z RRULE:FREQ=HOURLY;INTERVAL=1"
+    enabled: true

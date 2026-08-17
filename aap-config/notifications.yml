@@ -1,0 +1,8 @@
+---
+controller_notifications:
+  - name: ACS-Exception-approval-pending
+    notification_type: webhook
+    url: https://example.invalid/disabled
+    description: >
+      Fallback webhook placeholder. Demo notifications also append to audit/notifications.log.
+      Approval deep link: {AAP_URL}/#/workflow_approvals — authenticated, RBAC-scoped, timestamped.

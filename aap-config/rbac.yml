@@ -1,0 +1,31 @@
+---
+controller_users:
+  - username: alice
+    is_superuser: false
+  - username: bob
+    is_superuser: false
+  - username: carol
+    is_superuser: false
+  - username: sre-approver
+    is_superuser: false
+
+controller_teams:
+  - name: SRE-Approvers
+    organization: Default
+
+controller_roles:
+  - user: alice
+    role: execute
+    workflows: [WF-Temporary-ACS-Policy-Exception]
+  - user: bob
+    role: execute
+    workflows: [WF-Temporary-ACS-Policy-Exception]
+  - user: carol
+    role: execute
+    workflows: [WF-Temporary-ACS-Policy-Exception]
+  - team: SRE-Approvers
+    role: approve
+    workflows: [WF-Temporary-ACS-Policy-Exception]
+  - user: sre-approver
+    team: SRE-Approvers
+    state: present

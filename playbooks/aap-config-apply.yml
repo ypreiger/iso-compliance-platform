@@ -1,0 +1,31 @@
+---
+- name: Apply AAP configuration as code
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+    - name: Apply via REST helper (infra.controller_configuration fallback)
+      ansible.builtin.command:
+        argv:
+          - python3
+          - "{{ playbook_dir }}/../scripts/aap-config-apply.py"
+      environment:
+        AAP_API_BASE: "{{ aap_api_base }}"
+        AAP_URL: "{{ aap_url }}"
+        CONTROLLER_HOST: "{{ aap_url }}"
+        CONTROLLER_USERNAME: "{{ controller_user }}"
+        CONTROLLER_PASSWORD: "{{ controller_password }}"
+        ACS_URL: "{{ acs_url }}"
+        ACS_TOKEN: "{{ acs_token }}"
+        AAP_TOKEN: "{{ aap_token }}"
+        OCP_API: "{{ openshift_api }}"
+        OCP_SA_TOKEN: "{{ lookup('env', 'OCP_SA_TOKEN') }}"
+        AAP_USER_ALICE_PASSWORD: "{{ lookup('env', 'AAP_USER_ALICE_PASSWORD') }}"
+        AAP_USER_BOB_PASSWORD: "{{ lookup('env', 'AAP_USER_BOB_PASSWORD') }}"
+        AAP_USER_CAROL_PASSWORD: "{{ lookup('env', 'AAP_USER_CAROL_PASSWORD') }}"
+        AAP_USER_SRE_PASSWORD: "{{ lookup('env', 'AAP_USER_SRE_PASSWORD') }}"
+      no_log: true
+      register: apply
+    - ansible.builtin.debug:
+        msg: "{{ apply.stdout_lines | default([]) }}"
