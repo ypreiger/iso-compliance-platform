@@ -1,0 +1,32 @@
+{
+  "request_id": "AAPEX-20260817-c935cd",
+  "requester": "alice",
+  "approver": "",
+  "namespace": "demo-app",
+  "policy": {
+    "id": "8ab0f199-4904-4808-9461-3501da1d1b77",
+    "name": "Kubernetes Actions: Exec into Pod"
+  },
+  "start_time": "2026-08-17T19:04:06Z",
+  "end_time": "2026-08-17T20:04:07Z",
+  "justification": "live capture sixty minute window for exec",
+  "ticket_id": "INC-DEMO-2",
+  "approval_status": "approved",
+  "execution_status": "rolled_back",
+  "rollback_status": "completed",
+  "rollback_verification": "absent",
+  "status": "completed",
+  "failure_reason": "",
+  "residual_violations": [
+    {
+      "policy": "Kubernetes Actions: Exec into Pod",
+      "state": "ATTEMPTED",
+      "time": "2026-08-17T19:06:25.792516Z",
+      "deployment": "nginx"
+    }
+  ],
+  "history": [
+    {"actor": "system", "event": "applied", "timestamp": "2026-08-17T19:04:06Z"},
+    {"actor": "system", "event": "rollback_completed", "timestamp": "2026-08-17T19:06:13Z"}
+  ]
+}

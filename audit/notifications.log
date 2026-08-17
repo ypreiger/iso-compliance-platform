@@ -1,0 +1,40 @@
+# BEGIN AAPEX-20260817-c935cd applied 1786993446
+event: applied
+request_id: AAPEX-20260817-c935cd
+recipient_role: requester
+namespace: demo-app
+policy_name: Kubernetes Actions: Exec into Pod
+requester: alice
+message: Exception AAPEX-20260817-c935cd applied on Kubernetes Actions: Exec into Pod for demo-app until 2026-08-17T20:04:07Z
+timestamp: 2026-08-17T19:04:06Z
+# END AAPEX-20260817-c935cd applied 1786993446
+# BEGIN AAPEX-20260817-ff567e rollback_completed 1786993564
+event: rollback_completed
+request_id: AAPEX-20260817-ff567e
+recipient_role: requester
+namespace: demo-app
+policy_name: n/a
+requester: n/a
+message: Rollback AAPEX-20260817-ff567e complete. Residual violations: 7
+timestamp: 2026-08-17T19:06:04Z
+# END AAPEX-20260817-ff567e rollback_completed 1786993564
+# BEGIN AAPEX-20260817-c935cd rollback_completed 1786993573
+event: rollback_completed
+request_id: AAPEX-20260817-c935cd
+recipient_role: requester
+namespace: demo-app
+policy_name: n/a
+requester: n/a
+message: Rollback AAPEX-20260817-c935cd complete. Residual violations: 7
+timestamp: 2026-08-17T19:06:13Z
+# END AAPEX-20260817-c935cd rollback_completed 1786993573
+# BEGIN AAPEX-20260817-c935cd rollback_completed 1786993586
+event: rollback_completed
+request_id: AAPEX-20260817-c935cd
+recipient_role: requester
+namespace: demo-app
+policy_name: n/a
+requester: n/a
+message: Rollback AAPEX-20260817-c935cd complete. Residual violations: 7
+timestamp: 2026-08-17T19:06:26Z
+# END AAPEX-20260817-c935cd rollback_completed 1786993586
