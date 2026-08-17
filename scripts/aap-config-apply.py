@@ -56,7 +56,8 @@ def api(method: str, path: str, body=None, ok=(200, 201, 202, 204)):
 
 
 def get_by_name(collection: str, name: str, extra=""):
-    q = urllib.parse.urlencode({"name": name})
+    field = "username" if collection == "users" else "name"
+    q = urllib.parse.urlencode({field: name})
     data = api("GET", f"/{collection}/?{q}{extra}")
     results = data.get("results") or []
     return results[0] if results else None
