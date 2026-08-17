@@ -1,0 +1,27 @@
+---
+# Included by job playbooks. Expects:
+#   notify_event, notify_message, notify_recipient_role, request_id (optional)
+- name: Render notification body
+  ansible.builtin.set_fact:
+    notify_rendered: |
+      event: {{ notify_event | default('unknown') }}
+      request_id: {{ request_id | default('n/a') }}
+      recipient_role: {{ notify_recipient_role | default('operations') }}
+      namespace: {{ namespace | default('n/a') }}
+      policy_name: {{ policy_name | default('n/a') }}
+      requester: {{ requester | default(tower_user_name | default(awx_user_name | default('n/a'))) }}
+      message: {{ notify_message | default('') }}
+      timestamp: {{ ansible_date_time.iso8601 }}
+
+- name: Send email when SMTP_HOST is set
+  ansible.builtin.debug:
+    msg: "SMTP_HOST set — install community.general to enable mail; message was still logged to audit/notifications.log"
+  when: lookup('env', 'SMTP_HOST') | length > 0
+
+- name: Append notification to audit log (SMTP fallback)
+  ansible.builtin.blockinfile:
+    path: "{{ playbook_dir }}/../audit/notifications.log"
+    create: true
+    marker: "# {mark} {{ request_id | default('noid') }} {{ notify_event | default('event') }} {{ ansible_date_time.epoch }}"
+    block: "{{ notify_rendered }}"
+  when: lookup('env', 'SMTP_HOST') | length == 0

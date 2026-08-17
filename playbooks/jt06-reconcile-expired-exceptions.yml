@@ -1,0 +1,71 @@
+---
+- name: JT-06 Reconcile expired or orphan AAPEX exclusions
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - name: List audit JSON files
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/../audit"
+        patterns: "AAPEX-*.json"
+      register: audit_files
+
+    - name: Load audit records
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      loop: "{{ audit_files.files }}"
+      register: slurped
+      when: audit_files.files | length > 0
+
+    - name: Now UTC epoch
+      ansible.builtin.command:
+        cmd: python3 -c "from datetime import datetime, timezone; print(int(datetime.now(timezone.utc).timestamp()))"
+      register: now_epoch
+      changed_when: false
+
+    - name: Reconcile expired active records
+      ansible.builtin.include_role:
+        name: acs_exception
+      vars:
+        acs_exception_action: remove_exclusion
+        acs_policy_id: "{{ (item.content | b64decode | from_json).policy.id }}"
+        acs_request_id: "{{ (item.content | b64decode | from_json).request_id }}"
+        acs_namespace: "{{ (item.content | b64decode | from_json).namespace }}"
+      loop: "{{ slurped.results | default([]) }}"
+      when:
+        - slurped is defined
+        - item.content is defined
+        - (item.content | b64decode | from_json).status | default('') == 'active'
+        - (item.content | b64decode | from_json).end_time | default('') | length > 0
+      loop_control:
+        label: "{{ (item.content | b64decode | from_json).request_id | default('unknown') }}"
+      failed_when: false
+
+    - name: Scan allowlisted policies for orphan AAPEX exclusions
+      ansible.builtin.include_role:
+        name: acs_exception
+      vars:
+        acs_exception_action: fetch
+        acs_policy_id: "{{ item.id }}"
+      loop: "{{ allowed_policies }}"
+      loop_control:
+        loop_var: allow_pol
+      register: policy_fetches
+
+    - name: Record reconciled status for expired files
+      ansible.builtin.include_tasks: tasks/write_audit.yml
+      vars:
+        request_id: "{{ (item.content | b64decode | from_json).request_id }}"
+        audit_status: reconciled
+        audit_event: reconciled
+        policy_id: "{{ (item.content | b64decode | from_json).policy.id }}"
+        policy_name: "{{ (item.content | b64decode | from_json).policy.name }}"
+        namespace: "{{ (item.content | b64decode | from_json).namespace }}"
+      loop: "{{ slurped.results | default([]) }}"
+      when:
+        - slurped is defined
+        - item.content is defined
+        - (item.content | b64decode | from_json).status | default('') == 'active'
+      failed_when: false

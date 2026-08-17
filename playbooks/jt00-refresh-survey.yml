@@ -1,0 +1,85 @@
+---
+- name: JT-00 Refresh workflow survey namespace choices
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - name: List namespaces
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+      register: ns_list
+
+    - name: Build namespace choices
+      ansible.builtin.set_fact:
+        ns_choices: "{{ (ns_list.resources | map(attribute='metadata.name') | list | sort)[:80] }}"
+
+    - name: Fetch workflow
+      ansible.builtin.uri:
+        url: "{{ aap_api_base }}/workflow_job_templates/?name=WF-Temporary-ACS-Policy-Exception"
+        user: "{{ controller_user }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      no_log: true
+      register: wf_lookup
+
+    - name: Fail if workflow missing
+      ansible.builtin.assert:
+        that: wf_lookup.json.count | int >= 1
+        fail_msg: "WF-Temporary-ACS-Policy-Exception not found — apply aap-config first"
+
+    - name: Build survey spec
+      ansible.builtin.set_fact:
+        wf_id: "{{ wf_lookup.json.results[0].id }}"
+        survey_spec:
+          name: ACS exception request
+          description: "Form is convenience; the workflow is the control. JT-01 re-validates everything."
+          spec:
+            - question_name: Namespace
+              question_description: Target namespace for the temporary ACS exclusion
+              required: true
+              type: multiplechoice
+              variable: namespace
+              choices: "{{ ns_choices }}"
+            - question_name: Policy
+              question_description: Allowlisted ACS policy only
+              required: true
+              type: multiplechoice
+              variable: policy_name
+              choices:
+                - "Kubernetes Actions: Exec into Pod"
+                - "Privileged Container"
+            - question_name: Duration (minutes)
+              question_description: Closed list only
+              required: true
+              type: multiplechoice
+              variable: duration_minutes
+              choices: ["5", "10", "15", "30", "60"]
+            - question_name: Justification
+              question_description: Required, min 10 characters (also enforced in JT-01)
+              required: true
+              type: textarea
+              variable: justification
+              min: 10
+            - question_name: Ticket ID
+              question_description: Optional change/incident ticket
+              required: false
+              type: text
+              variable: ticket_id
+
+    - name: PUT survey spec
+      ansible.builtin.uri:
+        url: "{{ aap_api_base }}/workflow_job_templates/{{ wf_id }}/survey_spec/"
+        method: POST
+        user: "{{ controller_user }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body: "{{ survey_spec }}"
+        status_code: [200, 201]
+      no_log: true

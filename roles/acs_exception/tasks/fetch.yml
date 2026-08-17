@@ -1,0 +1,19 @@
+---
+- name: Fetch ACS policy
+  ansible.builtin.uri:
+    url: "{{ acs_url }}/v1/policies/{{ acs_policy_id }}"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ acs_token }}"
+    validate_certs: "{{ acs_validate_certs | bool }}"
+    status_code: [200]
+  register: acs_policy_get
+  retries: "{{ acs_uri_retries | int }}"
+  delay: "{{ acs_uri_delay | int }}"
+  until: acs_policy_get is succeeded
+  no_log: true
+
+- name: Store policy JSON
+  ansible.builtin.set_fact:
+    acs_policy: "{{ acs_policy_get.json }}"
+    acs_policy_exclusions: "{{ acs_policy_get.json.exclusions | default([]) }}"

@@ -1,0 +1,68 @@
+---
+- name: JT-04 Create one-shot rollback schedule
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    request_id: "{{ request_id | default('') }}"
+    policy_id: "{{ policy_id | default('') }}"
+    namespace: "{{ namespace | default('') }}"
+    end_time: "{{ end_time | default('') }}"
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - ansible.builtin.assert:
+        that:
+          - request_id | length > 0
+          - policy_id | length > 0
+          - end_time | length > 0
+        fail_msg: "Cannot schedule rollback without request_id, policy_id, end_time — fail closed (caller must run JT-03)"
+
+    - name: Lookup JT-03 id
+      ansible.builtin.uri:
+        url: "{{ aap_api_base }}/job_templates/?name=JT-03-Rollback-ACS-Exception"
+        user: "{{ controller_user }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      no_log: true
+      register: jt03
+
+    - ansible.builtin.assert:
+        that: jt03.json.count | int >= 1
+        fail_msg: "JT-03-Rollback-ACS-Exception not found"
+
+    - name: Format DTSTART from end_time
+      ansible.builtin.command:
+        cmd: python3 -c "from datetime import datetime, timezone; s='{{ end_time }}'; d=datetime.fromisoformat(s.replace('Z','+00:00')).astimezone(timezone.utc); print(d.strftime('%Y%m%dT%H%M%SZ'))"
+      register: dtstart
+      changed_when: false
+
+    - name: Create or skip existing schedule (idempotent)
+      ansible.builtin.uri:
+        url: "{{ aap_api_base }}/job_templates/{{ jt03.json.results[0].id }}/schedules/"
+        method: POST
+        user: "{{ controller_user }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          name: "AAPEX-rollback-{{ request_id }}"
+          rrule: "DTSTART:{{ dtstart.stdout | trim }} RRULE:FREQ=MINUTELY;INTERVAL=1;COUNT=1"
+          extra_data:
+            request_id: "{{ request_id }}"
+            policy_id: "{{ policy_id }}"
+            namespace: "{{ namespace }}"
+        status_code: [201, 200, 400]
+      no_log: true
+      register: sched_create
+
+    - name: Treat duplicate schedule name as ok
+      ansible.builtin.debug:
+        msg: "Rollback schedule AAPEX-rollback-{{ request_id }} created or already exists"
+
+    - ansible.builtin.set_stats:
+        data:
+          rollback_schedule: "AAPEX-rollback-{{ request_id }}"

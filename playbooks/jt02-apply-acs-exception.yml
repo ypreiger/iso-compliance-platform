@@ -1,0 +1,71 @@
+---
+- name: JT-02 Apply ACS namespace exclusion
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    namespace: "{{ namespace | default('') }}"
+    policy_name: "{{ policy_name | default('') }}"
+    duration_minutes: "{{ duration_minutes | default(5) }}"
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - name: Fail closed if ACS token missing
+      ansible.builtin.fail:
+        msg: "ACS_TOKEN is not set — refusing to mutate ACS"
+      when: acs_token | length == 0
+
+    - name: Allowlist check
+      ansible.builtin.assert:
+        that:
+          - policy_name in (allowed_policies | map(attribute='name') | list)
+          - (duration_minutes | int) in allowed_duration_minutes
+        fail_msg: "Policy '{{ policy_name }}' is not allowlisted or duration is not in the closed list"
+
+    - name: Resolve policy id
+      ansible.builtin.set_fact:
+        policy_id: "{{ allowed_policies | selectattr('name', 'equalto', policy_name) | map(attribute='id') | first }}"
+        request_id: "{{ request_id | default('AAPEX-' + ansible_date_time.date | replace('-', '') + '-' + lookup('password', '/dev/null chars=abcdef0123456789 length=6')) }}"
+
+    - name: Compute end_time ISO8601 UTC
+      ansible.builtin.command:
+        cmd: python3 -c "from datetime import datetime, timezone, timedelta; print((datetime.now(timezone.utc)+timedelta(minutes={{ duration_minutes | int }})).strftime('%Y-%m-%dT%H:%M:%SZ'))"
+      register: end_time_cmd
+      changed_when: false
+
+    - name: Store window
+      ansible.builtin.set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+        end_time: "{{ end_time_cmd.stdout | trim }}"
+
+    - name: Add tagged exclusion
+      ansible.builtin.include_role:
+        name: acs_exception
+      vars:
+        acs_exception_action: add_exclusion
+        acs_policy_id: "{{ policy_id }}"
+        acs_request_id: "{{ request_id }}"
+        acs_namespace: "{{ namespace }}"
+        acs_end_time: "{{ end_time if (acs_expiration_field_supported | default(true) | bool) else '' }}"
+
+    - name: Publish stats for JT-03/04/05
+      ansible.builtin.set_stats:
+        data:
+          request_id: "{{ request_id }}"
+          policy_id: "{{ policy_id }}"
+          policy_name: "{{ policy_name }}"
+          namespace: "{{ namespace }}"
+          start_time: "{{ start_time }}"
+          end_time: "{{ end_time }}"
+
+    - ansible.builtin.set_fact:
+        audit_status: active
+        audit_event: applied
+        execution_status: applied
+        approval_status: "{{ approval_status | default('approved') }}"
+    - ansible.builtin.include_tasks: tasks/write_audit.yml
+    - ansible.builtin.include_tasks: notify.yml
+      vars:
+        notify_event: applied
+        notify_recipient_role: requester
+        notify_message: "Exception {{ request_id }} applied on {{ policy_name }} for {{ namespace }} until {{ end_time }}"

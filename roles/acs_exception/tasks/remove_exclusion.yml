@@ -1,0 +1,38 @@
+---
+- name: Fetch policy before remove
+  ansible.builtin.include_tasks: fetch.yml
+
+- name: Select tagged exclusions
+  ansible.builtin.set_fact:
+    acs_tagged_exclusions: "{{ acs_policy_exclusions | selectattr('name', 'defined') | selectattr('name', 'match', '^' + acs_request_id) | list }}"
+    acs_remaining_exclusions: "{{ acs_policy_exclusions | rejectattr('name', 'defined') | list + (acs_policy_exclusions | selectattr('name', 'defined') | rejectattr('name', 'match', '^' + acs_request_id) | list) }}"
+
+- name: Skip remove when nothing tagged (idempotent)
+  ansible.builtin.debug:
+    msg: "No exclusion starting with {{ acs_request_id }} — rollback no-op"
+  when: acs_tagged_exclusions | length == 0
+
+- name: Prepare PUT body
+  ansible.builtin.include_tasks: _put_body.yml
+  when: acs_tagged_exclusions | length > 0
+
+- name: PUT policy without tagged exclusions
+  ansible.builtin.uri:
+    url: "{{ acs_url }}/v1/policies/{{ acs_policy_id }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ acs_token }}"
+      Content-Type: application/json
+    body_format: json
+    body: "{{ acs_policy_put_body | combine({'exclusions': acs_remaining_exclusions}) }}"
+    validate_certs: "{{ acs_validate_certs | bool }}"
+    status_code: [200]
+  no_log: true
+  retries: "{{ acs_uri_retries | int }}"
+  delay: "{{ acs_uri_delay | int }}"
+  until: acs_policy_put is succeeded
+  register: acs_policy_put
+  when: acs_tagged_exclusions | length > 0
+
+- name: Verify tagged exclusion absent
+  ansible.builtin.include_tasks: verify_absent.yml

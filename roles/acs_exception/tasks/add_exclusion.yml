@@ -1,0 +1,46 @@
+---
+- name: Fetch policy before add
+  ansible.builtin.include_tasks: fetch.yml
+
+- name: Compose exclusion name
+  ansible.builtin.set_fact:
+    acs_exclusion_name: "{{ acs_request_id }} {{ acs_namespace }}"
+
+- name: Detect existing tagged exclusion
+  ansible.builtin.set_fact:
+    acs_exclusion_exists: "{{ acs_policy_exclusions | selectattr('name', 'defined') | selectattr('name', 'match', '^' + acs_request_id) | list | length > 0 }}"
+
+- name: Skip add when exclusion already present (idempotent)
+  ansible.builtin.debug:
+    msg: "Exclusion for {{ acs_request_id }} already present — not duplicating"
+  when: acs_exclusion_exists | bool
+
+- name: Build new exclusion entry
+  ansible.builtin.set_fact:
+    acs_new_exclusion: "{{ {'name': acs_exclusion_name, 'deployment': {'name': '', 'scope': {'cluster': '', 'namespace': acs_namespace}}} | combine(({'expiration': acs_end_time} if (acs_end_time | length > 0) else {})) }}"
+  when: not (acs_exclusion_exists | bool)
+
+- name: Prepare PUT body
+  ansible.builtin.include_tasks: _put_body.yml
+  when: not (acs_exclusion_exists | bool)
+
+- name: PUT policy with appended exclusion
+  ansible.builtin.uri:
+    url: "{{ acs_url }}/v1/policies/{{ acs_policy_id }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ acs_token }}"
+      Content-Type: application/json
+    body_format: json
+    body: "{{ acs_policy_put_body | combine({'exclusions': (acs_policy_exclusions + [acs_new_exclusion])}) }}"
+    validate_certs: "{{ acs_validate_certs | bool }}"
+    status_code: [200]
+  no_log: true
+  retries: "{{ acs_uri_retries | int }}"
+  delay: "{{ acs_uri_delay | int }}"
+  until: acs_policy_put is succeeded
+  register: acs_policy_put
+  when: not (acs_exclusion_exists | bool)
+
+- name: Verify exclusion present after add
+  ansible.builtin.include_tasks: verify_present.yml

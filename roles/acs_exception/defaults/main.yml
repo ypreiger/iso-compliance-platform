@@ -1,0 +1,12 @@
+---
+acs_url: "{{ lookup('env', 'ACS_URL') | default(acs_url, true) }}"
+acs_token: "{{ lookup('env', 'ACS_TOKEN') }}"
+acs_validate_certs: "{{ lookup('env', 'ACS_VALIDATE_CERTS') | default('true') }}"
+acs_exception_action: fetch
+acs_request_id: ""
+acs_namespace: ""
+acs_cluster_name: "{{ acs_cluster_name | default('ocp-sandbox880') }}"
+acs_end_time: ""
+acs_policy_id: ""
+acs_uri_retries: 3
+acs_uri_delay: 5

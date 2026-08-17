@@ -1,0 +1,81 @@
+---
+# Writes audit/<request_id>.json. Extra vars:
+#   audit_status, audit_event, failure_reason (optional), merge fields
+- name: Require request_id
+  ansible.builtin.assert:
+    that: request_id is defined and (request_id | length > 0)
+    fail_msg: "request_id is required for audit records"
+
+- name: Ensure audit directory
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../audit"
+    state: directory
+    mode: "0755"
+
+- name: Load existing audit record if present
+  ansible.builtin.slurp:
+    src: "{{ playbook_dir }}/../audit/{{ request_id }}.json"
+  register: audit_existing_raw
+  failed_when: false
+
+- name: Parse existing audit JSON
+  ansible.builtin.set_fact:
+    audit_existing: "{{ (audit_existing_raw.content | b64decode | from_json) if (audit_existing_raw.content is defined) else {} }}"
+
+- name: Compose history entry
+  ansible.builtin.set_fact:
+    audit_history_entry:
+      event: "{{ audit_event | default(audit_status | default('update')) }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      actor: "{{ audit_actor | default(tower_user_name | default(awx_user_name | default('system'))) }}"
+
+- name: Merge audit record
+  ansible.builtin.set_fact:
+    audit_record: "{{ audit_existing | combine({
+        'request_id': request_id,
+        'requester': requester | default(audit_existing.requester | default(tower_user_name | default(awx_user_name | default('unknown')))),
+        'approver': approver | default(audit_existing.approver | default('')),
+        'namespace': namespace | default(audit_existing.namespace | default('')),
+        'policy': {'name': policy_name | default(audit_existing.policy.name | default('')), 'id': policy_id | default(audit_existing.policy.id | default(''))},
+        'start_time': start_time | default(audit_existing.start_time | default('')),
+        'end_time': end_time | default(audit_existing.end_time | default('')),
+        'justification': justification | default(audit_existing.justification | default('')),
+        'ticket_id': ticket_id | default(audit_existing.ticket_id | default('')),
+        'approval_status': approval_status | default(audit_existing.approval_status | default('')),
+        'approval_timestamp': approval_timestamp | default(audit_existing.approval_timestamp | default('')),
+        'execution_status': execution_status | default(audit_existing.execution_status | default('')),
+        'rollback_status': rollback_status | default(audit_existing.rollback_status | default('')),
+        'rollback_verification': rollback_verification | default(audit_existing.rollback_verification | default('')),
+        'failure_reason': failure_reason | default(audit_existing.failure_reason | default('')),
+        'status': audit_status | default(audit_existing.status | default('unknown')),
+        'residual_violations': residual_violations | default(audit_existing.residual_violations | default([])),
+        'history': ((audit_existing.history | default([])) + [audit_history_entry])
+      }, recursive=True) }}"
+
+- name: Write audit JSON
+  ansible.builtin.copy:
+    dest: "{{ playbook_dir }}/../audit/{{ request_id }}.json"
+    content: "{{ audit_record | to_nice_json }}"
+    mode: "0644"
+
+- name: Commit and push audit record when GIT_TOKEN is set
+  when: lookup('env', 'GIT_TOKEN') | length > 0
+  block:
+    - name: Git add/commit/push audit file
+      ansible.builtin.shell: |
+        set -euo pipefail
+        cd "{{ playbook_dir }}/.."
+        git pull --rebase origin "{{ lookup('env', 'GIT_BRANCH') | default('main') }}" || true
+        git add "audit/{{ request_id }}.json" audit/notifications.log || true
+        if git diff --cached --quiet; then
+          echo "no audit changes to commit"
+          exit 0
+        fi
+        git commit -m "audit({{ request_id }}): {{ audit_event | default(audit_status) }}"
+        git push "https://x-access-token:${GIT_TOKEN}@github.com/${GIT_REPO_URL#*github.com/}" "HEAD:{{ lookup('env', 'GIT_BRANCH') | default('main') }}"
+      environment:
+        GIT_TOKEN: "{{ lookup('env', 'GIT_TOKEN') }}"
+        GIT_REPO_URL: "{{ lookup('env', 'GIT_REPO_URL') | default('https://github.com/ypreiger/iso-compliance-platform.git') }}"
+      no_log: true
+      register: audit_git_push
+      changed_when: "'no audit changes' not in (audit_git_push.stdout | default(''))"

@@ -1,0 +1,177 @@
+---
+- name: JT-01 Validate namespace RBAC and request fields
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    namespace: "{{ namespace | default('') }}"
+    policy_name: "{{ policy_name | default('') }}"
+    duration_minutes: "{{ duration_minutes | default('') }}"
+    justification: "{{ justification | default('') }}"
+    ticket_id: "{{ ticket_id | default('') }}"
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - name: Resolve requester from AAP launch context
+      ansible.builtin.set_fact:
+        requester: "{{ tower_user_name | default(awx_user_name | default(lookup('env', 'AAP_REQUESTER') | default(''))) }}"
+
+    - name: Fail without user context
+      ansible.builtin.fail:
+        msg: "Cannot resolve requester (tower_user_name/awx_user_name). Refusing to continue."
+      when: requester | length == 0
+
+    - name: Generate request_id
+      ansible.builtin.set_fact:
+        request_id: "{{ request_id | default('AAPEX-' + ansible_date_time.date | replace('-', '') + '-' + lookup('password', '/dev/null chars=abcdef0123456789 length=6')) }}"
+
+    - name: Set stats for downstream nodes
+      ansible.builtin.set_stats:
+        data:
+          request_id: "{{ request_id }}"
+          requester: "{{ requester }}"
+          namespace: "{{ namespace }}"
+          policy_name: "{{ policy_name }}"
+          duration_minutes: "{{ duration_minutes | int }}"
+          justification: "{{ justification }}"
+          ticket_id: "{{ ticket_id }}"
+
+    - name: Validate inputs
+      ansible.builtin.assert:
+        that:
+          - namespace | length > 0
+          - policy_name in (allowed_policies | map(attribute='name') | list)
+          - (duration_minutes | int) in allowed_duration_minutes
+          - justification | length >= 10
+        fail_msg: "Invalid request fields (policy allowlist / duration list / justification). Fail closed."
+
+    - name: Resolve policy id
+      ansible.builtin.set_fact:
+        policy_id: "{{ allowed_policies | selectattr('name', 'equalto', policy_name) | map(attribute='id') | first }}"
+
+    - name: Check namespace exists
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: "{{ namespace }}"
+      register: ns_info
+
+    - name: Fail if namespace missing
+      ansible.builtin.fail:
+        msg: "Namespace {{ namespace }} does not exist"
+      when: ns_info.resources | length == 0
+
+    - name: List OpenShift groups
+      kubernetes.core.k8s_info:
+        api_version: user.openshift.io/v1
+        kind: Group
+      register: oc_groups_raw
+      failed_when: false
+
+    - name: Compute requester groups
+      ansible.builtin.set_fact:
+        requester_groups: "{{ oc_groups_raw.resources | default([]) | selectattr('users', 'defined') | selectattr('users', 'contains', requester) | map(attribute='metadata.name') | list }}"
+
+    - name: SubjectAccessReview — create rolebindings in namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: authorization.k8s.io/v1
+          kind: SubjectAccessReview
+          spec:
+            user: "{{ requester }}"
+            groups: "{{ requester_groups }}"
+            resourceAttributes:
+              group: rbac.authorization.k8s.io
+              resource: rolebindings
+              verb: create
+              namespace: "{{ namespace }}"
+      register: sar
+
+    - name: List RoleBindings in target namespace
+      kubernetes.core.k8s_info:
+        api_version: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        namespace: "{{ namespace }}"
+      register: rbs
+
+    - name: Detect admin RoleBinding for user or group
+      ansible.builtin.set_fact:
+        has_admin_binding: >-
+          {{ rbs.resources | selectattr('roleRef.name', 'defined')
+             | selectattr('roleRef.name', 'in', admin_roles)
+             | selectattr('subjects', 'defined')
+             | selectattr('subjects', 'contains', {'kind': 'User', 'name': requester})
+             | list | length > 0
+             or (
+               rbs.resources | selectattr('roleRef.name', 'in', admin_roles)
+               | map(attribute='subjects') | flatten
+               | selectattr('kind', 'equalto', 'User')
+               | selectattr('name', 'equalto', requester)
+               | list | length > 0
+             ) }}
+
+    - name: Flatten admin bindings (user or group)
+      ansible.builtin.set_fact:
+        admin_subjects: "{{ rbs.resources | selectattr('roleRef.name', 'defined') | selectattr('roleRef.name', 'in', admin_roles) | map(attribute='subjects') | flatten }}"
+
+    - name: Evaluate admin binding match
+      ansible.builtin.set_fact:
+        has_admin_binding: "{{ (admin_subjects | selectattr('kind', 'equalto', 'User') | selectattr('name', 'equalto', requester) | list | length > 0) or (admin_subjects | selectattr('kind', 'equalto', 'Group') | selectattr('name', 'in', requester_groups) | list | length > 0) }}"
+
+    - name: Count eligible namespaces (requested plus known demo set)
+      kubernetes.core.k8s_info:
+        api_version: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+      register: all_rbs
+      failed_when: false
+
+    - name: Eligible namespace count from RoleBindings
+      ansible.builtin.set_fact:
+        eligible_namespaces: "{{ all_rbs.resources | default([]) | selectattr('roleRef.name', 'defined') | selectattr('roleRef.name', 'in', admin_roles) | selectattr('subjects', 'defined') | json_query('[?subjects[?kind==`User` && name==`' + requester + '`]].metadata.namespace') | unique }}"
+
+    - name: Handle zero eligible namespaces (UC-3)
+      when: eligible_namespaces | length == 0
+      block:
+        - ansible.builtin.set_fact:
+            audit_status: rejected_no_eligible_namespace
+            audit_event: rejected_no_eligible_namespace
+            failure_reason: "No namespaces with Admin permissions were found. An ACS policy exception request cannot be opened."
+        - ansible.builtin.include_tasks: tasks/write_audit.yml
+        - ansible.builtin.include_tasks: notify.yml
+          vars:
+            notify_event: rejected
+            notify_recipient_role: requester
+            notify_message: "{{ failure_reason }}"
+        - ansible.builtin.fail:
+            msg: "No namespaces with Admin permissions were found. An ACS policy exception request cannot be opened."
+
+    - name: Handle RBAC failure (UC-2)
+      when: (not (sar.result.status.allowed | default(false) | bool)) or (not (has_admin_binding | bool))
+      block:
+        - ansible.builtin.set_fact:
+            audit_status: rejected_rbac
+            audit_event: rejected_rbac
+            failure_reason: "User {{ requester }} is not authorized for namespace {{ namespace }}: Admin-level permission required."
+        - ansible.builtin.include_tasks: tasks/write_audit.yml
+        - ansible.builtin.include_tasks: notify.yml
+          vars:
+            notify_event: rejected
+            notify_recipient_role: requester
+            notify_message: "{{ failure_reason }}"
+        - ansible.builtin.fail:
+            msg: "User {{ requester }} is not authorized for namespace {{ namespace }}: Admin-level permission required."
+
+    - name: Record submitted request
+      ansible.builtin.set_fact:
+        audit_status: submitted
+        audit_event: submitted
+        execution_status: pending_approval
+      notify: []
+
+    - ansible.builtin.include_tasks: tasks/write_audit.yml
+    - ansible.builtin.include_tasks: notify.yml
+      vars:
+        notify_event: submitted
+        notify_recipient_role: requester
+        notify_message: "Request {{ request_id }} submitted for {{ namespace }}/{{ policy_name }}"

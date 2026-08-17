@@ -1,0 +1,4 @@
+---
+- name: Build PUT body without SORT* keys
+  ansible.builtin.set_fact:
+    acs_policy_put_body: "{{ acs_policy | dict2items | rejectattr('key', 'match', '^SORT') | list | items2dict }}"

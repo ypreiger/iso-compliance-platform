@@ -1,0 +1,11 @@
+---
+- name: Write ACS exception audit record
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    audit_status: "{{ audit_status | default('active') }}"
+    audit_event: "{{ audit_event | default('audit_write') }}"
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+    - ansible.builtin.include_tasks: tasks/write_audit.yml

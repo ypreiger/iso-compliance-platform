@@ -1,0 +1,10 @@
+---
+- name: Re-fetch policy to verify exclusion absent
+  ansible.builtin.include_tasks: fetch.yml
+
+- name: Assert tagged exclusion is absent
+  ansible.builtin.assert:
+    that:
+      - acs_policy_exclusions | selectattr('name', 'defined') | selectattr('name', 'match', '^' + acs_request_id) | list | length == 0
+    fail_msg: "ACS read-back: exclusion for {{ acs_request_id }} still present on policy {{ acs_policy_id }}"
+    success_msg: "ACS read-back: exclusion for {{ acs_request_id }} absent"

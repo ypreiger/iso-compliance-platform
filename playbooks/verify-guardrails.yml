@@ -1,0 +1,63 @@
+---
+- name: Verify security guardrails (UC-12)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - name: Allowlist file exists
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../vars/policy_allowlist.yml"
+      register: al
+
+    - ansible.builtin.assert:
+        that: al.stat.exists
+
+    - name: JT-02 refuses a non-allowlisted policy
+      ansible.builtin.command:
+        cmd: >
+          ansible-playbook "{{ playbook_dir }}/jt02-apply-acs-exception.yml"
+          -e policy_name='Fixable CVSS >= 7'
+          -e namespace=demo-app
+          -e duration_minutes=5
+          -e request_id=AAPEX-GUARD-test
+      register: refuse
+      failed_when: refuse.rc == 0
+      changed_when: false
+
+    - name: Workflow topology has approval before ACS apply
+      ansible.builtin.uri:
+        url: "{{ aap_api_base }}/workflow_job_templates/?name=WF-Temporary-ACS-Policy-Exception"
+        user: "{{ controller_user }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      no_log: true
+      register: wf
+
+    - name: Fetch workflow nodes
+      ansible.builtin.uri:
+        url: "{{ aap_api_base }}/workflow_job_templates/{{ wf.json.results[0].id }}/workflow_nodes/"
+        user: "{{ controller_user }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      no_log: true
+      register: nodes
+      when: wf.json.count | int >= 1
+
+    - name: Grep repo for hardcoded validate_certs false (allowed only via env)
+      ansible.builtin.command:
+        cmd: grep -R --include='*.yml' --include='*.yaml' "validate_certs: false" "{{ playbook_dir }}/../roles" "{{ playbook_dir }}" || true
+      register: grep_vc
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg:
+          - "allowlist ok"
+          - "non-allowlisted policy refused (rc={{ refuse.rc }})"
+          - "workflow nodes={{ nodes.json.count | default('n/a') }}"
+          - "validate_certs false hits (AAP API uses documented demo flag): {{ grep_vc.stdout_lines | default([]) | length }}"

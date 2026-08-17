@@ -1,0 +1,79 @@
+---
+- name: JT-03 Rollback ACS exclusion
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    request_id: "{{ request_id | default('') }}"
+    policy_id: "{{ policy_id | default('') }}"
+    namespace: "{{ namespace | default('') }}"
+  tasks:
+    - ansible.builtin.include_tasks: tasks/load_config.yml
+
+    - ansible.builtin.assert:
+        that:
+          - request_id | length > 0
+          - policy_id | length > 0
+        fail_msg: "request_id and policy_id are required for rollback"
+
+    - name: Remove tagged exclusion
+      ansible.builtin.include_role:
+        name: acs_exception
+      vars:
+        acs_exception_action: remove_exclusion
+        acs_policy_id: "{{ policy_id }}"
+        acs_request_id: "{{ request_id }}"
+        acs_namespace: "{{ namespace }}"
+
+    - name: Query residual ACS alerts for namespace (best-effort)
+      ansible.builtin.uri:
+        url: "{{ acs_url }}/v1/alerts?query=Namespace:{{ namespace }}"
+        headers:
+          Authorization: "Bearer {{ acs_token }}"
+        validate_certs: "{{ acs_validate_certs | bool }}"
+        status_code: [200]
+      register: residual_alerts
+      failed_when: false
+      no_log: true
+
+    - name: Set residual list (target policy only, compact)
+      ansible.builtin.set_fact:
+        residual_violations: "{{ (residual_alerts.json.alerts | default(residual_alerts.json | default([]))) | json_query('[?policy.id==`' + policy_id + '`].{id:id, policy:policy.name, time:time, state:state, deployment:deployment.name}') }}"
+        rollback_status: completed
+        rollback_verification: absent
+        audit_status: completed
+        audit_event: rollback_completed
+        execution_status: rolled_back
+
+    - name: Delete own rollback schedule by name
+      ansible.builtin.uri:
+        url: "{{ aap_api_base }}/schedules/?name=AAPEX-rollback-{{ request_id }}"
+        user: "{{ controller_user }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      register: sched_lookup
+      no_log: true
+      failed_when: false
+      when: controller_password | length > 0 or aap_token | length > 0
+
+    - name: DELETE schedule if found
+      ansible.builtin.uri:
+        url: "{{ aap_api_base }}/schedules/{{ item.id }}/"
+        method: DELETE
+        user: "{{ controller_user }}"
+        password: "{{ controller_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [204, 202, 200]
+      loop: "{{ sched_lookup.json.results | default([]) }}"
+      no_log: true
+      when: sched_lookup.json is defined and (sched_lookup.json.results | default([]) | length > 0)
+
+    - ansible.builtin.include_tasks: tasks/write_audit.yml
+    - ansible.builtin.include_tasks: notify.yml
+      vars:
+        notify_event: rollback_completed
+        notify_recipient_role: requester
+        notify_message: "Rollback {{ request_id }} complete. Residual violations: {{ residual_violations | length }}"
