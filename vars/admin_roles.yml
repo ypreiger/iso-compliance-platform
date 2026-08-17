@@ -1,6 +1,0 @@
----
-# RoleBinding roleRef.names that count as namespace-admin for JT-01.
-admin_roles:
-  - admin
-  - project-admin
-  - cluster-admin
