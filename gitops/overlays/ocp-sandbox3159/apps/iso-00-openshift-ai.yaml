@@ -1,0 +1,48 @@
+# Cluster-scoped OpenShift AI 3.5 GA + companion operators (Kueue, LWS).
+# Apply: oc apply -f gitops/overlays/ocp-sandbox3159/apps/iso-00-openshift-ai.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: iso-00-openshift-ai
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+    app.kubernetes.io/component: openshift-ai
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ypreiger/iso-compliance-platform.git
+    targetRevision: main
+    path: gitops/layers/00-openshift-ai
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: redhat-ods-operator
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: datasciencecluster.opendatahub.io
+      kind: DataScienceCluster
+      jsonPointers:
+        - /metadata/annotations
+        - /status
+    - group: dscinitialization.opendatahub.io
+      kind: DSCInitialization
+      jsonPointers:
+        - /metadata/annotations
+        - /status
+    - group: opendatahub.io
+      kind: OdhDashboardConfig
+      jsonPointers:
+        - /metadata/annotations
+        - /status

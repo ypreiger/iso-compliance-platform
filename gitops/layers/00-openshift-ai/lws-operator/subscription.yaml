@@ -1,0 +1,17 @@
+# Enables Wide Expert Parallelism for LLMInferenceService (llm-d).
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: leader-worker-set
+  namespace: openshift-lws-operator
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+    app.kubernetes.io/component: leader-worker-set
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  channel: stable-v1.0
+  installPlanApproval: Automatic
+  name: leader-worker-set
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

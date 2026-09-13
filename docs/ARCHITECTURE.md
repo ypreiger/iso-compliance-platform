@@ -154,6 +154,7 @@ GuardrailsOrchestrator (qwen3-guardrails in llm namespace)
 ```
 gitops/
   layers/
+    00-openshift-ai/      OpenShift AI 3.5 GA operator, DSC, dashboard, Kueue, LWS
     01-platform-infra/    namespace, RHOAI config, RBAC
     02-app-infra-catalog/ PostgreSQL, Redis, PVC
     03-application/       iso-api-orchestrator, iso-web, doc agents, playground

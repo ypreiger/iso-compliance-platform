@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - rhods-operator/subscription.yaml
+  - kueue-operator/namespace.yaml
+  - kueue-operator/operatorgroup.yaml
+  - kueue-operator/subscription.yaml
+  - kueue-operator/kueue.yaml
+  - lws-operator/namespace.yaml
+  - lws-operator/operatorgroup.yaml
+  - lws-operator/subscription.yaml
+  - lws-operator/leaderworkersetoperator.yaml
+  - jobset-operator/namespace.yaml
+  - jobset-operator/operatorgroup.yaml
+  - jobset-operator/subscription.yaml
+  - jobset-operator/jobsetoperator.yaml
+  - observability/cluster-observability-operator.yaml
+  - observability/opentelemetry-operator.yaml
+  - observability/tempo-operator.yaml
+  - dsc/dscinitialization.yaml
+  - dsc/datasciencecluster.yaml
+  - dsc/odh-dashboard-config.yaml

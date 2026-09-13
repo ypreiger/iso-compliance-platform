@@ -1,0 +1,13 @@
+apiVersion: operator.openshift.io/v1
+kind: JobSetOperator
+metadata:
+  name: cluster
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  logLevel: Normal
+  managementState: Managed
+  operatorLogLevel: Normal

@@ -1,0 +1,30 @@
+# OpenShift AI platform initialization. applicationsNamespace and
+# monitoring.namespace are immutable after create.
+apiVersion: dscinitialization.opendatahub.io/v2
+kind: DSCInitialization
+metadata:
+  name: default-dsci
+  labels:
+    app.kubernetes.io/name: dscinitialization
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,ServerSideApply=true
+spec:
+  applicationsNamespace: redhat-ods-applications
+  trustedCABundle:
+    customCABundle: ""
+    managementState: Managed
+  monitoring:
+    managementState: Managed
+    namespace: redhat-ods-monitoring
+    metrics:
+      storage:
+        size: 20Gi
+        retention: 7d
+    traces:
+      sampleRatio: "0.2"
+      storage:
+        backend: pv
+        size: 10Gi
+        retention: 24h

@@ -1,0 +1,16 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: kueue-operator
+  namespace: openshift-kueue-operator
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+    app.kubernetes.io/component: kueue
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  channel: stable-v1.4
+  installPlanApproval: Automatic
+  name: kueue-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

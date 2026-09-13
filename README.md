@@ -19,6 +19,7 @@ AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 |-----|---------------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, agent topology, two deployment flavors |
 | [DEPLOY.md](docs/DEPLOY.md) | Installation, GitOps, cluster bootstrap |
+| [OPENSHIFT_AI.md](docs/OPENSHIFT_AI.md) | OpenShift AI 3.5 GA upgrade, AutoRAG, OGX, dashboard flags |
 | [RHOAI_MAAS_GUARDRAILS.md](docs/RHOAI_MAAS_GUARDRAILS.md) | Qwen3 + MaaS + TrustyAI setup |
 | [DEMO_PRESENTATION.md](docs/DEMO_PRESENTATION.md) | **Customer presentation flow** (start here for demos) |
 | [AUTH.md](docs/AUTH.md) | Google OAuth, user roles |

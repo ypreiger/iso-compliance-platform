@@ -1,0 +1,81 @@
+# OpenShift AI 3.5 GA DataScienceCluster — every component that this version
+# can manage via YAML. Kueue must be Unmanaged (embedded Managed is rejected;
+# the Red Hat build of Kueue Operator owns the operand). Llama Stack is
+# Removed in favor of OGX (agent orchestration).
+apiVersion: datasciencecluster.opendatahub.io/v2
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  labels:
+    app.kubernetes.io/name: datasciencecluster
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,ServerSideApply=true
+spec:
+  components:
+    aigateway:
+      managementState: Managed
+      batchGateway:
+        managementState: Managed
+      modelsAsAService:
+        managementState: Managed
+    aipipelines:
+      managementState: Managed
+      argoWorkflowsControllers:
+        managementState: Managed
+    dashboard:
+      managementState: Managed
+    feastoperator:
+      managementState: Managed
+    kserve:
+      managementState: Managed
+      rawDeploymentServiceConfig: Headed
+      enableLLMInferenceServiceConsoleDashboards: true
+      enableLLMInferenceServiceTLS: true
+      nim:
+        airGapped: false
+        managementState: Managed
+      modelsAsService:
+        managementState: Removed
+      wva:
+        managementState: Managed
+      modelCache:
+        managementState: Managed
+        cacheSize: 50Gi
+        nodeSelector:
+          matchLabels:
+            nvidia.com/gpu.present: "true"
+    mcplifecycleoperator:
+      managementState: Managed
+    kueue:
+      managementState: Unmanaged
+      defaultClusterQueueName: default
+      defaultLocalQueueName: default
+    llamastackoperator:
+      managementState: Removed
+    ogx:
+      managementState: Managed
+    mlflowoperator:
+      managementState: Managed
+    modelregistry:
+      managementState: Managed
+      registriesNamespace: rhoai-model-registries
+    ray:
+      managementState: Managed
+    sparkoperator:
+      managementState: Managed
+    trainer:
+      managementState: Managed
+    trainingoperator:
+      managementState: Managed
+    trustyai:
+      managementState: Managed
+      mcpGuardrailsMode: true
+      eval:
+        lmeval:
+          permitCodeExecution: deny
+          permitOnline: allow
+    workbenches:
+      managementState: Managed
+      workbenchNamespace: rhods-notebooks

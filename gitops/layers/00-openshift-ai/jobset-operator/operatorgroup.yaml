@@ -1,0 +1,12 @@
+# OwnNamespace / SingleNamespace only (not AllNamespaces).
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: job-set
+  namespace: openshift-jobset-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  upgradeStrategy: Default
+  targetNamespaces:
+    - openshift-jobset-operator

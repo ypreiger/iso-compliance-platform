@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - OpenShift 4.14+ (or Kubernetes 1.28+)
-- Red Hat OpenShift AI operator installed
+- Red Hat OpenShift AI operator installed (**3.5 GA** on channel `stable-3.x`; see [OPENSHIFT_AI.md](./OPENSHIFT_AI.md))
 - `oc` / `kubectl` CLI, `git`
 - GitHub repo: `https://github.com/ypreiger/iso-compliance-platform`
 
@@ -44,6 +44,7 @@ Everything is managed by ArgoCD. Make a change → push to `main` → ArgoCD syn
 
 | App | Source path | Namespace |
 |-----|------------|-----------|
+| `iso-00-openshift-ai` | `gitops/layers/00-openshift-ai` | cluster (RHOAI / Kueue / LWS) |
 | `iso-compliance-platform` | `gitops/overlays/ocp-sandbox3159` | iso-platform |
 | `llm-ai-platform` | `gitops/overlays/ocp-sandbox3159/llm-ai` | llm |
 
@@ -119,8 +120,9 @@ Playground operations are documented in one canonical file to avoid duplication:
 
 ## RHOAI Setup
 
-See [RHOAI_MAAS_GUARDRAILS.md](./RHOAI_MAAS_GUARDRAILS.md) for full MaaS + TrustyAI setup.
-See [PLAYGROUND.md](./PLAYGROUND.md) for Playground/STT/guardrails runtime behavior.
+Platform version, DSC components, AutoRAG/OGX flags: [OPENSHIFT_AI.md](./OPENSHIFT_AI.md).  
+MaaS + TrustyAI: [RHOAI_MAAS_GUARDRAILS.md](./RHOAI_MAAS_GUARDRAILS.md).  
+Playground/STT/guardrails runtime: [PLAYGROUND.md](./PLAYGROUND.md).
 
 ---
 

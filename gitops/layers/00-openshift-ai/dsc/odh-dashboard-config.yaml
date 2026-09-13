@@ -1,0 +1,89 @@
+# Dashboard feature flags for OpenShift AI 3.5. Boolean "disable*" keys hide UI
+# when true; positive feature keys enable UI when true. Extra GA/TP flags that
+# the live CRD does not yet declare are omitted (structural schema rejects them).
+apiVersion: opendatahub.io/v1alpha
+kind: OdhDashboardConfig
+metadata:
+  name: odh-dashboard-config
+  namespace: redhat-ods-applications
+  labels:
+    app: rhods-dashboard
+    app.kubernetes.io/part-of: rhods-dashboard
+    app.opendatahub.io/rhods-dashboard: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "12"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,ServerSideApply=true
+spec:
+  notebookController:
+    enabled: true
+    notebookNamespace: rhods-notebooks
+    pvcSize: 20Gi
+  genAiStudioConfig:
+    aiAssetCustomEndpoints:
+      externalProviders: true
+      clusterDomains: []
+  dashboardConfig:
+    # Agent orchestration / Gen AI studio
+    genAiStudio: true
+    autorag: true
+    automl: true
+    aiAssetCustomEndpoints: true
+    promptManagement: true
+    mcpCatalog: true
+    mcpRegistry: true
+    agentsCatalog: true
+    agentOps: true
+    agentConfigManagement: true
+    toolCalling: true
+    guardrails: true
+    genAiTracing: true
+    modelAsService: true
+    vLLMDeploymentOnMaaS: true
+    llmGatewayField: true
+    llmdTemplates: true
+    externalVectorStores: true
+    externalModels: true
+    deploymentWizardYAMLViewer: true
+    connectionTest: true
+    featureStoreAdmin: true
+    globalProjectPrompts: true
+    gpuaas: true
+    roleManagement: true
+    # Show core navigation (false = visible)
+    disableHome: false
+    disableProjects: false
+    disableProjectSharing: false
+    disableProjectScoped: false
+    disablePipelines: false
+    disableModelServing: false
+    disableModelCatalog: false
+    disableModelRegistry: false
+    disableModelRegistrySecureDB: false
+    disableKServe: false
+    disableKServeAuth: false
+    disableKServeMetrics: false
+    disableKServeRaw: false
+    disableLLMd: false
+    disableNIMModelServing: false
+    disableCustomServingRuntimes: false
+    disableServingRuntimeParams: false
+    disablePerformanceMetrics: false
+    disableDistributedWorkloads: false
+    disableFeatureStore: false
+    disableLMEval: false
+    disableKueue: false
+    disableTrustyBiasMetrics: false
+    disableTracking: false
+    disableInfo: false
+    disableISVBadges: false
+    disableSupport: false
+    disableUserManagement: false
+    disableAdminConnectionTypes: false
+    disableBYONImageStream: false
+    disableClusterManager: false
+    disableStorageClasses: false
+    # Positive feature toggles
+    enablement: true
+    projectRBAC: true
+    observabilityDashboard: true
+    trainingJobs: true

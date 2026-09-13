@@ -24,7 +24,7 @@ services/
 infra/
   openshift-rhoai/  # RHOAI MaaS manifests, GitOps overlays
   k8s-litellm/      # LiteLLM gateway manifests
-gitops/             # 4-layer one-click deploy (OpenShift GitOps/Argo CD)
+gitops/             # 5-layer GitOps (00 OpenShift AI → 04 RAG)
 RAG/                # Seed corpus: Standards, Samples, Templates (Git LFS for PDFs)
 scripts/            # deploy-all.sh, verify-*.sh, dry-run-local.sh
 docs/               # PRD, ARCHITECTURE, DEPLOYMENT, GITOPS, AUTH, UI
@@ -146,11 +146,12 @@ app/
 
 ## GitOps deployment model
 
-Four sequential layers under `gitops/layers/`:
-1. **01-platform-infra**: Namespaces, RBAC, RHOAI endpoint placeholders
-2. **02-app-infra**: PostgreSQL, Redis, PVCs, ConfigMaps/Secrets examples
-3. **03-application**: iso-api, iso-web, Services, Routes
-4. **04-rag-population**: Job clones repo → ingests `RAG/` per `manifest.yaml`
+Five sequential layers under `gitops/layers/`:
+1. **00-openshift-ai**: OpenShift AI 3.5 GA operator (`stable-3.x`), DataScienceCluster, dashboard flags, Kueue, LeaderWorkerSet
+2. **01-platform-infra**: Namespaces, RBAC, RHOAI endpoint placeholders
+3. **02-app-infra**: PostgreSQL, Redis, PVCs, ConfigMaps/Secrets examples
+4. **03-application**: iso-api, iso-web, Services, Routes
+5. **04-rag-population**: Job clones repo → ingests `RAG/` per `manifest.yaml`
 
 Each layer has `scripts/verify-layer-NN.sh`. Root Application `iso-compliance-platform` in `openshift-gitops` syncs all with sync waves.
 

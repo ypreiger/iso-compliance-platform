@@ -1,0 +1,37 @@
+# Cluster-scoped Red Hat build of Kueue operand. OpenShift AI 3.5 creates this
+# CR when spec.components.kueue.managementState is Unmanaged; we own the full
+# integration list (max 18 frameworks).
+apiVersion: kueue.openshift.io/v1
+kind: Kueue
+metadata:
+  name: cluster
+  labels:
+    app.kubernetes.io/name: kueue-operator
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,ServerSideApply=true
+spec:
+  managementState: Managed
+  logLevel: Normal
+  operatorLogLevel: Normal
+  config:
+    integrations:
+      frameworks:
+        - BatchJob
+        - RayJob
+        - RayCluster
+        - RayService
+        - JobSet
+        - MPIJob
+        - PaddleJob
+        - PyTorchJob
+        - TFJob
+        - TrainJob
+        - XGBoostJob
+        - AppWrapper
+        - Pod
+        - Deployment
+        - StatefulSet
+        - LeaderWorkerSet
+        - SparkApplication
