@@ -27,7 +27,7 @@ data:
   QWEN3_MODEL_NAME: "gpt-oss-20b"
   # Guardrails endpoint (set after GuardrailsOrchestrator is Ready)
   GUARDRAILS_ENDPOINT: ""
-  RHOAI_DASHBOARD_URL: "https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com"
+  RHOAI_DASHBOARD_URL: "https://rh-ai.apps.ocp.7hrxw.sandbox880.opentlc.com"
   # Use GPT-oss-20b direct KServe endpoint for all doc-agent tasks (bypass MaaS auth)
   PARSE_MODEL_URL: "https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1"
   PARSE_MODEL_NAME: "gpt-oss-20b"

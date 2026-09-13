@@ -75,6 +75,13 @@ for nested, expected in (("modelsAsService", "Removed"), ("wva", "Managed"), ("n
         ok = False
     else:
         print(f"PASS  DSC kserve.{nested}={got}")
+aigw = spec.get("aigateway") or {}
+got = (aigw.get("modelsAsAService") or {}).get("managementState")
+if got != "Removed":
+    print(f"FAIL  DSC aigateway.modelsAsAService={got} (want Removed — conflicts with Kuadrant MaaS)")
+    ok = False
+else:
+    print("PASS  DSC aigateway.modelsAsAService=Removed")
 conds = (dsc.get("status") or {}).get("conditions") or []
 ready = next((c for c in conds if c.get("type") == "Ready"), None)
 if ready and ready.get("status") == "True":
@@ -166,6 +173,25 @@ if oc get pods -n redhat-ods-applications -l app.kubernetes.io/name=ogx-k8s-oper
   ok "OGX operator pod Running"
 else
   info "OGX operator pod not Running yet (may still be rolling)"
+fi
+
+# Lab Kuadrant MaaS must stay in front of the playground (not 3.5 bundled MaaS).
+enforced="$(oc get authpolicy gateway-auth-policy -n openshift-ingress -o jsonpath='{.status.conditions[?(@.type=="Enforced")].status}' 2>/dev/null || true)"
+if [[ "${enforced}" == "True" ]]; then
+  ok "AuthPolicy gateway-auth-policy Enforced"
+else
+  bad "AuthPolicy gateway-auth-policy Enforced=${enforced:-missing} (playground MaaS auth)"
+fi
+if oc get tokenratelimitpolicy gateway-default-deny -n openshift-ingress &>/dev/null; then
+  bad "TokenRateLimitPolicy gateway-default-deny present (3.5 MaaS deny-all; playground 429)"
+else
+  ok "No leftover gateway-default-deny TokenRateLimitPolicy"
+fi
+kready="$(oc get deploy kuadrant-operator-controller-manager -n kuadrant-system -o jsonpath='{.status.readyReplicas}' 2>/dev/null || true)"
+if [[ "${kready}" == "1" ]]; then
+  ok "Kuadrant operator manager Ready"
+else
+  bad "Kuadrant operator manager readyReplicas=${kready:-0} (needs ~1Gi memory)"
 fi
 
 exit "${fail}"

@@ -18,8 +18,12 @@ spec:
       managementState: Managed
       batchGateway:
         managementState: Managed
+      # Kept Removed: 3.5 bundled MaaS installs a second AuthPolicy on
+      # maas-default-gateway (API-key / default-audience tokens) and a
+      # CrashLoop maas-api that hijacks the existing Kuadrant MaaS used by
+      # the ISO playground. Re-enable only after a dedicated gateway + DB.
       modelsAsAService:
-        managementState: Managed
+        managementState: Removed
     aipipelines:
       managementState: Managed
       argoWorkflowsControllers:

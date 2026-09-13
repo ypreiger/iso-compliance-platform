@@ -45,10 +45,10 @@ so this repo can own those CRs.
 | `dashboard` | Managed | OpenShift AI UI |
 | `aigateway` | Managed | AI Gateway, batch gateway, MaaS |
 | `aigateway.batchGateway` | Managed | Batch inference gateway |
-| `aigateway.modelsAsAService` | Managed | Models as a Service (3.5 field) |
+| `aigateway.modelsAsAService` | **Removed** | Conflicts with existing Kuadrant MaaS on `maas-default-gateway` (playground 401). Keep the lab `maas-api` stack. |
 | `kserve` | Managed | Model serving / `LLMInferenceService` |
 | `kserve.nim` | Managed | NVIDIA NIM integration |
-| `kserve.modelsAsService` | Removed | Deprecated; cannot re-enable. Use `aigateway.modelsAsAService` |
+| `kserve.modelsAsService` | Removed | Deprecated; cannot re-enable. Do **not** turn on `aigateway.modelsAsAService` on this sandbox (shared `maas-default-gateway`). |
 | `kserve.wva` | Managed | Workload Variant Autoscaler (llm-d) |
 | `kserve.modelCache` | Managed | Local model cache on GPU nodes (50Gi) |
 | `ogx` | Managed | **Agent orchestration** (replaces Llama Stack) |
@@ -142,6 +142,33 @@ oc apply -k gitops/layers/00-openshift-ai
 
 Do **not** re-enable self-heal on the lab `openshift-ai` Application or it will
 fight `default-dsc`.
+
+## Sandbox coexistence with lab MaaS
+
+This cluster already fronts models through Kuadrant on `maas-default-gateway`
+(AuthPolicy `gateway-auth-policy`, SA audience `maas-default-gateway-sa`).
+OpenShift AI 3.5 `aigateway.modelsAsAService=Managed` installs a second stack
+(`maas-controller`, AuthPolicy `maas-gateway-auth`, TokenRateLimitPolicy
+`gateway-default-deny` with limit 0) on that same Gateway. Symptoms:
+
+- Playground `/chat` → `401` (API-key / default-audience TokenReview)
+- Then `429 Too Many Requests` (deny-all token rate limit)
+
+Keep `modelsAsAService: Removed`. If leftovers return, delete
+`tokenratelimitpolicies.kuadrant.io/gateway-default-deny` in `openshift-ingress`
+and `configs.maas.opendatahub.io/default`, and scale
+`deployment/maas-controller` in `redhat-ods-applications` to 0.
+
+The lab Kuadrant operator CSV caps the manager at 300Mi. Under AuthConfig load
+it OOM-kills (exit 137) and never re-enforces `gateway-auth-policy`. Raise it:
+
+```bash
+oc patch sub rhcl-operator -n kuadrant-system --type merge -p \
+  '{"spec":{"config":{"resources":{"limits":{"cpu":"500m","memory":"1Gi"},"requests":{"cpu":"200m","memory":"512Mi"}}}}}'
+```
+
+The lab Application `rhcl-operator` may revert that Subscription config on
+self-heal; re-apply if the manager starts crash-looping again.
 
 ## References
 

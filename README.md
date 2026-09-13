@@ -8,7 +8,7 @@ AI-powered ISO compliance management platform built on Red Hat OpenShift AI.
 |---|---|
 | **AI Playground** | https://playground-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com |
 | **ISO Compliance App** | https://iso-web-iso-platform.apps.ocp.7hrxw.sandbox880.opentlc.com |
-| **RHOAI Dashboard** | https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com |
+| **RHOAI Dashboard** | https://rh-ai.apps.ocp.7hrxw.sandbox880.opentlc.com |
 | **Grafana** (single ops dashboard) | https://grafana-route-grafana.apps.ocp.7hrxw.sandbox880.opentlc.com — search **MaaS Token Metrics Dashboard (with User/Model Filters)** |
 | **ArgoCD** | https://openshift-gitops-server-openshift-gitops.apps.ocp.7hrxw.sandbox880.opentlc.com |
 | **MaaS Gateway** | https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com |

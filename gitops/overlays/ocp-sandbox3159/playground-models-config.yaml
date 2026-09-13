@@ -5,6 +5,8 @@
 #
 # To add a model: add an entry to MODELS_CONFIG and redeploy the playground.
 # To change a model endpoint: edit this ConfigMap — no code change needed.
+# qwen3-4b-instruct is omitted: the sandbox has one GPU, used by gpt-oss-20b
+# (qwen LLMInferenceService stays Ready with spec.replicas: 0).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -31,14 +33,6 @@ data:
         "provider": "rhoai",
         "auth": "maas_token",
         "note": "21B params (3.6B active MoE) · 128k context · Reasoning · L40 GPU · Apache 2.0"
-      },
-      {
-        "id": "qwen3-4b-instruct",
-        "label": "Qwen3 4B Instruct 2507 — RHOAI MaaS (on-prem GPU)",
-        "url": "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/qwen3-4b-instruct/v1",
-        "provider": "rhoai",
-        "auth": "maas_token",
-        "note": "4B params · 131k context · L40 GPU · Red Hat vLLM serving"
       },
       {
         "id": "gpt-4o",
@@ -114,7 +108,7 @@ data:
   FILE_PARSE_LANGUAGE: "he"
 
   # ── RHOAI & TrustyAI integration ─────────────────────────────────────────
-  RHOAI_DASHBOARD_URL: "https://rhods-dashboard-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com"
+  RHOAI_DASHBOARD_URL: "https://rh-ai.apps.ocp.7hrxw.sandbox880.opentlc.com"
   MAAS_BASE_URL: "https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com"
   TRUSTYAI_URL: "http://trustyai.llm.svc.cluster.local"
   TRUSTYAI_EXTERNAL_URL: "https://trustyai-redhat-ods-applications.apps.ocp.7hrxw.sandbox880.opentlc.com"
