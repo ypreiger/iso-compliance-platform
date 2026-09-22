@@ -132,13 +132,20 @@ built-in observability stack can start.
 ```bash
 # After merge to main, register (or refresh) the Argo app
 oc apply -f gitops/overlays/ocp-sandbox3159/apps/iso-00-openshift-ai.yaml
+oc apply -f gitops/overlays/ocp-sandbox3159/apps/rhoai-demo-app.yaml
+oc apply -f gitops/overlays/ocp-sandbox3159/apps/rhoai-demo-registry-app.yaml
 
 # Direct apply (cluster-admin)
 oc apply -k gitops/layers/00-openshift-ai
+oc apply -k gitops/overlays/ocp-sandbox3159/rhoai-demo
 
 # Verify
 ./scripts/verify-openshift-ai.sh
+./scripts/verify-rhoai-demo.sh
 ```
+
+Connected demo walkthrough (Gen AI Studio, AutoRAG, pipelines, MLflow, MCP, Feature Store):
+[RHOAI_35_DEMO.md](RHOAI_35_DEMO.md).
 
 Do **not** re-enable self-heal on the lab `openshift-ai` Application or it will
 fight `default-dsc`.

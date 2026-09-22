@@ -20,3 +20,5 @@ resources:
   - dsc/dscinitialization.yaml
   - dsc/datasciencecluster.yaml
   - dsc/odh-dashboard-config.yaml
+  - dsc/hardwareprofile-gpu.yaml
+  - kueue-operator/clusterqueue.yaml

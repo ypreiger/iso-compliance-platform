@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhoai-demo-registry
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+    app.kubernetes.io/component: rhoai-demo
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ypreiger/iso-compliance-platform.git
+    targetRevision: main
+    path: gitops/overlays/ocp-sandbox3159/rhoai-model-registry
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rhoai-model-registries
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - SkipDryRunOnMissingResource=true
+      - ServerSideApply=true

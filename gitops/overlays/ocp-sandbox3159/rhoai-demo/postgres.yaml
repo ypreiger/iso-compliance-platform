@@ -1,0 +1,112 @@
+# PostgreSQL for OGX (rh distribution requires POSTGRES_*). Demo-only credentials.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres
+  namespace: rhoai-demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-anyuid
+  namespace: rhoai-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: postgres
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres
+  namespace: rhoai-demo
+stringData:
+  POSTGRESQL_USER: ogx
+  POSTGRESQL_PASSWORD: ogx-demo-pass
+  POSTGRESQL_DATABASE: ogx
+  POSTGRES_USER: ogx
+  POSTGRES_PASSWORD: ogx-demo-pass
+  POSTGRES_DB: ogx
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres
+  namespace: rhoai-demo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: rhoai-demo
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      serviceAccountName: postgres
+      securityContext:
+        fsGroup: 26
+        runAsUser: 26
+        runAsNonRoot: true
+      containers:
+        - name: postgres
+          image: registry.redhat.io/rhel9/postgresql-16:latest
+          envFrom:
+            - secretRef:
+                name: postgres
+          ports:
+            - containerPort: 5432
+              name: postgres
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ogx"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: rhoai-demo
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

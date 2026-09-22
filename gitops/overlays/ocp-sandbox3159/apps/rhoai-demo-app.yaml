@@ -1,0 +1,52 @@
+# Demo Data Science project that wires OpenShift AI 3.5 GA + TP surfaces
+# (AutoRAG, Gen AI Studio/OGX, pipelines, MLflow, EvalHub, Feature Store, MCP).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rhoai-demo
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+    app.kubernetes.io/component: rhoai-demo
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ypreiger/iso-compliance-platform.git
+    targetRevision: main
+    path: gitops/overlays/ocp-sandbox3159/rhoai-demo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rhoai-demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - RespectIgnoreDifferences=true
+    managedNamespaceMetadata:
+      labels:
+        opendatahub.io/dashboard: "true"
+        app.kubernetes.io/part-of: iso-compliance-platform
+      annotations:
+        openshift.io/display-name: RHOAI 3.5 demo
+  ignoreDifferences:
+    - group: kubeflow.org
+      kind: Notebook
+      jsonPointers:
+        - /metadata/annotations/kubeflow-resource-stopped
+        - /status
+    - group: datasciencepipelinesapplications.opendatahub.io
+      kind: DataSciencePipelinesApplication
+      jsonPointers:
+        - /status
+    - group: ogx.io
+      kind: OGXServer
+      jsonPointers:
+        - /status

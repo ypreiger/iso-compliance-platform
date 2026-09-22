@@ -1,0 +1,44 @@
+# Pipeline server for AutoRAG, AutoML, and the iris sample pipeline.
+# Object storage is the demo MinIO (externalStorage) so AutoRAG and MLflow
+# share the same bucket.
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1
+kind: DataSciencePipelinesApplication
+metadata:
+  name: dspa
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    openshift.io/display-name: Demo pipeline server
+spec:
+  dspVersion: v2
+  apiServer:
+    deploy: true
+    enableOauth: true
+    enableSamplePipeline: true
+    cacheEnabled: true
+  database:
+    mariaDB:
+      deploy: true
+      pipelineDBName: mlpipeline
+      username: mlpipeline
+      pvcSize: 10Gi
+  objectStorage:
+    enableExternalRoute: false
+    externalStorage:
+      host: minio.rhoai-demo.svc.cluster.local
+      port: "9000"
+      scheme: http
+      secure: false
+      bucket: rhoai-demo
+      region: us-east-1
+      basePath: /pipelines
+      s3CredentialsSecret:
+        secretName: pipeline-bucket
+        accessKey: AWS_ACCESS_KEY_ID
+        secretKey: AWS_SECRET_ACCESS_KEY
+  mlflow:
+    integrationMode: AUTODETECT
+    injectUserEnvVars: true
+  podToPodTLS: false

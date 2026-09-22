@@ -1,0 +1,40 @@
+# Default Kueue flavor + cluster queue so training jobs, Ray, Spark, and
+# JobSet show as admitted in the UI. LocalQueue objects are created per
+# Data Science project (see overlays/.../rhoai-demo).
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: default
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "11"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec: {}
+---
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ClusterQueue
+metadata:
+  name: default
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "12"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  namespaceSelector: {}
+  queueingStrategy: BestEffortFIFO
+  resourceGroups:
+    - coveredResources:
+        - cpu
+        - memory
+        - nvidia.com/gpu
+      flavors:
+        - name: default
+          resources:
+            - name: cpu
+              nominalQuota: "80"
+            - name: memory
+              nominalQuota: 400Gi
+            - name: nvidia.com/gpu
+              nominalQuota: "1"

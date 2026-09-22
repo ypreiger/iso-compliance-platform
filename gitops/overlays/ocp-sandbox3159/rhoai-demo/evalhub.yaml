@@ -1,0 +1,25 @@
+# Project EvalHub CR (TP). The Evaluations UI is eval-hub-ui in
+# redhat-ods-applications; 3.5.1 has no dedicated EvalHub operand
+# controller, so this CR is the dashboard-visible project config.
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: EvalHub
+metadata:
+  name: evalhub
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    openshift.io/display-name: Demo EvalHub
+spec:
+  replicas: 1
+  database:
+    type: sqlite
+  otel:
+    enableMetrics: true
+    enableTracing: true
+    enableLogs: false
+    exporterType: otlp-grpc
+    exporterEndpoint: data-science-collector-collector.redhat-ods-monitoring.svc.cluster.local:4317
+    exporterInsecure: true
+    samplingRatio: "0.2"

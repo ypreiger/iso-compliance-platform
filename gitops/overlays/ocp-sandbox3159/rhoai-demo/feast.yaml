@@ -1,0 +1,12 @@
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: iso-features
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    openshift.io/display-name: ISO feature store
+spec:
+  feastProject: iso_features

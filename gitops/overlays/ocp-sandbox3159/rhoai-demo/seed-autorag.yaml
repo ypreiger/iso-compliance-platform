@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autorag-sample
+  namespace: rhoai-demo
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+data:
+  iso9001-overview.md: |
+    # ISO 9001 Quality Management Systems
+
+    ISO 9001 is an international standard that specifies requirements for a
+    quality management system (QMS). Organizations use it to demonstrate the
+    ability to consistently provide products and services that meet customer and
+    regulatory requirements.
+
+    ## Clause 4 — Context of the organization
+    The organization shall determine external and internal issues that are
+    relevant to its purpose and that affect its ability to achieve the intended
+    results of its QMS.
+
+    ## Clause 5 — Leadership
+    Top management shall demonstrate leadership and commitment with respect to
+    the QMS, including accountability for effectiveness and promoting
+    improvement.
+
+    ## Clause 6 — Planning
+    The organization shall consider risks and opportunities, quality objectives,
+    and planning of changes.
+
+    ## Clause 7 — Support
+    Documented information, competence, awareness, and communication are
+    required. Documented information required by the QMS shall be controlled.
+
+    ## Clause 8 — Operation
+    The organization shall plan, implement, and control processes needed to
+    meet requirements for products and services.
+
+    ## Clause 9 — Performance evaluation
+    Monitoring, measurement, analysis, internal audit, and management review.
+
+    ## Clause 10 — Improvement
+    Nonconformity, corrective action, and continual improvement.
+  iso14001-overview.md: |
+    # ISO 14001 Environmental Management Systems
+
+    ISO 14001 specifies requirements for an environmental management system
+    (EMS) that an organization can use to enhance environmental performance,
+    fulfil compliance obligations, and achieve environmental objectives.
+  eval.jsonl: |
+    {"question":"What is ISO 9001?","answer":"An international standard for quality management systems."}
+    {"question":"Which ISO 9001 clause covers documented information?","answer":"Clause 7 Support (documented information)."}
+    {"question":"What does ISO 14001 specify?","answer":"Requirements for an environmental management system."}
+---
+# Uploads sample documents into MinIO after it is Ready (AutoRAG + Feature Store demos).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-autorag-bucket
+  namespace: rhoai-demo
+  labels:
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 8
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
+          env:
+            - name: HOME
+              value: /tmp
+            - name: MC_CONFIG_DIR
+              value: /tmp/.mc
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              for i in $(seq 1 36); do
+                if mc alias set demo http://minio.rhoai-demo.svc.cluster.local:9000 minio minio12345; then
+                  break
+                fi
+                echo "waiting for minio..."
+                sleep 5
+              done
+              mc mb --ignore-existing demo/rhoai-demo
+              mc cp /seed/iso9001-overview.md demo/rhoai-demo/autorag/docs/iso9001-overview.md
+              mc cp /seed/iso14001-overview.md demo/rhoai-demo/autorag/docs/iso14001-overview.md
+              mc cp /seed/eval.jsonl demo/rhoai-demo/autorag/eval.jsonl
+              mc ls --recursive demo/rhoai-demo
+          volumeMounts:
+            - name: seed
+              mountPath: /seed
+              readOnly: true
+      volumes:
+        - name: seed
+          configMap:
+            name: autorag-sample

@@ -1,0 +1,74 @@
+# OGX (formerly Llama Stack) server for Gen AI Studio playground, RAG, and agents.
+# Points at in-cluster gpt-oss-20b (TLS verify off for the KServe serving cert).
+apiVersion: ogx.io/v1beta1
+kind: OGXServer
+metadata:
+  name: ogx
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    openshift.io/display-name: Gen AI Studio OGX
+    opendatahub.io/description: OGX server wired to gpt-oss-20b and BGE-M3 for playground / RAG / agents.
+spec:
+  distribution:
+    name: rh
+  network:
+    port: 8321
+  monitoring:
+    enabled: true
+  workload:
+    replicas: 1
+    storage:
+      size: 20Gi
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 8Gi
+    overrides:
+      env:
+        - name: VLLM_URL
+          value: https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1
+        - name: INFERENCE_MODEL
+          value: gpt-oss-20b
+        - name: VLLM_TLS_VERIFY
+          value: "false"
+        - name: VLLM_API_TOKEN
+          value: fake
+        - name: VLLM_MAX_TOKENS
+          value: "8192"
+        - name: FMS_ORCHESTRATOR_URL
+          value: http://qwen3-guardrails-service.llm.svc.cluster.local:8034
+        - name: POSTGRES_HOST
+          value: postgres.rhoai-demo.svc.cluster.local
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: ogx
+        - name: POSTGRES_USER
+          value: ogx
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres
+              key: POSTGRES_PASSWORD
+        # rh run.yaml registers provider id vllm-embedding. Enable it with
+        # VLLM_EMBEDDING_URL (not EMBEDDING_MODEL_URL).
+        - name: VLLM_EMBEDDING_URL
+          value: http://bge-m3.llm.svc.cluster.local:8080/v1
+        - name: VLLM_EMBEDDING_TLS_VERIFY
+          value: "false"
+        - name: VLLM_EMBEDDING_API_TOKEN
+          value: fake
+        - name: EMBEDDING_MODEL
+          value: bge-m3
+        - name: EMBEDDING_PROVIDER_MODEL_ID
+          value: bge-m3
+        - name: ENABLE_SENTENCE_TRANSFORMERS
+          value: "true"
+        - name: ENABLE_INLINE_MILVUS
+          value: "true"

@@ -26,5 +26,6 @@ Implement and test this flavor **first**.
 ## References
 
 - [OpenShift AI 3.5 GA on this cluster](../../docs/OPENSHIFT_AI.md)
+- [RHOAI 3.5 demo project (`rhoai-demo`)](../../docs/RHOAI_35_DEMO.md)
 - [RHOAI MaaS governance (3.5)](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html-single/govern_llm_access_with_models-as-a-service/index)
 - ragu-builder `openshift-bootstrap/app/openai-gateway/` (passthrough pattern)

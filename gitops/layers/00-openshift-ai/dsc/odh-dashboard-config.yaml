@@ -21,7 +21,11 @@ spec:
   genAiStudioConfig:
     aiAssetCustomEndpoints:
       externalProviders: true
-      clusterDomains: []
+      clusterDomains:
+        - cluster.local
+        - svc.cluster.local
+  globalMLflowNamespaces:
+    - rhoai-demo
   dashboardConfig:
     # Agent orchestration / Gen AI studio
     genAiStudio: true
@@ -72,6 +76,7 @@ spec:
     disableFeatureStore: false
     disableLMEval: false
     disableKueue: false
+    disableModelMesh: true
     disableTrustyBiasMetrics: false
     disableTracking: false
     disableInfo: false

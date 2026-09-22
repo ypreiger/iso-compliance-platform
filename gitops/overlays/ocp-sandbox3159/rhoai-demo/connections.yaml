@@ -1,0 +1,84 @@
+# Dashboard connections (Connections tab + AI asset endpoints + pipeline/AutoRAG S3).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gpt-oss-20b-endpoint
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/managed: "true"
+  annotations:
+    opendatahub.io/connection-type: uri-v1
+    opendatahub.io/connection-type-ref: uri-v1
+    openshift.io/display-name: GPT-oss-20b (in-cluster)
+    opendatahub.io/description: On-prem GPU LLM used by Gen AI Studio, AutoRAG, and the ISO playground.
+stringData:
+  URI: https://gpt-oss-20b-kserve-workload-svc.llm.svc.cluster.local:8000/v1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gpt-oss-20b-maas
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/managed: "true"
+  annotations:
+    opendatahub.io/connection-type: uri-v1
+    opendatahub.io/connection-type-ref: uri-v1
+    openshift.io/display-name: GPT-oss-20b (MaaS)
+    opendatahub.io/description: Same model via the lab Kuadrant MaaS gateway.
+stringData:
+  URI: https://maas.apps.ocp.7hrxw.sandbox880.opentlc.com/llm/gpt-oss-20b/v1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bge-m3-endpoint
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/managed: "true"
+  annotations:
+    opendatahub.io/connection-type: uri-v1
+    opendatahub.io/connection-type-ref: uri-v1
+    openshift.io/display-name: BGE-M3 embeddings
+    opendatahub.io/description: Embedding model for RAG / AutoRAG / Gen AI Studio.
+stringData:
+  URI: http://bge-m3.llm.svc.cluster.local:8080/v1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: whisper-small-endpoint
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/managed: "true"
+  annotations:
+    opendatahub.io/connection-type: uri-v1
+    opendatahub.io/connection-type-ref: uri-v1
+    openshift.io/display-name: Whisper-small STT
+stringData:
+  URI: http://whisper-small.llm.svc.cluster.local:8080/v1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pipeline-bucket
+  namespace: rhoai-demo
+  labels:
+    opendatahub.io/dashboard: "true"
+    opendatahub.io/managed: "true"
+    app: minio
+  annotations:
+    opendatahub.io/connection-type: s3
+    opendatahub.io/connection-type-ref: s3
+    openshift.io/display-name: Demo object storage
+    opendatahub.io/description: MinIO bucket for pipelines, AutoRAG documents, and MLflow artifacts.
+stringData:
+  AWS_ACCESS_KEY_ID: minio
+  AWS_SECRET_ACCESS_KEY: minio12345
+  AWS_S3_ENDPOINT: http://minio.rhoai-demo.svc.cluster.local:9000
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_S3_BUCKET: rhoai-demo

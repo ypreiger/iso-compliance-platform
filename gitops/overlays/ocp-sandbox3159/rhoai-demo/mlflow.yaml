@@ -1,0 +1,25 @@
+# Cluster-scoped MLflow CR (operator runs it in redhat-ods-applications).
+# SQLite and artifacts must live on the operator-mounted PVC at /mlflow.
+# Do not point sqlite at /opt/app-root (OSError during migration) or at
+# MinIO secrets in rhoai-demo (those are a different namespace).
+apiVersion: mlflow.opendatahub.io/v1
+kind: MLflow
+metadata:
+  name: mlflow
+  labels:
+    opendatahub.io/dashboard: "true"
+    app.kubernetes.io/part-of: iso-compliance-platform
+  annotations:
+    openshift.io/display-name: Demo MLflow
+spec:
+  replicas: 1
+  backendStoreUri: sqlite:////mlflow/mlflow.db
+  registryStoreUri: sqlite:////mlflow/registry.db
+  defaultArtifactRoot: file:///mlflow/artifacts
+  serveArtifacts: true
+  storage:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
