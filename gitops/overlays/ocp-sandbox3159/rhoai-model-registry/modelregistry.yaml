@@ -9,7 +9,7 @@ stringData:
   database-password: "registry-demo-pass"
 ---
 # Lives in the DSC-configured registries namespace so it appears under
-# AI hub → Model registry.
+# AI hub → Model registry. 3.5.1 persists kubeRBACProxy (not oauthProxy).
 apiVersion: modelregistry.opendatahub.io/v1beta1
 kind: ModelRegistry
 metadata:
@@ -20,9 +20,13 @@ metadata:
     app.kubernetes.io/part-of: iso-compliance-platform
   annotations:
     openshift.io/display-name: Demo model registry
+    argocd.argoproj.io/sync-options: ServerSideApply=true,SkipDryRunOnMissingResource=true
 spec:
-  rest: {}
-  grpc: {}
+  rest:
+    port: 8080
+    serviceRoute: disabled
+  grpc:
+    port: 9090
   postgres:
     generateDeployment: true
     database: modelregistry
@@ -30,5 +34,10 @@ spec:
     passwordSecret:
       name: rhoai-demo-registry-db
       key: database-password
-  # 3.5.1 stores kubeRBACProxy (not oauthProxy). Leave proxy fields to the
-  # operator so GitOps does not send both and fail validation.
+    port: 5432
+    skipDBCreation: false
+    sslMode: disable
+  kubeRBACProxy:
+    port: 8443
+    routePort: 443
+    serviceRoute: enabled
