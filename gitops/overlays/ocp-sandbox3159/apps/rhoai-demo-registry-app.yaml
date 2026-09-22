@@ -32,5 +32,6 @@ spec:
         - /status
         - /spec/postgres
         - /spec/oauthProxy
+        - /spec/kubeRBACProxy
         - /spec/rest
         - /spec/grpc

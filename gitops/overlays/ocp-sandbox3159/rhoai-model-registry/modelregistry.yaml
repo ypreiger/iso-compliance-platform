@@ -30,5 +30,5 @@ spec:
     passwordSecret:
       name: rhoai-demo-registry-db
       key: database-password
-  oauthProxy:
-    serviceRoute: enabled
+  # 3.5.1 stores kubeRBACProxy (not oauthProxy). Leave proxy fields to the
+  # operator so GitOps does not send both and fail validation.
