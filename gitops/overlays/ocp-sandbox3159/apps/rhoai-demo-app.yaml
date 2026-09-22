@@ -41,6 +41,7 @@ spec:
       kind: Notebook
       jsonPointers:
         - /metadata/annotations/kubeflow-resource-stopped
+        - /spec/template/spec/containers
         - /status
     - group: datasciencepipelinesapplications.opendatahub.io
       kind: DataSciencePipelinesApplication
@@ -48,5 +49,18 @@ spec:
         - /status
     - group: ogx.io
       kind: OGXServer
+      jsonPointers:
+        - /status
+    - group: mlflow.opendatahub.io
+      kind: MLflow
+      jsonPointers:
+        - /status
+        - /spec/migration
+    - group: feast.dev
+      kind: FeatureStore
+      jsonPointers:
+        - /status
+    - group: mcp.x-k8s.io
+      kind: MCPServer
       jsonPointers:
         - /status

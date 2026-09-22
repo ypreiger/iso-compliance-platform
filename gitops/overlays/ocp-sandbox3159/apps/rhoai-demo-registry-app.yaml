@@ -24,3 +24,13 @@ spec:
     syncOptions:
       - SkipDryRunOnMissingResource=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: modelregistry.opendatahub.io
+      kind: ModelRegistry
+      jsonPointers:
+        - /status
+        - /spec/postgres
+        - /spec/oauthProxy
+        - /spec/rest
+        - /spec/grpc

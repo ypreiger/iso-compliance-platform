@@ -43,6 +43,13 @@ spec:
           image: image-registry.openshift-image-registry.svc:5000/redhat-ods-applications/s2i-generic-data-science-notebook:3.5
           imagePullPolicy: IfNotPresent
           workingDir: /opt/app-root/src
+          envFrom:
+            - secretRef:
+                name: pipeline-bucket
+            - secretRef:
+                name: gpt-oss-20b-endpoint
+            - secretRef:
+                name: bge-m3-endpoint
           env:
             - name: NOTEBOOK_ARGS
               value: |-
